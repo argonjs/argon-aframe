@@ -6,6 +6,8 @@ var CesiumMath = Argon.Cesium.CesiumMath;
 var AEntity = AFRAME.AEntity;
 var ANode = AFRAME.ANode;
 
+var AR_CAMERA_ATTR = "argon-aframe-ar-camera";
+
 // want to know when the document is loaded 
 document.DOMReady = function () {
 	return new Promise(function(resolve, reject) {
@@ -23,7 +25,7 @@ document.registerElement('ar-scene', {
   prototype: Object.create(AEntity.prototype, {
     defaultComponents: {
       value: {
-        'ar-camera': ''
+        'camera': ''    // need a vanilla camera to prevent the disable the default one
       }
     },
 
@@ -36,7 +38,8 @@ document.registerElement('ar-scene', {
         this.systems = {};
         this.time = 0;
         this.startTime = null;
-
+        this.argonApp = null;
+        
         // finish initializing
         this.init();
       }
@@ -55,8 +58,14 @@ document.registerElement('ar-scene', {
         this.initializeArgon = this.initializeArgon.bind(this);
         this.setupRenderer = this.setupRenderer.bind(this);
 
+        // var arCameraEl = this.arCameraEl = document.createElement('a-entity');
+        // arCameraEl.setAttribute(AR_CAMERA_ATTR, '');
+        // arCameraEl.setAttribute('camera', {'active': true});
+        // this.sceneEl.appendChild(arCameraEl);
+
         // run this whenever the document is loaded, which might be now
-        document.DOMReady().then(this.initializeArgon);
+        //document.DOMReady().then(this.initializeArgon);
+        this.initializeArgon();
       },
       writable: true 
     },
@@ -119,7 +128,8 @@ document.registerElement('ar-scene', {
     initializeArgon: {
         value: function () {
             this.argonApp = Argon.init();
-            this.startTime = this.argonApp.context.getTime().clone();
+            this.startTime = this.argonApp.context.getTime();
+            if (this.startTime) this.startTime = this.startTime.clone();
             this.argonApp.context.setDefaultReferenceFrame(this.argonApp.context.localOriginEastUpSouth);
 
             this.setupRenderer();
@@ -182,8 +192,11 @@ document.registerElement('ar-scene', {
      */
     update: {
         value: function () {
-            const time = JulianDate.secondsDifference(this.argonApp.context.getTime(), 
-                                                      this.startTime);
+            var time = 0;
+            if (this.startTime) 
+                time = JulianDate.secondsDifference(this.argonApp.context.getTime(), 
+                                                    this.startTime);
+        
             var timeDelta = time - this.time;
             if (timeDelta > 0.5) {
                 timeDelta = 0;  // large deltas make no sense in most cases 

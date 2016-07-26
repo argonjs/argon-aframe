@@ -1934,7 +1934,7 @@ $__System.register("7", ["8", "6", "c", "d", "e"], function(exports_1, context_1
           configurable: true
         });
         ContextService.prototype.getTime = function() {
-          return this.frame.time;
+          return this._frame.time;
         };
         ContextService.prototype.setDefaultReferenceFrame = function(origin) {
           this._defaultReferenceFrame = origin;

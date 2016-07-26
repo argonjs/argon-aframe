@@ -61115,10 +61115,10 @@ module.exports = registerElement('a-node', {
       }
     },
 
-    /**
-     * Returns the first scene by traversing up the tree starting from and
-     * including receiver element.
-     */
+   /**
+    * Returns the first scene by traversing up the tree starting from and
+    * including receiver element.
+    */
     closestScene: {
       value: function closest () {
         var element = this;
@@ -64996,6 +64996,7 @@ module.exports.System = registerSystem('tracked-controls', {
   },
 
   tick: function () {
+    if (!navigator.getGamepads) { return; }
     var gamepads = navigator.getGamepads();
     var gamepad;
     var controllers = this.controllers = [];
@@ -67137,6 +67138,8 @@ var CesiumMath = Argon.Cesium.CesiumMath;
 var AEntity = AFRAME.AEntity;
 var ANode = AFRAME.ANode;
 
+var AR_CAMERA_ATTR = "argon-aframe-ar-camera";
+
 // want to know when the document is loaded 
 document.DOMReady = function () {
 	return new Promise(function(resolve, reject) {
@@ -67152,6 +67155,12 @@ document.DOMReady = function () {
 
 document.registerElement('ar-scene', {
   prototype: Object.create(AEntity.prototype, {
+    defaultComponents: {
+      value: {
+        'camera': ''    // need a vanilla camera to prevent the disable the default one
+      }
+    },
+
     createdCallback: {
       value: function () {
         this.isMobile = false;
@@ -67161,7 +67170,8 @@ document.registerElement('ar-scene', {
         this.systems = {};
         this.time = 0;
         this.startTime = null;
-
+        this.argonApp = null;
+        
         // finish initializing
         this.init();
       }
@@ -67180,8 +67190,14 @@ document.registerElement('ar-scene', {
         this.initializeArgon = this.initializeArgon.bind(this);
         this.setupRenderer = this.setupRenderer.bind(this);
 
+        // var arCameraEl = this.arCameraEl = document.createElement('a-entity');
+        // arCameraEl.setAttribute(AR_CAMERA_ATTR, '');
+        // arCameraEl.setAttribute('camera', {'active': true});
+        // this.sceneEl.appendChild(arCameraEl);
+
         // run this whenever the document is loaded, which might be now
-        document.DOMReady().then(this.initializeArgon);
+        //document.DOMReady().then(this.initializeArgon);
+        this.initializeArgon();
       },
       writable: true 
     },
@@ -67244,7 +67260,8 @@ document.registerElement('ar-scene', {
     initializeArgon: {
         value: function () {
             this.argonApp = Argon.init();
-            this.startTime = this.argonApp.context.getTime().clone();
+            this.startTime = this.argonApp.context.getTime();
+            if (this.startTime) this.startTime = this.startTime.clone();
             this.argonApp.context.setDefaultReferenceFrame(this.argonApp.context.localOriginEastUpSouth);
 
             this.setupRenderer();
@@ -67307,8 +67324,11 @@ document.registerElement('ar-scene', {
      */
     update: {
         value: function () {
-            const time = JulianDate.secondsDifference(this.argonApp.context.getTime(), 
-                                                      this.startTime);
+            var time = 0;
+            if (this.startTime) 
+                time = JulianDate.secondsDifference(this.argonApp.context.getTime(), 
+                                                    this.startTime);
+        
             var timeDelta = time - this.time;
             if (timeDelta > 0.5) {
                 timeDelta = 0;  // large deltas make no sense in most cases 
@@ -67493,17 +67513,18 @@ const Transforms = Cesium.Transforms;
 const WGS84 = Cesium.Ellipsoid.WGS84;
 const ConstantPositionProperty = Cesium.ConstantPositionProperty;
 const ReferenceFrame = Cesium.ReferenceFrame;
+const ReferenceEntity = Cesium.ReferenceEntity;
 
 // AFRAME.registerComponent('lla'), {
 
 // });
 
-// AFRAME.registerSystem('referenceFrame', {
+// AFRAME.registerSystem('referenceframe', {
 
 // });
 
 /**
- * referenceFrame component for A-Frame.
+ * referenceframe component for A-Frame.
  * 
  * Use an Argon reference frame as the coordinate system for the position and 
  * orientation for this entity.  The position and orientation components are
@@ -67512,10 +67533,13 @@ const ReferenceFrame = Cesium.ReferenceFrame;
  * By default, it uses both the position and orientation of the reference frame
  * to define a coordinate frame for this entity, but either may be ignored, in which 
  * case the identity will be used. This is useful, for example, if you wish to have
- * this entity follow the position of a referenceFrame but be oriented in the 
+ * this entity follow the position of a referenceframe but be oriented in the 
  * coordinates of its parent (typically scene coordinates). 
+ * 
+ * Known frames include ar.user, ar.device, ar.localENU, ar.localEUS, 
+ * ar.device.orientation, ar.device.geolocation, ar.device.display
  */
-AFRAME.registerComponent('referenceFrame', {
+AFRAME.registerComponent('referenceframe', {
     schema: { 
         id: { type: 'string'},
         lla: { type: 'vec3'},
@@ -67530,6 +67554,10 @@ AFRAME.registerComponent('referenceFrame', {
     init: function () {
         var el = this.el;                   // entity
 
+        // this component only works with an Argon Scene
+        if (!this.el.sceneEl.argonApp) {
+            throw new Error('referenceframe must be used on a child of a <ar-scene>.');
+        }
 	    this.localRotationEuler = new THREE.Euler(0,0,0,'XYZ');
         this.localPosition = { x: 0, y: 0, z: 0 };
         this.localMatrix = new THREE.Matrix4();
@@ -67540,8 +67568,12 @@ AFRAME.registerComponent('referenceFrame', {
      */
     update: function (oldData) {
         var el = this.el;
+        var argonApp = this.el.sceneEl.argonApp;
+        var data = this.data;
+
         var lp = el.getComputedAttribute('position');
         var lo = el.getComputedAttribute('rotation');
+
         this.localPosition.x = lp.x;
         this.localPosition.y = lp.y;
         this.localPosition.z = lp.z;
@@ -67551,9 +67583,10 @@ AFRAME.registerComponent('referenceFrame', {
         this.localMatrix.makeRotationFromEuler(this.localRotationEuler);
         this.localMatrix.setPosition(this.localPosition);
 
-        var data = this.data;
         var cesiumPosition = null;
-        if (!(data.lla.x === 0 && data.lla.y === 0 && data.lla.z) && data.parentFrame !== 'FIXED') {
+        var lla = el.getAttribute("lla");
+//        if (!(data.lla.x === 0 && data.lla.y === 0 && data.lla.z === 0) && data.parentFrame !== 'FIXED') {
+        if (lla !== null && data.parentFrame !== 'FIXED') {
             console.warn("Using 'lla' with a 'parentFrame' other than 'FIXED' is invalid. Ignoring parentFrame value.");
             data.parentFrame = 'FIXED';
             cesiumPosition = Cartesian3.fromDegrees(data.lla.x, data.lla.y, data.lla.z);
@@ -67561,20 +67594,32 @@ AFRAME.registerComponent('referenceFrame', {
             cesiumPosition = Cartesian3.ZERO;
         }
 
+        // parentEntity is either FIXED or another Entity or ReferenceEntity 
+        var parentEntity;
+        if (data.parentFrame === 'FIXED') {
+            parentEntity = ReferenceFrame.FIXED;
+        } else {
+            parentEntity = argonApp.context.entities.getById(this.data.parentFrame);
+            if (!parentEntity) {
+                parentEntity = new ReferenceEntity(argonApp.context.entities, 
+                                                   this.data.parentFrame);
+            }
+        }
+
         // The first time here, we'll create a cesium Entity.  If the id has changed,
         // we'll recreate a new entity with the new id.
-        // Otherwise, we just update the entity's position 
+        // Otherwise, we just update the entity's position.
         if (this.cesiumEntity == null || data.id !== oldData.id) {
             var options = {
-                position: new ConstantPositionProperty(cesiumPosition, this.data.parentFrame),
+                position: new ConstantPositionProperty(cesiumPosition, parentEntity),
                 orientation: Cesium.Quaternion.IDENTITY
             }
             if (this.data.id !== '') {
                 options.id = this.data.id;
             }
-            this.cesiumEntity = new Entity(options);
+            this.cesiumEntity = new Cesium.Entity(options);
         } else {
-            boxGeoEntity.position.setValue(cesiumPosition, this.data.parentFrame);
+            this.cesiumEntity.position.setValue(cesiumPosition, parentEntity);
         }
         
         this.el.addEventListener('componentchanged', this.updateLocalTransform.bind(this));
@@ -67611,11 +67656,11 @@ AFRAME.registerComponent('referenceFrame', {
       return function(t) {
         var data = this.data;               // parameters
         var el = this.el;                   // entity
+        var argonApp = el.sceneEl.argonApp;
 
-        var entityPos = this.argonApp.context.getEntityPose(this.cesiumEntity);
+        var entityPos = argonApp.context.getEntityPose(this.cesiumEntity);
 
         if (entityPos.poseStatus & Argon.PoseStatus.KNOWN) {
-            entityPos.position.copy(entityPose.position);
             if (data.useRotation) {
                 el.object3D.matrix.makeRotationFromQuaternion(entityPos.orientation);
             } else {
@@ -67629,7 +67674,7 @@ AFRAME.registerComponent('referenceFrame', {
         }
 
         // if this isn't a child of the scene, move it to world coordinates
-        if (!this.parentEl.isScene) {
+        if (!el.parentEl.isScene) {
             m1.getInverse(this.parentEl.Object3D.matrixWorld);
             el.object3D.matrix.preMultiply(m1);
         }
@@ -67640,6 +67685,5 @@ AFRAME.registerComponent('referenceFrame', {
       };
   }()
 });
-
 
 },{}]},{},[1]);
