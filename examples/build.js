@@ -1,8 +1,11 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 require('aframe');
 require('../src/ar-scene.js');
-require('../src/referenceFrame.js');
-},{"../src/ar-scene.js":3,"../src/referenceFrame.js":4,"aframe":2}],2:[function(require,module,exports){
+require('../src/ar-referenceframe.js');
+require('../src/ar-components.js');
+require('../src/css-object.js');
+
+},{"../src/ar-components.js":3,"../src/ar-referenceframe.js":4,"../src/ar-scene.js":5,"../src/css-object.js":6,"aframe":2}],2:[function(require,module,exports){
 (function (global){
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.AFRAME = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 'use strict';
@@ -56960,9 +56963,12 @@ module.exports.Component = registerComponent('blend-model', {
   }
 });
 
-},{"../core/component":56,"../lib/three":100}],22:[function(_dereq_,module,exports){
+},{"../core/component":57,"../lib/three":101}],22:[function(_dereq_,module,exports){
 var registerComponent = _dereq_('../core/component').registerComponent;
 var THREE = _dereq_('../lib/three');
+var utils = _dereq_('../utils/');
+
+var checkHeadsetConnected = utils.checkHeadsetConnected;
 
 /**
  * Camera component.
@@ -56973,7 +56979,8 @@ module.exports.Component = registerComponent('camera', {
     active: { default: true },
     far: { default: 10000 },
     fov: { default: 80, min: 0 },
-    near: { default: 0.05, min: 0 },
+    near: { default: 0.5, min: 0 },
+    userHeight: { default: 0, min: 0 },
     zoom: { default: 1, min: 0 }
   },
 
@@ -56983,14 +56990,90 @@ module.exports.Component = registerComponent('camera', {
    */
   init: function () {
     var camera = this.camera = new THREE.PerspectiveCamera();
+    var sceneEl = this.el.sceneEl;
     this.el.setObject3D('camera', camera);
+    this.bindMethods();
+    sceneEl.addEventListener('enter-vr', this.removeHeightOffset);
+    sceneEl.addEventListener('enter-vr', this.saveCameraPose);
+    sceneEl.addEventListener('exit-vr', this.restoreCameraPose);
+    sceneEl.addEventListener('exit-vr', this.addHeightOffset);
+  },
+
+  bindMethods: function () {
+    this.addHeightOffset = this.addHeightOffset.bind(this);
+    this.removeHeightOffset = this.removeHeightOffset.bind(this);
+    this.saveCameraPose = this.saveCameraPose.bind(this);
+    this.restoreCameraPose = this.restoreCameraPose.bind(this);
+  },
+
+  /**
+   * Offsets the position of the camera to set a human scale perspective
+   * This offset is not necessary when using a headset because the SDK
+   * will return the real user's head height and position.
+   */
+  addHeightOffset: function () {
+    var el = this.el;
+    var currentPosition;
+    // Only applies if there's a default camera with no applied offset.
+    if (this.userHeightOffset) { return; }
+    currentPosition = el.getComputedAttribute('position') || {x: 0, y: 0, z: 0};
+    this.userHeightOffset = this.data.userHeight;
+    el.setAttribute('position', {
+      x: currentPosition.x,
+      y: currentPosition.y + this.userHeightOffset,
+      z: currentPosition.z
+    });
+  },
+
+  removeHeightOffset: function () {
+    var el = this.el;
+    // Remove default camera if present.
+    var userHeightOffset = this.userHeightOffset;
+    var currentPosition;
+    // Checking this.headsetConnected to make the value injectable for unit tests.
+    var headsetConnected = this.headsetConnected || checkHeadsetConnected();
+    // If there's not a headset connected we keep the offset.
+    // Necessary for fullscreen mode with no headset.
+    if (!userHeightOffset || !headsetConnected) { return; }
+    this.userHeightOffset = undefined;
+    currentPosition = el.getAttribute('position') || {x: 0, y: 0, z: 0};
+    el.setAttribute('position', {
+      x: currentPosition.x,
+      y: currentPosition.y - userHeightOffset,
+      z: currentPosition.z
+    });
+  },
+
+  saveCameraPose: function () {
+    var el = this.el;
+    var headsetConnected = this.headsetConnected || checkHeadsetConnected();
+    if (this.savedPose || !headsetConnected) { return; }
+    this.savedPose = {
+      position: el.getAttribute('position'),
+      rotation: el.getAttribute('rotation')
+    };
+  },
+
+  restoreCameraPose: function () {
+    var el = this.el;
+    var savedPose = this.savedPose;
+    if (!savedPose) { return; }
+    // Resets camera orientation
+    el.setAttribute('position', savedPose.position);
+    el.setAttribute('rotation', savedPose.rotation);
+    this.savedPose = undefined;
   },
 
   /**
    * Remove camera on remove (callback).
    */
   remove: function () {
+    var sceneEl = this.el.sceneEl;
     this.el.removeObject3D('camera');
+    sceneEl.removeEventListener('enter-vr', this.removeHeightOffset);
+    sceneEl.removeEventListener('enter-vr', this.saveCameraPose);
+    sceneEl.removeEventListener('exit-vr', this.restoreCameraPose);
+    sceneEl.removeEventListener('exit-vr', this.addHeightOffset);
   },
 
   /**
@@ -57001,6 +57084,10 @@ module.exports.Component = registerComponent('camera', {
     var data = this.data;
     var camera = this.camera;
     var system = this.system;
+    if (!oldData || oldData.userHeight !== data.userHeight) {
+      this.removeHeightOffset();
+      this.addHeightOffset();
+    }
 
     // Update properties.
     camera.aspect = data.aspect || (window.innerWidth / window.innerHeight);
@@ -57024,7 +57111,7 @@ module.exports.Component = registerComponent('camera', {
   }
 });
 
-},{"../core/component":56,"../lib/three":100}],23:[function(_dereq_,module,exports){
+},{"../core/component":57,"../lib/three":101,"../utils/":117}],23:[function(_dereq_,module,exports){
 var registerComponent = _dereq_('../core/component').registerComponent;
 var THREE = _dereq_('../lib/three');
 
@@ -57061,7 +57148,7 @@ module.exports.Component = registerComponent('collada-model', {
   }
 });
 
-},{"../core/component":56,"../lib/three":100}],24:[function(_dereq_,module,exports){
+},{"../core/component":57,"../lib/three":101}],24:[function(_dereq_,module,exports){
 var registerComponent = _dereq_('../core/component').registerComponent;
 var utils = _dereq_('../utils/');
 
@@ -57201,7 +57288,7 @@ module.exports.Component = registerComponent('cursor', {
   }
 });
 
-},{"../core/component":56,"../utils/":115}],25:[function(_dereq_,module,exports){
+},{"../core/component":57,"../utils/":117}],25:[function(_dereq_,module,exports){
 var debug = _dereq_('../utils/debug');
 var geometries = _dereq_('../core/geometry').geometries;
 var geometryNames = _dereq_('../core/geometry').geometryNames;
@@ -57325,7 +57412,7 @@ module.exports.Component = registerComponent('geometry', {
   }
 });
 
-},{"../core/component":56,"../core/geometry":57,"../lib/three":100,"../utils/debug":113}],26:[function(_dereq_,module,exports){
+},{"../core/component":57,"../core/geometry":58,"../lib/three":101,"../utils/debug":115}],26:[function(_dereq_,module,exports){
 var registerComponent = _dereq_('../core/component').registerComponent;
 var LEFT_HAND_MODEL_URL = 'https://media.aframe.io/controllers/hands/leftHand.json';
 var RIGHT_HAND_MODEL_URL = 'https://media.aframe.io/controllers/hands/rightHand.json';
@@ -57456,7 +57543,7 @@ module.exports.Component = registerComponent('hand-controls', {
   }
 });
 
-},{"../core/component":56}],27:[function(_dereq_,module,exports){
+},{"../core/component":57}],27:[function(_dereq_,module,exports){
 _dereq_('./blend-model');
 _dereq_('./camera');
 _dereq_('./collada-model');
@@ -57480,12 +57567,13 @@ _dereq_('./wasd-controls');
 
 _dereq_('./scene/canvas');
 _dereq_('./scene/debug');
+_dereq_('./scene/embedded');
 _dereq_('./scene/fog');
 _dereq_('./scene/keyboard-shortcuts');
 _dereq_('./scene/stats');
 _dereq_('./scene/vr-mode-ui');
 
-},{"./blend-model":21,"./camera":22,"./collada-model":23,"./cursor":24,"./geometry":25,"./hand-controls":26,"./light":28,"./look-at":29,"./look-controls":30,"./material":31,"./obj-model":32,"./position":33,"./raycaster":34,"./rotation":35,"./scale":36,"./scene/canvas":37,"./scene/debug":38,"./scene/fog":39,"./scene/keyboard-shortcuts":40,"./scene/stats":41,"./scene/vr-mode-ui":42,"./sound":43,"./tracked-controls":44,"./visible":45,"./vive-controls":46,"./wasd-controls":47}],28:[function(_dereq_,module,exports){
+},{"./blend-model":21,"./camera":22,"./collada-model":23,"./cursor":24,"./geometry":25,"./hand-controls":26,"./light":28,"./look-at":29,"./look-controls":30,"./material":31,"./obj-model":32,"./position":33,"./raycaster":34,"./rotation":35,"./scale":36,"./scene/canvas":37,"./scene/debug":38,"./scene/embedded":39,"./scene/fog":40,"./scene/keyboard-shortcuts":41,"./scene/stats":42,"./scene/vr-mode-ui":43,"./sound":44,"./tracked-controls":45,"./visible":46,"./vive-controls":47,"./wasd-controls":48}],28:[function(_dereq_,module,exports){
 var diff = _dereq_('../utils').diff;
 var debug = _dereq_('../utils/debug');
 var registerComponent = _dereq_('../core/component').registerComponent;
@@ -57607,7 +57695,7 @@ function getLight (data) {
   }
 }
 
-},{"../core/component":56,"../lib/three":100,"../utils":115,"../utils/debug":113}],29:[function(_dereq_,module,exports){
+},{"../core/component":57,"../lib/three":101,"../utils":117,"../utils/debug":115}],29:[function(_dereq_,module,exports){
 var debug = _dereq_('../utils/debug');
 var coordinates = _dereq_('../utils/coordinates');
 var registerComponent = _dereq_('../core/component').registerComponent;
@@ -57703,7 +57791,7 @@ module.exports.Component = registerComponent('look-at', {
   }
 });
 
-},{"../core/component":56,"../lib/three":100,"../utils/coordinates":112,"../utils/debug":113}],30:[function(_dereq_,module,exports){
+},{"../core/component":57,"../lib/three":101,"../utils/coordinates":114,"../utils/debug":115}],30:[function(_dereq_,module,exports){
 var registerComponent = _dereq_('../core/component').registerComponent;
 var THREE = _dereq_('../lib/three');
 var isMobile = _dereq_('../utils/').isMobile();
@@ -57780,6 +57868,7 @@ module.exports.Component = registerComponent('look-controls', {
     this.dolly = new THREE.Object3D();
     this.euler = new THREE.Euler();
     this.controls = new THREE.VRControls(this.dolly);
+    this.controls.userHeight = 0.0;
   },
 
   addEventListeners: function () {
@@ -57794,14 +57883,13 @@ module.exports.Component = registerComponent('look-controls', {
 
     // Mouse Events
     canvasEl.addEventListener('mousedown', this.onMouseDown, false);
-    canvasEl.addEventListener('mousemove', this.onMouseMove, false);
-    canvasEl.addEventListener('mouseup', this.releaseMouse, false);
-    canvasEl.addEventListener('mouseout', this.releaseMouse, false);
+    window.addEventListener('mousemove', this.onMouseMove, false);
+    window.addEventListener('mouseup', this.releaseMouse, false);
 
     // Touch events
     canvasEl.addEventListener('touchstart', this.onTouchStart);
-    canvasEl.addEventListener('touchmove', this.onTouchMove);
-    canvasEl.addEventListener('touchend', this.onTouchEnd);
+    window.addEventListener('touchmove', this.onTouchMove);
+    window.addEventListener('touchend', this.onTouchEnd);
   },
 
   removeEventListeners: function () {
@@ -57824,6 +57912,8 @@ module.exports.Component = registerComponent('look-controls', {
   updateOrientation: (function () {
     var hmdEuler = new THREE.Euler();
     return function () {
+      var currentRotation;
+      var deltaRotation;
       var pitchObject = this.pitchObject;
       var yawObject = this.yawObject;
       var hmdQuaternion = this.calculateHMDQuaternion();
@@ -57838,11 +57928,13 @@ module.exports.Component = registerComponent('look-controls', {
           z: radToDeg(hmdEuler.z)
         };
       } else if (!sceneEl.is('vr-mode') || isNullVector(hmdEuler) || !this.data.hmdEnabled) {
+        currentRotation = this.el.getComputedAttribute('rotation');
+        deltaRotation = this.calculateDeltaRotation();
         // Mouse look only if HMD disabled or no info coming from the sensors
         rotation = {
-          x: radToDeg(pitchObject.rotation.x),
-          y: radToDeg(yawObject.rotation.y),
-          z: 0
+          x: currentRotation.x + deltaRotation.x,
+          y: currentRotation.y + deltaRotation.y,
+          z: currentRotation.z
         };
       } else {
         // Mouse rotation ignored with an active headset.
@@ -57854,6 +57946,25 @@ module.exports.Component = registerComponent('look-controls', {
         };
       }
       this.el.setAttribute('rotation', rotation);
+    };
+  })(),
+
+  calculateDeltaRotation: (function () {
+    var previousRotationX;
+    var previousRotationY;
+    return function () {
+      var currentRotationX = radToDeg(this.pitchObject.rotation.x);
+      var currentRotationY = radToDeg(this.yawObject.rotation.y);
+      var deltaRotation;
+      previousRotationX = previousRotationX || currentRotationX;
+      previousRotationY = previousRotationY || currentRotationY;
+      deltaRotation = {
+        x: currentRotationX - previousRotationX,
+        y: currentRotationY - previousRotationY
+      };
+      previousRotationX = currentRotationX;
+      previousRotationY = currentRotationY;
+      return deltaRotation;
     };
   })(),
 
@@ -57919,6 +58030,7 @@ module.exports.Component = registerComponent('look-controls', {
   onMouseDown: function (event) {
     this.mouseDown = true;
     this.previousMouseEvent = event;
+    event.preventDefault();
   },
 
   releaseMouse: function () {
@@ -57957,7 +58069,7 @@ function isNullVector (vector) {
   return vector.x === 0 && vector.y === 0 && vector.z === 0;
 }
 
-},{"../core/component":56,"../lib/three":100,"../utils/":115}],31:[function(_dereq_,module,exports){
+},{"../core/component":57,"../lib/three":101,"../utils/":117}],31:[function(_dereq_,module,exports){
 /* global Promise */
 var utils = _dereq_('../utils/');
 var component = _dereq_('../core/component');
@@ -58123,7 +58235,7 @@ function disposeMaterial (material, system) {
   system.unregisterMaterial(material);
 }
 
-},{"../core/component":56,"../core/shader":64,"../lib/three":100,"../utils/":115}],32:[function(_dereq_,module,exports){
+},{"../core/component":57,"../core/shader":65,"../lib/three":101,"../utils/":117}],32:[function(_dereq_,module,exports){
 var debug = _dereq_('../utils/debug');
 var registerComponent = _dereq_('../core/component').registerComponent;
 var THREE = _dereq_('../lib/three');
@@ -58142,6 +58254,8 @@ module.exports.Component = registerComponent('obj-model', {
     this.model = null;
     this.objLoader = new THREE.OBJLoader();
     this.mtlLoader = new THREE.MTLLoader(this.objLoader.manager);
+    // Allow cross-origin images to be loaded.
+    this.mtlLoader.crossOrigin = '';
   },
 
   update: function () {
@@ -58199,7 +58313,7 @@ module.exports.Component = registerComponent('obj-model', {
   }
 });
 
-},{"../core/component":56,"../lib/three":100,"../utils/debug":113}],33:[function(_dereq_,module,exports){
+},{"../core/component":57,"../lib/three":101,"../utils/debug":115}],33:[function(_dereq_,module,exports){
 var registerComponent = _dereq_('../core/component').registerComponent;
 
 module.exports.Component = registerComponent('position', {
@@ -58212,7 +58326,7 @@ module.exports.Component = registerComponent('position', {
   }
 });
 
-},{"../core/component":56}],34:[function(_dereq_,module,exports){
+},{"../core/component":57}],34:[function(_dereq_,module,exports){
 var registerComponent = _dereq_('../core/component').registerComponent;
 var THREE = _dereq_('../lib/three');
 
@@ -58356,7 +58470,7 @@ module.exports.Component = registerComponent('raycaster', {
   })()
 });
 
-},{"../core/component":56,"../lib/three":100}],35:[function(_dereq_,module,exports){
+},{"../core/component":57,"../lib/three":101}],35:[function(_dereq_,module,exports){
 var degToRad = _dereq_('../lib/three').Math.degToRad;
 var registerComponent = _dereq_('../core/component').registerComponent;
 
@@ -58374,7 +58488,7 @@ module.exports.Component = registerComponent('rotation', {
   }
 });
 
-},{"../core/component":56,"../lib/three":100}],36:[function(_dereq_,module,exports){
+},{"../core/component":57,"../lib/three":101}],36:[function(_dereq_,module,exports){
 var registerComponent = _dereq_('../core/component').registerComponent;
 
 // Avoids triggering a zero-determinant which makes object3D matrix non-invertible.
@@ -58396,63 +58510,96 @@ module.exports.Component = registerComponent('scale', {
   }
 });
 
-},{"../core/component":56}],37:[function(_dereq_,module,exports){
+},{"../core/component":57}],37:[function(_dereq_,module,exports){
 var register = _dereq_('../../core/component').registerComponent;
 
 module.exports.Component = register('canvas', {
-  schema: {
-    canvas: {
-      type: 'selector',
-      default: undefined
-    },
-    height: {
-      default: 100
-    },
-    width: {
-      default: 100
-    }
-  },
 
-  update: function () {
-    var data = this.data;
-    var canvas = data.canvas;
-    var scene = this.el;
+  init: function () {
+    var sceneEl = this.el;
+    var canvasEl = document.createElement('canvas');
+    canvasEl.classList.add('a-canvas');
+    // Mark canvas as provided/injected by A-Frame.
+    canvasEl.dataset.aframeCanvas = true;
+    sceneEl.appendChild(canvasEl);
 
-    // No updating canvas.
-    if (scene.canvas) { return; }
-
-    // Inject canvas if one not specified with height and width.
-    if (!canvas) {
-      canvas = document.createElement('canvas');
-      canvas.classList.add('a-canvas');
-      canvas.style.height = data.height + '%';
-      canvas.style.width = data.width + '%';
-      // Mark canvas as provided/injected by A-Frame.
-      canvas.dataset.aframeDefault = true;
-      scene.appendChild(canvas);
-    }
+    document.addEventListener('fullscreenchange', onFullScreenChange);
+    document.addEventListener('mozfullscreenchange', onFullScreenChange);
+    document.addEventListener('webkitfullscreenchange', onFullScreenChange);
 
     // Prevent overscroll on mobile.
-    canvas.addEventListener('touchmove', function (event) {
+    canvasEl.addEventListener('touchmove', function (event) {
       event.preventDefault();
     });
 
+    // Handle fullscreeen styling
+    sceneEl.addEventListener('enter-vr', addFullscreenClass);
+    sceneEl.addEventListener('exit-vr', removeFullscreenClass);
+
     // Set canvas on scene.
-    scene.canvas = canvas;
-    scene.emit('render-target-loaded', {
-      target: canvas
+    sceneEl.canvas = canvasEl;
+    sceneEl.emit('render-target-loaded', {
+      target: canvasEl
     });
+
+    function addFullscreenClass (event) {
+      canvasEl.classList.add('fullscreen');
+    }
+
+    function removeFullscreenClass (event) {
+      canvasEl.classList.remove('fullscreen');
+    }
+
+    function onFullScreenChange () {
+      var fullscreenEl =
+        document.fullscreenElement ||
+        document.mozFullScreenElement ||
+        document.webkitFullscreenElement;
+      // No fullscren element === exit fullscreen
+      if (!fullscreenEl) { sceneEl.exitVR(); }
+      document.activeElement.blur();
+      document.body.focus();
+      // For unkown reasons a syncrhonous resize does
+      // not work on desktop when entering/exiting fullscreen
+      setTimeout(sceneEl.resize.bind(sceneEl), 0);
+    }
   }
+
 });
 
-},{"../../core/component":56}],38:[function(_dereq_,module,exports){
+},{"../../core/component":57}],38:[function(_dereq_,module,exports){
 var register = _dereq_('../../core/component').registerComponent;
 
 module.exports.Component = register('debug', {
   schema: { default: true }
 });
 
-},{"../../core/component":56}],39:[function(_dereq_,module,exports){
+},{"../../core/component":57}],39:[function(_dereq_,module,exports){
+var registerComponent = _dereq_('../../core/component').registerComponent;
+
+/**
+ * Component to embed an a-frame scene within the layout of a 2D page.
+ */
+module.exports.Component = registerComponent('embedded', {
+  dependencies: ['vr-mode-ui'],
+
+  schema: { default: true },
+
+  update: function () {
+    var sceneEl = this.el;
+    var enterVREl = sceneEl.querySelector('.a-enter-vr');
+    if (this.data === true) {
+      enterVREl.classList.add('embedded');
+      sceneEl.removeFullScreenStyles();
+    } else {
+      enterVREl.classList.remove('embedded');
+      sceneEl.addFullScreenStyles();
+    }
+  }
+
+});
+
+},{"../../core/component":57}],40:[function(_dereq_,module,exports){
 var register = _dereq_('../../core/component').registerComponent;
 var THREE = _dereq_('../../lib/three');
 var debug = _dereq_('../../utils/debug');
@@ -58527,7 +58674,7 @@ function getFog (data) {
   return fog;
 }
 
-},{"../../core/component":56,"../../lib/three":100,"../../utils/debug":113}],40:[function(_dereq_,module,exports){
+},{"../../core/component":57,"../../lib/three":101,"../../utils/debug":115}],41:[function(_dereq_,module,exports){
 var registerComponent = _dereq_('../../core/component').registerComponent;
 var shouldCaptureKeyEvent = _dereq_('../../utils/').shouldCaptureKeyEvent;
 var THREE = _dereq_('../../lib/three');
@@ -58570,7 +58717,7 @@ module.exports.Component = registerComponent('keyboard-shortcuts', {
   }
 });
 
-},{"../../core/component":56,"../../lib/three":100,"../../utils/":115}],41:[function(_dereq_,module,exports){
+},{"../../core/component":57,"../../lib/three":101,"../../utils/":117}],42:[function(_dereq_,module,exports){
 var registerComponent = _dereq_('../../core/component').registerComponent;
 var RStats = _dereq_('../../../vendor/rStats');
 _dereq_('../../../vendor/rStats.extras');
@@ -58640,21 +58787,17 @@ function createStats (scene) {
   });
 }
 
-},{"../../../vendor/rStats":122,"../../../vendor/rStats.extras":121,"../../core/component":56,"../../lib/rStatsAframe":99}],42:[function(_dereq_,module,exports){
+},{"../../../vendor/rStats":124,"../../../vendor/rStats.extras":123,"../../core/component":57,"../../lib/rStatsAframe":100}],43:[function(_dereq_,module,exports){
 var registerComponent = _dereq_('../../core/component').registerComponent;
-var THREE = _dereq_('../../lib/three');
 var utils = _dereq_('../../utils/');
 
-var dummyDolly = new THREE.Object3D();
-var controls = new THREE.VRControls(dummyDolly);
-
 var ENTER_VR_CLASS = 'a-enter-vr';
-var ENTER_VR_NO_HEADSET = 'data-a-enter-vr-no-headset';
-var ENTER_VR_NO_WEBVR = 'data-a-enter-vr-no-webvr';
 var ENTER_VR_BTN_CLASS = 'a-enter-vr-button';
-var ENTER_VR_MODAL_CLASS = 'a-enter-vr-modal';
 var HIDDEN_CLASS = 'a-hidden';
 var ORIENTATION_MODAL_CLASS = 'a-orientation-modal';
+
+var checkHeadsetConnected = utils.checkHeadsetConnected;
+var isMobile = utils.isMobile();
 
 /**
  * UI for entering VR mode.
@@ -58668,19 +58811,19 @@ module.exports.Component = registerComponent('vr-mode-ui', {
 
   init: function () {
     var self = this;
-    var scene = this.el;
+    var sceneEl = this.el;
 
     if (utils.getUrlParameter('ui') === 'false') { return; }
 
-    this.enterVR = scene.enterVR.bind(scene);
-    this.exitVR = scene.exitVR.bind(scene);
+    this.enterVR = sceneEl.enterVR.bind(sceneEl);
+    this.exitVR = sceneEl.exitVR.bind(sceneEl);
     this.insideLoader = false;
     this.enterVREl = null;
     this.orientationModalEl = null;
 
     // Hide/show VR UI when entering/exiting VR mode.
-    scene.addEventListener('enter-vr', this.updateEnterVRInterface.bind(this));
-    scene.addEventListener('exit-vr', this.updateEnterVRInterface.bind(this));
+    sceneEl.addEventListener('enter-vr', this.updateEnterVRInterface.bind(this));
+    sceneEl.addEventListener('exit-vr', this.updateEnterVRInterface.bind(this));
 
     window.addEventListener('message', function (event) {
       if (event.data.type === 'loaderReady') {
@@ -58694,7 +58837,7 @@ module.exports.Component = registerComponent('vr-mode-ui', {
   },
 
   update: function () {
-    var scene = this.el;
+    var sceneEl = this.el;
 
     if (!this.data.enabled || this.insideLoader || utils.getUrlParameter('ui') === 'false') {
       return this.remove();
@@ -58702,11 +58845,11 @@ module.exports.Component = registerComponent('vr-mode-ui', {
     if (this.enterVREl || this.orientationModalEl) { return; }
 
     // Add UI if enabled and not already present.
-    this.enterVREl = createEnterVR(this.enterVR, scene.isMobile);
-    this.el.appendChild(this.enterVREl);
+    this.enterVREl = createEnterVRButton(this.enterVR);
+    sceneEl.appendChild(this.enterVREl);
 
     this.orientationModalEl = createOrientationModal(this.exitVR);
-    this.el.appendChild(this.orientationModalEl);
+    sceneEl.appendChild(this.orientationModalEl);
 
     this.updateEnterVRInterface();
   },
@@ -58725,9 +58868,9 @@ module.exports.Component = registerComponent('vr-mode-ui', {
   },
 
   toggleEnterVRButtonIfNeeded: function () {
+    var sceneEl = this.el;
     if (!this.enterVREl) { return; }
-    var scene = this.el;
-    if (scene.is('vr-mode')) {
+    if (sceneEl.is('vr-mode')) {
       this.enterVREl.classList.add(HIDDEN_CLASS);
     } else {
       this.enterVREl.classList.remove(HIDDEN_CLASS);
@@ -58735,88 +58878,41 @@ module.exports.Component = registerComponent('vr-mode-ui', {
   },
 
   toggleOrientationModalIfNeeded: function () {
-    var scene = this.el;
-    if (!this.orientationModalEl || !scene.isMobile) { return; }
-    if (!utils.isLandscape() && scene.is('vr-mode')) {
+    var sceneEl = this.el;
+    var orientationModalEl = this.orientationModalEl;
+    if (!orientationModalEl || !sceneEl.isMobile) { return; }
+    if (!utils.isLandscape() && sceneEl.is('vr-mode')) {
       // Show if in VR mode on portrait.
-      this.orientationModalEl.classList.remove(HIDDEN_CLASS);
+      orientationModalEl.classList.remove(HIDDEN_CLASS);
     } else {
-      this.orientationModalEl.classList.add(HIDDEN_CLASS);
+      orientationModalEl.classList.add(HIDDEN_CLASS);
     }
   }
 });
 
 /**
- * Creates Enter VR flow (button and compatibility modal).
- *
  * Creates a button that when clicked will enter into stereo-rendering mode for VR.
  *
- * For compatibility:
- *   - Mobile always has compatibility via polyfill.
- *   - If desktop browser does not have WebVR excluding polyfill, disable button, show modal.
- *   - If desktop browser has WebVR excluding polyfill but not headset connected,
- *     don't disable button, but show modal.
- *   - If desktop browser has WebVR excluding polyfill and has headset connected, then
- *     then no modal.
- *
- * Structure: <div><modal/><button></div>
+ * Structure: <div><button></div>
  *
  * @returns {Element} Wrapper <div>.
  */
-function createEnterVR (enterVRHandler, isMobile) {
-  var compatModal;
-  var compatModalLink;
-  var compatModalText;
-  var hasWebVR = isMobile || window.hasNativeWebVRImplementation;
-  var orientation;
+function createEnterVRButton (enterVRHandler) {
   var vrButton;
   var wrapper;
+  var VRAvailable = window.hasNativeWebVRImplementation && checkHeadsetConnected();
 
   // Create elements.
   wrapper = document.createElement('div');
   wrapper.classList.add(ENTER_VR_CLASS);
-  compatModal = document.createElement('div');
-  compatModal.className = ENTER_VR_MODAL_CLASS;
-  compatModalText = document.createElement('p');
-  compatModalLink = document.createElement('a');
-  compatModalLink.setAttribute('href', 'http://mozvr.com/#start');
-  compatModalLink.setAttribute('target', '_blank');
-  compatModalLink.innerHTML = 'Learn more.';
   vrButton = document.createElement('button');
-  vrButton.className = ENTER_VR_BTN_CLASS;
+  vrButton.classList.add(ENTER_VR_BTN_CLASS);
+  if (!isMobile && !VRAvailable) { vrButton.classList.add('fullscreen'); }
 
   // Insert elements.
   wrapper.appendChild(vrButton);
-  if (compatModal) {
-    compatModal.appendChild(compatModalText);
-    compatModal.appendChild(compatModalLink);
-    wrapper.appendChild(compatModal);
-  }
-
-  if (!checkHeadsetConnected() && !isMobile) {
-    compatModalText.innerHTML = 'Your browser supports WebVR. To enter VR, connect a headset, or use a mobile phone.';
-    wrapper.setAttribute(ENTER_VR_NO_HEADSET, '');
-  }
-
-  // Handle enter VR flows.
-  if (!hasWebVR) {
-    compatModalText.innerHTML = 'Your browser does not support WebVR. To enter VR, use a VR-compatible browser or a mobile phone.';
-    wrapper.setAttribute(ENTER_VR_NO_WEBVR, '');
-  } else {
-    vrButton.addEventListener('click', enterVRHandler);
-  }
+  vrButton.addEventListener('click', enterVRHandler);
   return wrapper;
-
-  /**
-   * Check for headset connection by looking at orientation {0 0 0}.
-   */
-  function checkHeadsetConnected () {
-    controls.update();
-    orientation = dummyDolly.quaternion;
-    if (orientation._x !== 0 || orientation._y !== 0 || orientation._z !== 0) {
-      return true;
-    }
-  }
 }
 
 /**
@@ -58839,7 +58935,7 @@ function createOrientationModal (exitVRHandler) {
   return modal;
 }
 
-},{"../../core/component":56,"../../lib/three":100,"../../utils/":115}],43:[function(_dereq_,module,exports){
+},{"../../core/component":57,"../../utils/":117}],44:[function(_dereq_,module,exports){
 var debug = _dereq_('../utils/debug');
 var registerComponent = _dereq_('../core/component').registerComponent;
 var THREE = _dereq_('../lib/three');
@@ -58988,7 +59084,7 @@ module.exports.Component = registerComponent('sound', {
   }
 });
 
-},{"../core/component":56,"../lib/three":100,"../utils/debug":113}],44:[function(_dereq_,module,exports){
+},{"../core/component":57,"../lib/three":101,"../utils/debug":115}],45:[function(_dereq_,module,exports){
 var registerComponent = _dereq_('../core/component').registerComponent;
 var THREE = _dereq_('../lib/three');
 
@@ -59149,7 +59245,7 @@ module.exports.Component = registerComponent('tracked-controls', {
   }
 });
 
-},{"../core/component":56,"../lib/three":100}],45:[function(_dereq_,module,exports){
+},{"../core/component":57,"../lib/three":101}],46:[function(_dereq_,module,exports){
 var registerComponent = _dereq_('../core/component').registerComponent;
 
 /**
@@ -59163,7 +59259,7 @@ module.exports.Component = registerComponent('visible', {
   }
 });
 
-},{"../core/component":56}],46:[function(_dereq_,module,exports){
+},{"../core/component":57}],47:[function(_dereq_,module,exports){
 var registerComponent = _dereq_('../core/component').registerComponent;
 var VIVE_CONTROLLER_MODEL_OBJ_URL = 'https://media.aframe.io/controllers/vive/vr_controller_vive.obj';
 var VIVE_CONTROLLER_MODEL_OBJ_MTL = 'https://media.aframe.io/controllers/vive/vr_controller_vive.mtl';
@@ -59178,8 +59274,8 @@ module.exports.Component = registerComponent('vive-controls', {
 
   schema: {
     hand: {default: 'left'},
-    buttonColor: {default: 'white'},
-    buttonHighlightColor: {default: 'yellow'},
+    buttonColor: {default: '#FAFAFA'},  // Off-white.
+    buttonHighlightColor: {default: '#22D1EE'},  // Light blue.
     model: {default: true}
   },
 
@@ -59282,7 +59378,7 @@ module.exports.Component = registerComponent('vive-controls', {
   }
 });
 
-},{"../core/component":56}],47:[function(_dereq_,module,exports){
+},{"../core/component":57}],48:[function(_dereq_,module,exports){
 var registerComponent = _dereq_('../core/component').registerComponent;
 var shouldCaptureKeyEvent = _dereq_('../utils/').shouldCaptureKeyEvent;
 var THREE = _dereq_('../lib/three');
@@ -59454,7 +59550,7 @@ module.exports.Component = registerComponent('wasd-controls', {
   })()
 });
 
-},{"../core/component":56,"../lib/three":100,"../utils/":115}],48:[function(_dereq_,module,exports){
+},{"../core/component":57,"../lib/three":101,"../utils/":117}],49:[function(_dereq_,module,exports){
 /**
  * Animation configuration options for TWEEN.js animations.
  * Used by `<a-animation>`.
@@ -59558,7 +59654,7 @@ module.exports.easingFunctions = EASING_FUNCTIONS;
 module.exports.fills = FILLS;
 module.exports.repeats = REPEATS;
 
-},{"tween.js":18}],49:[function(_dereq_,module,exports){
+},{"tween.js":18}],50:[function(_dereq_,module,exports){
 var ANode = _dereq_('./a-node');
 var constants = _dereq_('../constants/animation');
 var coordinates = _dereq_('../utils/').coordinates;
@@ -60110,7 +60206,7 @@ function rgbVectorToHex (color) {
   }).join('');
 }
 
-},{"../constants/animation":48,"../lib/three":100,"../utils/":115,"./a-node":54,"./a-register-element":55,"./schema":63,"tween.js":18}],50:[function(_dereq_,module,exports){
+},{"../constants/animation":49,"../lib/three":101,"../utils/":117,"./a-node":55,"./a-register-element":56,"./schema":64,"tween.js":18}],51:[function(_dereq_,module,exports){
 var ANode = _dereq_('./a-node');
 var debug = _dereq_('../utils/debug');
 var registerElement = _dereq_('./a-register-element').registerElement;
@@ -60242,7 +60338,7 @@ function mediaElementLoaded (el) {
   });
 }
 
-},{"../lib/three":100,"../utils/debug":113,"./a-node":54,"./a-register-element":55}],51:[function(_dereq_,module,exports){
+},{"../lib/three":101,"../utils/debug":115,"./a-node":55,"./a-register-element":56}],52:[function(_dereq_,module,exports){
 /* global HTMLElement */
 var debug = _dereq_('../utils/debug');
 var registerElement = _dereq_('./a-register-element').registerElement;
@@ -60293,7 +60389,7 @@ module.exports = registerElement('a-cubemap', {
   })
 });
 
-},{"../utils/debug":113,"./a-register-element":55}],52:[function(_dereq_,module,exports){
+},{"../utils/debug":115,"./a-register-element":56}],53:[function(_dereq_,module,exports){
 /* global HTMLElement */
 var ANode = _dereq_('./a-node');
 var components = _dereq_('./component').components;
@@ -61006,7 +61102,7 @@ AEntity = registerElement('a-entity', {
 });
 module.exports = AEntity;
 
-},{"../lib/three":100,"../utils/":115,"./a-node":54,"./a-register-element":55,"./component":56}],53:[function(_dereq_,module,exports){
+},{"../lib/three":101,"../utils/":117,"./a-node":55,"./a-register-element":56,"./component":57}],54:[function(_dereq_,module,exports){
 /* global HTMLElement */
 var ANode = _dereq_('./a-node');
 var registerElement = _dereq_('./a-register-element').registerElement;
@@ -61078,7 +61174,7 @@ module.exports = registerElement('a-mixin', {
   })
 });
 
-},{"./a-node":54,"./a-register-element":55,"./component":56}],54:[function(_dereq_,module,exports){
+},{"./a-node":55,"./a-register-element":56,"./component":57}],55:[function(_dereq_,module,exports){
 /* global HTMLElement, MutationObserver */
 var registerElement = _dereq_('./a-register-element').registerElement;
 var utils = _dereq_('../utils/');
@@ -61315,26 +61411,24 @@ module.exports = registerElement('a-node', {
   })
 });
 
-},{"../utils/":115,"./a-register-element":55}],55:[function(_dereq_,module,exports){
+},{"../utils/":117,"./a-register-element":56}],56:[function(_dereq_,module,exports){
+/*
+  ------------------------------------------------------------
+  ------------- WARNING WARNING WARNING WARNING --------------
+  ------------------------------------------------------------
+
+  This module wraps registerElement to deal with components that inherit from
+  `ANode` and `AEntity`.  It's a pass through in any other case.
+
+  It wraps some of the prototype methods of the created element to make sure
+  that the corresponding functions in the base classes (`AEntity` and `ANode`)
+  are also invoked. The method in the base class is always called before the one
+  in the derived object.
+*/
+
 // Polyfill `document.registerElement`.
 _dereq_('document-register-element');
 
-/*
- ------------------------------------------------------------
- ------------- WARNING WARNING WARNING WARNING --------------
- ------------------------------------------------------------
-
- This module wraps registerElement to deal with
- components that inherit from `ANode` and `AEntity`.
- It's a pass through in any other case.
-
- It wraps some of the prototype methods
- of the created element to make sure that the corresponding
- functions in the base classes (`AEntity` and `ANode`) are also
- invoked. The method in the base class is always called before the
- one in the derived object.
-
-*/
 var registerElement = document.registerElement;
 
 var knownTags = module.exports.knownTags = {};
@@ -61355,11 +61449,11 @@ module.exports.isNode = function (node) {
 };
 
 /**
- * @param   {string} tagName The name of the tag to register
- * @param   {object} obj The prototype of the new element
- * @returns {object} The prototype of the new element
+ * @param {string} tagName - The name of the tag to register.
+ * @param {object} obj - The prototype of the new element.
+ * @returns {object} The prototype of the new element.
  */
-module.exports.registerElement = document.registerElement = function (tagName, obj) {
+module.exports.registerElement = function (tagName, obj) {
   var proto = Object.getPrototypeOf(obj.prototype);
   var newObj = obj;
   var isANode = ANode && proto === ANode.prototype;
@@ -61384,7 +61478,8 @@ module.exports.registerElement = document.registerElement = function (tagName, o
 
 /**
  * This wraps some of the obj methods to call those on `ANode` base clase.
- * @param  {object} obj The objects that contains the methods that will be wrapped.
+ *
+ * @param {object} obj - Object that contains the methods that will be wrapped.
  * @return {object} An object with the same properties as the input parameter but
  * with some of methods wrapped.
  */
@@ -61402,8 +61497,9 @@ function wrapANodeMethods (obj) {
 
 /**
  * This wraps some of the obj methods to call those on `AEntity` base class.
- * @param  {object} obj The objects that contains the methods that will be wrapped.
- * @return {object} An object with the same properties as the input parameter but
+ *
+ * @param {object} obj - The objects that contains the methods that will be wrapped.
+ * @return {object} - An object with the same properties as the input parameter but
  * with some of methods wrapped.
  */
 function wrapAEntityMethods (obj) {
@@ -61421,18 +61517,19 @@ function wrapAEntityMethods (obj) {
   ];
   wrapMethods(newObj, ANodeMethods, obj, ANode.prototype);
   wrapMethods(newObj, AEntityMethods, obj, AEntity.prototype);
-  // Copies the remaining properties into the new object
+  // Copies the remaining properties into the new object.
   copyProperties(obj, newObj);
   return newObj;
 }
 
 /**
- * Wraps a list a methods to ensure that those in the base class are called through the derived one.
- * @param  {object} targetObj Object that will contain the wrapped methods
- * @param  {array} methodList List of methods from the derivedObj that will be wrapped
- * @param  {object} derivedObject Object that inherits from the baseObj
- * @param  {object} baseObj Object that derivedObj inherits from
- * @return {undefined}
+ * Wraps a list a methods to ensure that those in the base class are called
+ * through the derived one.
+ *
+ * @param {object} targetObj - Object that will contain the wrapped methods.
+ * @param {array} methodList - List of methods from the derivedObj that will be wrapped.
+ * @param {object} derivedObject - Object that inherits from the baseObj.
+ * @param {object} baseObj - Object that derivedObj inherits from.
  */
 function wrapMethods (targetObj, methodList, derivedObj, baseObj) {
   methodList.forEach(function (methodName) {
@@ -61441,13 +61538,13 @@ function wrapMethods (targetObj, methodList, derivedObj, baseObj) {
 }
 
 /**
- * Wraps one method to ensure that the one in the base class is called before the one
- * in the derived one
- * @param  {object} obj Object that will contain the wrapped method
- * @param  {string} methodName The name of the method that will be wrapped
- * @param  {object} derivedObject Object that inherits from the baseObj
- * @param  {object} baseObj Object that derivedObj inherits from
- * @return {undefined}
+ * Wraps one method to ensure that the one in the base class is called before
+ * the one in the derived one.
+ *
+ * @param {object} obj - Object that will contain the wrapped method.
+ * @param {string} methodName - The name of the method that will be wrapped.
+ * @param {object} derivedObject - Object that inherits from the baseObj.
+ * @param {object} baseObj - Object that derivedObj inherits from.
  */
 function wrapMethod (obj, methodName, derivedObj, baseObj) {
   var derivedMethod = derivedObj[methodName];
@@ -61465,11 +61562,11 @@ function wrapMethod (obj, methodName, derivedObj, baseObj) {
 }
 
 /**
- * It copies the properties from source to destination object
- * if they don't exist already
- * @param  {object} source The object where properties are copied from
- * @param  {type} destination The object where properties are copied to
- * @return {undefined}
+ * It copies the properties from source to destination object if they don't
+ * exist already.
+ *
+ * @param {object} source - The object where properties are copied from.
+ * @param {type} destination - The object where properties are copied to.
  */
 function copyProperties (source, destination) {
   var props = Object.getOwnPropertyNames(source);
@@ -61485,7 +61582,7 @@ function copyProperties (source, destination) {
 var ANode = _dereq_('./a-node');
 var AEntity = _dereq_('./a-entity');
 
-},{"./a-entity":52,"./a-node":54,"document-register-element":8}],56:[function(_dereq_,module,exports){
+},{"./a-entity":53,"./a-node":55,"document-register-element":8}],57:[function(_dereq_,module,exports){
 /* global HTMLElement */
 var schema = _dereq_('./schema');
 var systems = _dereq_('./system');
@@ -61518,8 +61615,6 @@ var Component = module.exports.Component = function (el, attr, id) {
   this.id = id;
   this.attrName = this.name + (id ? '__' + id : '');
   this.updateCachedAttrValue(attr);
-  if (!el.hasLoaded) { return; }
-  this.updateProperties(this.attrValue);
 };
 
 Component.prototype = {
@@ -61752,6 +61847,8 @@ module.exports.registerComponent = function (name, definition) {
   }
   NewComponent = function (el, attr, id) {
     Component.call(this, el, attr, id);
+    if (!el.hasLoaded) { return; }
+    this.updateProperties(this.attrValue);
   };
 
   NewComponent.prototype = Object.create(Component.prototype, proto);
@@ -61883,7 +61980,7 @@ function wrapPlay (playMethod) {
   };
 }
 
-},{"../utils/":115,"./schema":63,"./system":65}],57:[function(_dereq_,module,exports){
+},{"../utils/":117,"./schema":64,"./system":66}],58:[function(_dereq_,module,exports){
 var schema = _dereq_('./schema');
 
 var processSchema = schema.process;
@@ -61957,7 +62054,7 @@ module.exports.registerGeometry = function (name, definition) {
   return NewGeometry;
 };
 
-},{"../lib/three":100,"./schema":63}],58:[function(_dereq_,module,exports){
+},{"../lib/three":101,"./schema":64}],59:[function(_dereq_,module,exports){
 var coordinates = _dereq_('../utils/coordinates');
 var debug = _dereq_('debug');
 
@@ -62084,7 +62181,7 @@ function vecParse (value) {
   return coordinates.parse(value, this.default);
 }
 
-},{"../utils/coordinates":112,"debug":3}],59:[function(_dereq_,module,exports){
+},{"../utils/coordinates":114,"debug":3}],60:[function(_dereq_,module,exports){
 /* global Promise */
 var initMetaTags = _dereq_('./metaTags').inject;
 var initWakelock = _dereq_('./wakelock');
@@ -62098,6 +62195,7 @@ var AEntity = _dereq_('../a-entity');
 var ANode = _dereq_('../a-node');
 var initPostMessageAPI = _dereq_('./postMessage');
 
+var checkHeadsetConnected = utils.checkHeadsetConnected;
 var registerElement = re.registerElement;
 var isIOS = utils.isIOS();
 var isMobile = utils.isMobile();
@@ -62147,14 +62245,32 @@ module.exports = registerElement('a-scene', {
         this.hasLoaded = false;
         this.isPlaying = false;
         this.originalHTML = this.innerHTML;
-        this.setupSystems();
         this.addEventListener('render-target-loaded', function () {
           this.setupRenderer();
           this.resize();
         });
+        this.addFullScreenStyles();
         initPostMessageAPI(this);
       },
       writable: true
+    },
+
+    addFullScreenStyles: {
+      value: function () {
+        var htmlEl = document.documentElement;
+        htmlEl.classList.add('a-html');
+        document.body.classList.add('a-body');
+        this.classList.add('fullscreen');
+      }
+    },
+
+    removeFullScreenStyles: {
+      value: function () {
+        var htmlEl = document.documentElement;
+        htmlEl.classList.remove('a-html');
+        document.body.classList.remove('a-body');
+        this.classList.remove('fullscreen');
+      }
     },
 
     attachedCallback: {
@@ -62162,6 +62278,7 @@ module.exports = registerElement('a-scene', {
         var resize = this.resize.bind(this);
         initMetaTags(this);
         initWakelock(this);
+        this.initSystems();
 
         window.addEventListener('load', resize);
         window.addEventListener('resize', resize);
@@ -62170,10 +62287,9 @@ module.exports = registerElement('a-scene', {
       writable: window.debug
     },
 
-    setupSystems: {
+    initSystems: {
       value: function () {
-        var systemsKeys = Object.keys(systems);
-        systemsKeys.forEach(this.initSystem.bind(this));
+        Object.keys(systems).forEach(this.initSystem.bind(this));
       }
     },
 
@@ -62208,13 +62324,14 @@ module.exports = registerElement('a-scene', {
       }
     },
 
-    /**
-     * Generally must be triggered on user action for requesting fullscreen.
-     */
     enterVR: {
       value: function (event) {
         var self = this;
-        return this.effect.requestPresent().then(enterVRSuccess, enterVRFailure);
+        if (this.is('vr-mode')) { return; }
+        if (checkHeadsetConnected() || this.isMobile) {
+          return this.effect.requestPresent().then(enterVRSuccess, enterVRFailure);
+        }
+        enterVRSuccess();
         function enterVRSuccess () {
           self.addState('vr-mode');
           self.emit('enter-vr', event);
@@ -62222,6 +62339,10 @@ module.exports = registerElement('a-scene', {
           if (self.isMobile && window.screen.orientation) {
             window.screen.orientation.lock('landscape');
           }
+          self.addFullScreenStyles();
+          // On mobile the polyfill handles fullscreen
+          if (!self.isMobile) { self.requestFullscreen(); }
+          self.resize();
         }
         function enterVRFailure (err) {
           if (err && err.message) {
@@ -62233,17 +62354,34 @@ module.exports = registerElement('a-scene', {
       }
     },
 
+    requestFullscreen: {
+      value: function () {
+        var canvas = this.canvas;
+        var requestFullscreen =
+          canvas.requestFullScreen ||
+          canvas.webkitRequestFullScreen ||
+          canvas.mozRequestFullScreen;
+        requestFullscreen.apply(canvas);
+      }
+    },
+
     exitVR: {
       value: function () {
         var self = this;
         if (!this.is('vr-mode')) { return Promise.resolve(); }
-        return this.effect.exitPresent().then(exitVRSuccess, exitVRFailure);
+        if (checkHeadsetConnected() || this.isMobile) {
+          return this.effect.exitPresent().then(exitVRSuccess, exitVRFailure);
+        }
+        exitVRSuccess();
         function exitVRSuccess () {
+          var embedded = self.getAttribute('embedded');
           self.removeState('vr-mode');
           // Lock to landscape orientation on mobile.
           if (self.isMobile && window.screen.orientation) {
             window.screen.orientation.unlock();
           }
+          // Exiting VR in embedded mode, no longer need fullscreen styles.
+          if (embedded) { self.removeFullScreenStyles(); }
           self.resize();
           self.emit('exit-vr', {target: self});
         }
@@ -62313,24 +62451,16 @@ module.exports = registerElement('a-scene', {
       value: function () {
         var camera = this.camera;
         var canvas = this.canvas;
+        var embedded = this.getAttribute('embedded') && !this.is('vr-mode');
         var size;
-
         // Possible camera or canvas not injected yet.
         if (!camera || !canvas) { return; }
-
-        // Update canvas if canvas was provided by A-Frame.
-        if (!isMobile && canvas.dataset.aframeDefault) {
-          canvas.style.width = '100%';
-          canvas.style.height = '100%';
-        }
-
         // Update camera.
-        size = getCanvasSize(canvas, isMobile);
+        size = getCanvasSize(canvas, embedded);
         camera.aspect = size.width / size.height;
         camera.updateProjectionMatrix();
-
         // Notify renderer of size change.
-        this.renderer.setSize(size.width, size.height, true);
+        this.renderer.setSize(size.width, size.height);
       },
       writable: window.debug
     },
@@ -62444,9 +62574,7 @@ module.exports = registerElement('a-scene', {
         var camera = this.camera;
         var timeDelta = time - this.time;
 
-        if (this.isPlaying) {
-          this.tick(time, timeDelta);
-        }
+        if (this.isPlaying) { this.tick(time, timeDelta); }
         this.effect.render(this.object3D, camera);
 
         this.time = time;
@@ -62457,20 +62585,28 @@ module.exports = registerElement('a-scene', {
   })
 });
 
-function getCanvasSize (canvas) {
-  if (isMobile) {
+/**
+ * Return the canvas size where the scene will be rendered
+ * It will be always the window size except when the scene
+ * is embedded. The parent size will be returned in that case
+ *
+ * @param {object} canvasEl - the canvas element
+ * @param {boolean} embedded - Is the scene embedded?
+ */
+function getCanvasSize (canvasEl, embedded) {
+  if (embedded) {
     return {
-      height: window.innerHeight,
-      width: window.innerWidth
+      height: canvasEl.parentElement.offsetHeight,
+      width: canvasEl.parentElement.offsetWidth
     };
   }
   return {
-    height: canvas.offsetHeight,
-    width: canvas.offsetWidth
+    height: window.innerHeight,
+    width: window.innerWidth
   };
 }
 
-},{"../../lib/three":100,"../../utils/":115,"../a-entity":52,"../a-node":54,"../a-register-element":55,"../system":65,"./metaTags":60,"./postMessage":61,"./wakelock":62,"tween.js":18}],60:[function(_dereq_,module,exports){
+},{"../../lib/three":101,"../../utils/":117,"../a-entity":53,"../a-node":55,"../a-register-element":56,"../system":66,"./metaTags":61,"./postMessage":62,"./wakelock":63,"tween.js":18}],61:[function(_dereq_,module,exports){
 var extend = _dereq_('../../utils').extend;
 
 var MOBILE_HEAD_TAGS = module.exports.MOBILE_HEAD_TAGS = [
@@ -62549,7 +62685,7 @@ function createTag (tagObj) {
   return extend(meta, tagObj.attributes);
 }
 
-},{"../../utils":115}],61:[function(_dereq_,module,exports){
+},{"../../utils":117}],62:[function(_dereq_,module,exports){
 var isIframed = _dereq_('../../utils/').isIframed;
 
 /**
@@ -62581,7 +62717,7 @@ function postMessageAPIHandler (event) {
   }
 }
 
-},{"../../utils/":115}],62:[function(_dereq_,module,exports){
+},{"../../utils/":117}],63:[function(_dereq_,module,exports){
 var Wakelock = _dereq_('../../../vendor/wakelock/wakelock');
 
 module.exports = function initWakelock (scene) {
@@ -62592,7 +62728,7 @@ module.exports = function initWakelock (scene) {
   scene.addEventListener('exit-vr', function () { wakelock.release(); });
 };
 
-},{"../../../vendor/wakelock/wakelock":124}],63:[function(_dereq_,module,exports){
+},{"../../../vendor/wakelock/wakelock":126}],64:[function(_dereq_,module,exports){
 var debug = _dereq_('../utils/debug');
 var propertyTypes = _dereq_('./propertyTypes').propertyTypes;
 var warn = debug('core:schema:warn');
@@ -62748,7 +62884,7 @@ function stringifyProperty (value, propDefinition) {
 }
 module.exports.stringifyProperty = stringifyProperty;
 
-},{"../utils/debug":113,"./propertyTypes":58}],64:[function(_dereq_,module,exports){
+},{"../utils/debug":115,"./propertyTypes":59}],65:[function(_dereq_,module,exports){
 var schema = _dereq_('./schema');
 
 var processSchema = schema.process;
@@ -62907,7 +63043,7 @@ module.exports.registerShader = function (name, definition) {
   return NewShader;
 };
 
-},{"../lib/three":100,"./schema":63}],65:[function(_dereq_,module,exports){
+},{"../lib/three":101,"./schema":64}],66:[function(_dereq_,module,exports){
 /* global HTMLElement */
 var components = _dereq_('./component');
 var schema = _dereq_('./schema');
@@ -63024,10 +63160,10 @@ module.exports.registerSystem = function (name, definition) {
   for (i = 0; i < scenes.length; i++) { scenes[i].initSystem(name); }
 };
 
-},{"../utils/":115,"./component":56,"./schema":63}],66:[function(_dereq_,module,exports){
+},{"../utils/":117,"./component":57,"./schema":64}],67:[function(_dereq_,module,exports){
 _dereq_('./pivot');
 
-},{"./pivot":67}],67:[function(_dereq_,module,exports){
+},{"./pivot":68}],68:[function(_dereq_,module,exports){
 var registerComponent = _dereq_('../../core/component').registerComponent;
 var THREE = _dereq_('../../lib/three');
 
@@ -63076,7 +63212,7 @@ registerComponent('pivot', {
   }
 });
 
-},{"../../core/component":56,"../../lib/three":100}],68:[function(_dereq_,module,exports){
+},{"../../core/component":57,"../../lib/three":101}],69:[function(_dereq_,module,exports){
 var ANode = _dereq_('../../core/a-node');
 var registerElement = _dereq_('../../core/a-register-element').registerElement;
 var utils = _dereq_('../../utils/');
@@ -63181,7 +63317,7 @@ module.exports = registerElement('a-event', {
   })
 });
 
-},{"../../core/a-node":54,"../../core/a-register-element":55,"../../utils/":115}],69:[function(_dereq_,module,exports){
+},{"../../core/a-node":55,"../../core/a-register-element":56,"../../utils/":117}],70:[function(_dereq_,module,exports){
 /**
  * Common mesh defaults, mappings, and transforms.
  */
@@ -63214,7 +63350,7 @@ module.exports = function getMeshMixin () {
   };
 };
 
-},{}],70:[function(_dereq_,module,exports){
+},{}],71:[function(_dereq_,module,exports){
 _dereq_('./primitives/a-camera');
 _dereq_('./primitives/a-collada-model');
 _dereq_('./primitives/a-cursor');
@@ -63228,7 +63364,7 @@ _dereq_('./primitives/a-video');
 _dereq_('./primitives/a-videosphere');
 _dereq_('./primitives/meshPrimitives');
 
-},{"./primitives/a-camera":72,"./primitives/a-collada-model":73,"./primitives/a-cursor":74,"./primitives/a-curvedimage":75,"./primitives/a-image":76,"./primitives/a-light":77,"./primitives/a-obj-model":78,"./primitives/a-sky":79,"./primitives/a-sound":80,"./primitives/a-video":81,"./primitives/a-videosphere":82,"./primitives/meshPrimitives":83}],71:[function(_dereq_,module,exports){
+},{"./primitives/a-camera":73,"./primitives/a-collada-model":74,"./primitives/a-cursor":75,"./primitives/a-curvedimage":76,"./primitives/a-image":77,"./primitives/a-light":78,"./primitives/a-obj-model":79,"./primitives/a-sky":80,"./primitives/a-sound":81,"./primitives/a-video":82,"./primitives/a-videosphere":83,"./primitives/meshPrimitives":84}],72:[function(_dereq_,module,exports){
 var AEntity = _dereq_('../../core/a-entity');
 var components = _dereq_('../../core/component').components;
 var registerElement = _dereq_('../../core/a-register-element').registerElement;
@@ -63370,7 +63506,7 @@ module.exports.registerPrimitive = function registerPrimitive (name, definition)
   return primitive;
 };
 
-},{"../../core/a-entity":52,"../../core/a-register-element":55,"../../core/component":56,"../../utils/":115}],72:[function(_dereq_,module,exports){
+},{"../../core/a-entity":53,"../../core/a-register-element":56,"../../core/component":57,"../../utils/":117}],73:[function(_dereq_,module,exports){
 var registerPrimitive = _dereq_('../primitives').registerPrimitive;
 
 registerPrimitive('a-camera', {
@@ -63387,6 +63523,7 @@ registerPrimitive('a-camera', {
     'look-controls-enabled': 'look-controls.enabled',
     near: 'camera.near',
     'wasd-controls-enabled': 'wasd-controls.enabled',
+    'user-height': 'camera.userHeight',
     zoom: 'camera.zoom'
   },
 
@@ -63400,7 +63537,7 @@ registerPrimitive('a-camera', {
   }
 });
 
-},{"../primitives":71}],73:[function(_dereq_,module,exports){
+},{"../primitives":72}],74:[function(_dereq_,module,exports){
 var getMeshMixin = _dereq_('../getMeshMixin');
 var registerPrimitive = _dereq_('../primitives').registerPrimitive;
 var utils = _dereq_('../../../utils/');
@@ -63411,7 +63548,7 @@ registerPrimitive('a-collada-model', utils.extendDeep({}, getMeshMixin(), {
   }
 }));
 
-},{"../../../utils/":115,"../getMeshMixin":69,"../primitives":71}],74:[function(_dereq_,module,exports){
+},{"../../../utils/":117,"../getMeshMixin":70,"../primitives":72}],75:[function(_dereq_,module,exports){
 var getMeshMixin = _dereq_('../getMeshMixin');
 var registerPrimitive = _dereq_('../primitives').registerPrimitive;
 var utils = _dereq_('../../../utils/');
@@ -63449,7 +63586,7 @@ registerPrimitive('a-cursor', utils.extendDeep({}, getMeshMixin(), {
   }
 }));
 
-},{"../../../utils/":115,"../getMeshMixin":69,"../primitives":71}],75:[function(_dereq_,module,exports){
+},{"../../../utils/":117,"../getMeshMixin":70,"../primitives":72}],76:[function(_dereq_,module,exports){
 var getMeshMixin = _dereq_('../getMeshMixin');
 var registerPrimitive = _dereq_('../primitives').registerPrimitive;
 var utils = _dereq_('../../../utils/');
@@ -63486,7 +63623,7 @@ registerPrimitive('a-curvedimage', utils.extendDeep({}, getMeshMixin(), {
   }
 }));
 
-},{"../../../utils/":115,"../getMeshMixin":69,"../primitives":71}],76:[function(_dereq_,module,exports){
+},{"../../../utils/":117,"../getMeshMixin":70,"../primitives":72}],77:[function(_dereq_,module,exports){
 var getMeshMixin = _dereq_('../getMeshMixin');
 var registerPrimitive = _dereq_('../primitives').registerPrimitive;
 var utils = _dereq_('../../../utils/');
@@ -63510,7 +63647,7 @@ registerPrimitive('a-image', utils.extendDeep({}, getMeshMixin(), {
   }
 }));
 
-},{"../../../utils/":115,"../getMeshMixin":69,"../primitives":71}],77:[function(_dereq_,module,exports){
+},{"../../../utils/":117,"../getMeshMixin":70,"../primitives":72}],78:[function(_dereq_,module,exports){
 var registerPrimitive = _dereq_('../primitives').registerPrimitive;
 
 registerPrimitive('a-light', {
@@ -63530,7 +63667,7 @@ registerPrimitive('a-light', {
   }
 });
 
-},{"../primitives":71}],78:[function(_dereq_,module,exports){
+},{"../primitives":72}],79:[function(_dereq_,module,exports){
 var meshMixin = _dereq_('../getMeshMixin')();
 var registerPrimitive = _dereq_('../primitives').registerPrimitive;
 var utils = _dereq_('../../../utils/');
@@ -63546,7 +63683,7 @@ registerPrimitive('a-obj-model', utils.extendDeep({}, meshMixin, {
   }
 }));
 
-},{"../../../utils/":115,"../getMeshMixin":69,"../primitives":71}],79:[function(_dereq_,module,exports){
+},{"../../../utils/":117,"../getMeshMixin":70,"../primitives":72}],80:[function(_dereq_,module,exports){
 var getMeshMixin = _dereq_('../getMeshMixin');
 var registerPrimitive = _dereq_('../primitives').registerPrimitive;
 var utils = _dereq_('../../../utils/');
@@ -63573,7 +63710,7 @@ registerPrimitive('a-sky', utils.extendDeep({}, getMeshMixin(), {
   }
 }));
 
-},{"../../../utils/":115,"../getMeshMixin":69,"../primitives":71}],80:[function(_dereq_,module,exports){
+},{"../../../utils/":117,"../getMeshMixin":70,"../primitives":72}],81:[function(_dereq_,module,exports){
 var registerPrimitive = _dereq_('../primitives').registerPrimitive;
 
 registerPrimitive('a-sound', {
@@ -63590,7 +63727,7 @@ registerPrimitive('a-sound', {
   }
 });
 
-},{"../primitives":71}],81:[function(_dereq_,module,exports){
+},{"../primitives":72}],82:[function(_dereq_,module,exports){
 var getMeshMixin = _dereq_('../getMeshMixin');
 var registerPrimitive = _dereq_('../primitives').registerPrimitive;
 var utils = _dereq_('../../../utils/');
@@ -63614,7 +63751,7 @@ registerPrimitive('a-video', utils.extendDeep({}, getMeshMixin(), {
   }
 }));
 
-},{"../../../utils/":115,"../getMeshMixin":69,"../primitives":71}],82:[function(_dereq_,module,exports){
+},{"../../../utils/":117,"../getMeshMixin":70,"../primitives":72}],83:[function(_dereq_,module,exports){
 var getMeshMixin = _dereq_('../getMeshMixin');
 var registerPrimitive = _dereq_('../primitives').registerPrimitive;
 var utils = _dereq_('../../../utils/');
@@ -63641,7 +63778,7 @@ registerPrimitive('a-videosphere', utils.extendDeep({}, getMeshMixin(), {
   }
 }));
 
-},{"../../../utils/":115,"../getMeshMixin":69,"../primitives":71}],83:[function(_dereq_,module,exports){
+},{"../../../utils/":117,"../getMeshMixin":70,"../primitives":72}],84:[function(_dereq_,module,exports){
 /**
  * Automated mesh primitive registration.
  */
@@ -63681,7 +63818,7 @@ function unCamelCase (str) {
   return str.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
 }
 
-},{"../../../core/geometry":57,"../../../utils/":115,"../getMeshMixin":69,"../primitives":71}],84:[function(_dereq_,module,exports){
+},{"../../../core/geometry":58,"../../../utils/":117,"../getMeshMixin":70,"../primitives":72}],85:[function(_dereq_,module,exports){
 var registerGeometry = _dereq_('../core/geometry').registerGeometry;
 var THREE = _dereq_('../lib/three');
 
@@ -63700,7 +63837,7 @@ registerGeometry('box', {
   }
 });
 
-},{"../core/geometry":57,"../lib/three":100}],85:[function(_dereq_,module,exports){
+},{"../core/geometry":58,"../lib/three":101}],86:[function(_dereq_,module,exports){
 var registerGeometry = _dereq_('../core/geometry').registerGeometry;
 var THREE = _dereq_('../lib/three');
 
@@ -63720,7 +63857,7 @@ registerGeometry('circle', {
   }
 });
 
-},{"../core/geometry":57,"../lib/three":100}],86:[function(_dereq_,module,exports){
+},{"../core/geometry":58,"../lib/three":101}],87:[function(_dereq_,module,exports){
 var registerGeometry = _dereq_('../core/geometry').registerGeometry;
 var THREE = _dereq_('../lib/three');
 
@@ -63746,7 +63883,7 @@ registerGeometry('cone', {
   }
 });
 
-},{"../core/geometry":57,"../lib/three":100}],87:[function(_dereq_,module,exports){
+},{"../core/geometry":58,"../lib/three":101}],88:[function(_dereq_,module,exports){
 var registerGeometry = _dereq_('../core/geometry').registerGeometry;
 var THREE = _dereq_('../lib/three');
 
@@ -63770,7 +63907,7 @@ registerGeometry('cylinder', {
   }
 });
 
-},{"../core/geometry":57,"../lib/three":100}],88:[function(_dereq_,module,exports){
+},{"../core/geometry":58,"../lib/three":101}],89:[function(_dereq_,module,exports){
 var registerGeometry = _dereq_('../core/geometry').registerGeometry;
 var THREE = _dereq_('../lib/three');
 
@@ -63785,7 +63922,7 @@ registerGeometry('dodecahedron', {
   }
 });
 
-},{"../core/geometry":57,"../lib/three":100}],89:[function(_dereq_,module,exports){
+},{"../core/geometry":58,"../lib/three":101}],90:[function(_dereq_,module,exports){
 var registerGeometry = _dereq_('../core/geometry').registerGeometry;
 var THREE = _dereq_('../lib/three');
 
@@ -63800,7 +63937,7 @@ registerGeometry('icosahedron', {
   }
 });
 
-},{"../core/geometry":57,"../lib/three":100}],90:[function(_dereq_,module,exports){
+},{"../core/geometry":58,"../lib/three":101}],91:[function(_dereq_,module,exports){
 _dereq_('./box.js');
 _dereq_('./circle.js');
 _dereq_('./cone.js');
@@ -63815,7 +63952,7 @@ _dereq_('./tetrahedron.js');
 _dereq_('./torus.js');
 _dereq_('./torusKnot.js');
 
-},{"./box.js":84,"./circle.js":85,"./cone.js":86,"./cylinder.js":87,"./dodecahedron.js":88,"./icosahedron.js":89,"./octahedron.js":91,"./plane.js":92,"./ring.js":93,"./sphere.js":94,"./tetrahedron.js":95,"./torus.js":96,"./torusKnot.js":97}],91:[function(_dereq_,module,exports){
+},{"./box.js":85,"./circle.js":86,"./cone.js":87,"./cylinder.js":88,"./dodecahedron.js":89,"./icosahedron.js":90,"./octahedron.js":92,"./plane.js":93,"./ring.js":94,"./sphere.js":95,"./tetrahedron.js":96,"./torus.js":97,"./torusKnot.js":98}],92:[function(_dereq_,module,exports){
 var registerGeometry = _dereq_('../core/geometry').registerGeometry;
 var THREE = _dereq_('../lib/three');
 
@@ -63830,7 +63967,7 @@ registerGeometry('octahedron', {
   }
 });
 
-},{"../core/geometry":57,"../lib/three":100}],92:[function(_dereq_,module,exports){
+},{"../core/geometry":58,"../lib/three":101}],93:[function(_dereq_,module,exports){
 var registerGeometry = _dereq_('../core/geometry').registerGeometry;
 var THREE = _dereq_('../lib/three');
 
@@ -63847,7 +63984,7 @@ registerGeometry('plane', {
   }
 });
 
-},{"../core/geometry":57,"../lib/three":100}],93:[function(_dereq_,module,exports){
+},{"../core/geometry":58,"../lib/three":101}],94:[function(_dereq_,module,exports){
 var registerGeometry = _dereq_('../core/geometry').registerGeometry;
 var THREE = _dereq_('../lib/three');
 
@@ -63870,7 +64007,7 @@ registerGeometry('ring', {
   }
 });
 
-},{"../core/geometry":57,"../lib/three":100}],94:[function(_dereq_,module,exports){
+},{"../core/geometry":58,"../lib/three":101}],95:[function(_dereq_,module,exports){
 var registerGeometry = _dereq_('../core/geometry').registerGeometry;
 var THREE = _dereq_('../lib/three');
 
@@ -63894,7 +64031,7 @@ registerGeometry('sphere', {
   }
 });
 
-},{"../core/geometry":57,"../lib/three":100}],95:[function(_dereq_,module,exports){
+},{"../core/geometry":58,"../lib/three":101}],96:[function(_dereq_,module,exports){
 var registerGeometry = _dereq_('../core/geometry').registerGeometry;
 var THREE = _dereq_('../lib/three');
 
@@ -63909,7 +64046,7 @@ registerGeometry('tetrahedron', {
   }
 });
 
-},{"../core/geometry":57,"../lib/three":100}],96:[function(_dereq_,module,exports){
+},{"../core/geometry":58,"../lib/three":101}],97:[function(_dereq_,module,exports){
 var registerGeometry = _dereq_('../core/geometry').registerGeometry;
 var THREE = _dereq_('../lib/three');
 
@@ -63931,7 +64068,7 @@ registerGeometry('torus', {
   }
 });
 
-},{"../core/geometry":57,"../lib/three":100}],97:[function(_dereq_,module,exports){
+},{"../core/geometry":58,"../lib/three":101}],98:[function(_dereq_,module,exports){
 var registerGeometry = _dereq_('../core/geometry').registerGeometry;
 var THREE = _dereq_('../lib/three');
 
@@ -63952,7 +64089,7 @@ registerGeometry('torusKnot', {
   }
 });
 
-},{"../core/geometry":57,"../lib/three":100}],98:[function(_dereq_,module,exports){
+},{"../core/geometry":58,"../lib/three":101}],99:[function(_dereq_,module,exports){
 // Polyfill `Promise`.
 window.Promise = window.Promise || _dereq_('promise-polyfill');
 
@@ -64020,6 +64157,7 @@ module.exports = window.AFRAME = {
   components: components,
   geometries: _dereq_('./core/geometry').geometries,
   registerComponent: registerComponent,
+  registerElement: _dereq_('./core/a-register-element').registerElement,
   registerGeometry: registerGeometry,
   registerPrimitive: registerPrimitive,
   registerShader: registerShader,
@@ -64037,7 +64175,7 @@ module.exports = window.AFRAME = {
   version: pkg.version
 };
 
-},{"../package":20,"./components/index":27,"./core/a-animation":49,"./core/a-assets":50,"./core/a-cubemap":51,"./core/a-entity":52,"./core/a-mixin":53,"./core/a-node":54,"./core/component":56,"./core/geometry":57,"./core/scene/a-scene":59,"./core/schema":63,"./core/shader":64,"./core/system":65,"./extras/components/":66,"./extras/declarative-events/":68,"./extras/primitives/":70,"./extras/primitives/getMeshMixin":69,"./extras/primitives/primitives":71,"./geometries/index":90,"./lib/three":100,"./shaders/index":102,"./style/aframe.css":104,"./style/rStats.css":105,"./systems/index":108,"./utils/":115,"present":10,"promise-polyfill":11,"tween.js":18,"webvr-polyfill":19}],99:[function(_dereq_,module,exports){
+},{"../package":20,"./components/index":27,"./core/a-animation":50,"./core/a-assets":51,"./core/a-cubemap":52,"./core/a-entity":53,"./core/a-mixin":54,"./core/a-node":55,"./core/a-register-element":56,"./core/component":57,"./core/geometry":58,"./core/scene/a-scene":60,"./core/schema":64,"./core/shader":65,"./core/system":66,"./extras/components/":67,"./extras/declarative-events/":69,"./extras/primitives/":71,"./extras/primitives/getMeshMixin":70,"./extras/primitives/primitives":72,"./geometries/index":91,"./lib/three":101,"./shaders/index":103,"./style/aframe.css":105,"./style/rStats.css":106,"./systems/index":109,"./utils/":117,"present":10,"promise-polyfill":11,"tween.js":18,"webvr-polyfill":19}],100:[function(_dereq_,module,exports){
 window.aframeStats = function (scene) {
   var _rS = null;
   var _scene = scene;
@@ -64084,7 +64222,7 @@ if (typeof module === 'object') {
   };
 }
 
-},{}],100:[function(_dereq_,module,exports){
+},{}],101:[function(_dereq_,module,exports){
 (function (global){
 var THREE = global.THREE = _dereq_('three');
 
@@ -64122,7 +64260,7 @@ module.exports = THREE;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 
-},{"../../vendor/VRControls":119,"../../vendor/VREffect":120,"three":17,"three/examples/js/BlendCharacter":13,"three/examples/js/loaders/ColladaLoader":14,"three/examples/js/loaders/MTLLoader":15,"three/examples/js/loaders/OBJLoader":16}],101:[function(_dereq_,module,exports){
+},{"../../vendor/VRControls":121,"../../vendor/VREffect":122,"three":17,"three/examples/js/BlendCharacter":13,"three/examples/js/loaders/ColladaLoader":14,"three/examples/js/loaders/MTLLoader":15,"three/examples/js/loaders/OBJLoader":16}],102:[function(_dereq_,module,exports){
 var registerShader = _dereq_('../core/shader').registerShader;
 var THREE = _dereq_('../lib/three');
 var utils = _dereq_('../utils/');
@@ -64182,11 +64320,11 @@ function getMaterialData (data) {
   };
 }
 
-},{"../core/shader":64,"../lib/three":100,"../utils/":115}],102:[function(_dereq_,module,exports){
+},{"../core/shader":65,"../lib/three":101,"../utils/":117}],103:[function(_dereq_,module,exports){
 _dereq_('./flat');
 _dereq_('./standard');
 
-},{"./flat":101,"./standard":103}],103:[function(_dereq_,module,exports){
+},{"./flat":102,"./standard":104}],104:[function(_dereq_,module,exports){
 var registerShader = _dereq_('../core/shader').registerShader;
 var THREE = _dereq_('../lib/three');
 var utils = _dereq_('../utils/');
@@ -64294,15 +64432,15 @@ function getMaterialData (data) {
   };
 }
 
-},{"../core/shader":64,"../lib/three":100,"../utils/":115}],104:[function(_dereq_,module,exports){
-var css = "html{bottom:0;left:0;position:fixed;right:0;top:0}:-webkit-full-screen{background-color:transparent}body{height:100%;margin:0;overflow:hidden;padding:0;width:100%}.a-hidden{display:none!important}.a-canvas{height:100%;left:0;position:absolute;top:0;width:100%}a-assets,a-scene audio,a-scene img,a-scene video{display:none}.a-enter-vr-modal,.a-orientation-modal{font-family:Consolas,Andale Mono,Courier New,monospace}.a-enter-vr-modal{font-size:11px;line-height:15px}.a-enter-vr-modal a{border-bottom:1px solid #fff;padding:2px 0;text-decoration:none;transition:.1s color ease-in}.a-enter-vr-modal a:hover{background-color:#fff;color:#111;padding:2px 4px;position:relative;left:-4px}.a-enter-vr{align-items:flex-end;-webkit-align-items:flex-end;bottom:5px;display:flex;display:-webkit-flex;font-family:sans-serif,monospace;font-size:13px;font-weight:200;line-height:16px;height:72px;position:fixed;right:5px}.a-enter-vr-button,.a-enter-vr-modal,.a-enter-vr-modal a{color:#fff}.a-enter-vr-button{background:url(data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20245.82%20141.73%22%3E%3Cdefs%3E%3Cstyle%3E.a%7Bfill%3A%23fff%3Bfill-rule%3Aevenodd%3B%7D%3C%2Fstyle%3E%3C%2Fdefs%3E%3Ctitle%3Emask%3C%2Ftitle%3E%3Cpath%20class%3D%22a%22%20d%3D%22M175.56%2C111.37c-22.52%2C0-40.77-18.84-40.77-42.07S153%2C27.24%2C175.56%2C27.24s40.77%2C18.84%2C40.77%2C42.07S198.08%2C111.37%2C175.56%2C111.37ZM26.84%2C69.31c0-23.23%2C18.25-42.07%2C40.77-42.07s40.77%2C18.84%2C40.77%2C42.07-18.26%2C42.07-40.77%2C42.07S26.84%2C92.54%2C26.84%2C69.31ZM27.27%2C0C11.54%2C0%2C0%2C12.34%2C0%2C28.58V110.9c0%2C16.24%2C11.54%2C30.83%2C27.27%2C30.83H99.57c2.17%2C0%2C4.19-1.83%2C5.4-3.7L116.47%2C118a8%2C8%2C0%2C0%2C1%2C12.52-.18l11.51%2C20.34c1.2%2C1.86%2C3.22%2C3.61%2C5.39%2C3.61h72.29c15.74%2C0%2C27.63-14.6%2C27.63-30.83V28.58C245.82%2C12.34%2C233.93%2C0%2C218.19%2C0H27.27Z%22%2F%3E%3C%2Fsvg%3E) 50% 50%/70% 70% no-repeat rgba(0,0,0,.35);border:0;bottom:0;cursor:pointer;height:50px;position:absolute;right:0;transition:background-color .05s ease;-webkit-transition:background-color .05s ease;width:60px;z-index:999999}.a-enter-vr-button:active,.a-enter-vr-button:hover{background-color:#666}[data-a-enter-vr-no-webvr] .a-enter-vr-button{border-color:#666;opacity:.65}[data-a-enter-vr-no-webvr] .a-enter-vr-button:active,[data-a-enter-vr-no-webvr] .a-enter-vr-button:hover{background-color:rgba(0,0,0,.35);cursor:not-allowed}.a-enter-vr-modal{background-color:#666;border-radius:0;display:none;min-height:32px;margin-right:70px;padding:9px;width:280px;position:relative}.a-enter-vr-modal:after{border-bottom:10px solid transparent;border-left:10px solid #666;border-top:10px solid transparent;display:inline-block;content:'';position:absolute;right:-5px;top:5px;width:0;height:0}.a-enter-vr-modal a,.a-enter-vr-modal p{display:inline}.a-enter-vr-modal p{margin:0}.a-enter-vr-modal p:after{content:' '}[data-a-enter-vr-no-headset].a-enter-vr:hover .a-enter-vr-modal,[data-a-enter-vr-no-webvr].a-enter-vr:hover .a-enter-vr-modal{display:block}.a-orientation-modal{background:url(data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20xmlns%3Axlink%3D%22http%3A//www.w3.org/1999/xlink%22%20version%3D%221.1%22%20x%3D%220px%22%20y%3D%220px%22%20viewBox%3D%220%200%2090%2090%22%20enable-background%3D%22new%200%200%2090%2090%22%20xml%3Aspace%3D%22preserve%22%3E%3Cpolygon%20points%3D%220%2C0%200%2C0%200%2C0%20%22%3E%3C/polygon%3E%3Cg%3E%3Cpath%20d%3D%22M71.545%2C48.145h-31.98V20.743c0-2.627-2.138-4.765-4.765-4.765H18.456c-2.628%2C0-4.767%2C2.138-4.767%2C4.765v42.789%20%20%20c0%2C2.628%2C2.138%2C4.766%2C4.767%2C4.766h5.535v0.959c0%2C2.628%2C2.138%2C4.765%2C4.766%2C4.765h42.788c2.628%2C0%2C4.766-2.137%2C4.766-4.765V52.914%20%20%20C76.311%2C50.284%2C74.173%2C48.145%2C71.545%2C48.145z%20M18.455%2C16.935h16.344c2.1%2C0%2C3.808%2C1.708%2C3.808%2C3.808v27.401H37.25V22.636%20%20%20c0-0.264-0.215-0.478-0.479-0.478H16.482c-0.264%2C0-0.479%2C0.214-0.479%2C0.478v36.585c0%2C0.264%2C0.215%2C0.478%2C0.479%2C0.478h7.507v7.644%20%20%20h-5.534c-2.101%2C0-3.81-1.709-3.81-3.81V20.743C14.645%2C18.643%2C16.354%2C16.935%2C18.455%2C16.935z%20M16.96%2C23.116h19.331v25.031h-7.535%20%20%20c-2.628%2C0-4.766%2C2.139-4.766%2C4.768v5.828h-7.03V23.116z%20M71.545%2C73.064H28.757c-2.101%2C0-3.81-1.708-3.81-3.808V52.914%20%20%20c0-2.102%2C1.709-3.812%2C3.81-3.812h42.788c2.1%2C0%2C3.809%2C1.71%2C3.809%2C3.812v16.343C75.354%2C71.356%2C73.645%2C73.064%2C71.545%2C73.064z%22%3E%3C/path%3E%3Cpath%20d%3D%22M28.919%2C58.424c-1.466%2C0-2.659%2C1.193-2.659%2C2.66c0%2C1.466%2C1.193%2C2.658%2C2.659%2C2.658c1.468%2C0%2C2.662-1.192%2C2.662-2.658%20%20%20C31.581%2C59.617%2C30.387%2C58.424%2C28.919%2C58.424z%20M28.919%2C62.786c-0.939%2C0-1.703-0.764-1.703-1.702c0-0.939%2C0.764-1.704%2C1.703-1.704%20%20%20c0.94%2C0%2C1.705%2C0.765%2C1.705%2C1.704C30.623%2C62.022%2C29.858%2C62.786%2C28.919%2C62.786z%22%3E%3C/path%3E%3Cpath%20d%3D%22M69.654%2C50.461H33.069c-0.264%2C0-0.479%2C0.215-0.479%2C0.479v20.288c0%2C0.264%2C0.215%2C0.478%2C0.479%2C0.478h36.585%20%20%20c0.263%2C0%2C0.477-0.214%2C0.477-0.478V50.939C70.131%2C50.676%2C69.917%2C50.461%2C69.654%2C50.461z%20M69.174%2C51.417V70.75H33.548V51.417H69.174z%22%3E%3C/path%3E%3Cpath%20d%3D%22M45.201%2C30.296c6.651%2C0%2C12.233%2C5.351%2C12.551%2C11.977l-3.033-2.638c-0.193-0.165-0.507-0.142-0.675%2C0.048%20%20%20c-0.174%2C0.198-0.153%2C0.501%2C0.045%2C0.676l3.883%2C3.375c0.09%2C0.075%2C0.198%2C0.115%2C0.312%2C0.115c0.141%2C0%2C0.273-0.061%2C0.362-0.166%20%20%20l3.371-3.877c0.173-0.2%2C0.151-0.502-0.047-0.675c-0.194-0.166-0.508-0.144-0.676%2C0.048l-2.592%2C2.979%20%20%20c-0.18-3.417-1.629-6.605-4.099-9.001c-2.538-2.461-5.877-3.817-9.404-3.817c-0.264%2C0-0.479%2C0.215-0.479%2C0.479%20%20%20C44.72%2C30.083%2C44.936%2C30.296%2C45.201%2C30.296z%22%3E%3C/path%3E%3C/g%3E%3C/svg%3E) center/50% 50% no-repeat rgba(244,244,244,1);font-size:14px;font-weight:600;height:100%;left:0;line-height:20px;position:absolute;top:0;width:100%}.a-orientation-modal:after{color:#666;content:\"Insert phone into Cardboard holder.\";display:block;position:absolute;text-align:center;top:70%;transform:translateY(-70%);width:100%}.a-orientation-modal button{background:url(data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20xmlns%3Axlink%3D%22http%3A//www.w3.org/1999/xlink%22%20version%3D%221.1%22%20x%3D%220px%22%20y%3D%220px%22%20viewBox%3D%220%200%20100%20100%22%20enable-background%3D%22new%200%200%20100%20100%22%20xml%3Aspace%3D%22preserve%22%3E%3Cpath%20fill%3D%22%23000000%22%20d%3D%22M55.209%2C50l17.803-17.803c1.416-1.416%2C1.416-3.713%2C0-5.129c-1.416-1.417-3.713-1.417-5.129%2C0L50.08%2C44.872%20%20L32.278%2C27.069c-1.416-1.417-3.714-1.417-5.129%2C0c-1.417%2C1.416-1.417%2C3.713%2C0%2C5.129L44.951%2C50L27.149%2C67.803%20%20c-1.417%2C1.416-1.417%2C3.713%2C0%2C5.129c0.708%2C0.708%2C1.636%2C1.062%2C2.564%2C1.062c0.928%2C0%2C1.856-0.354%2C2.564-1.062L50.08%2C55.13l17.803%2C17.802%20%20c0.708%2C0.708%2C1.637%2C1.062%2C2.564%2C1.062s1.856-0.354%2C2.564-1.062c1.416-1.416%2C1.416-3.713%2C0-5.129L55.209%2C50z%22%3E%3C/path%3E%3C/svg%3E) no-repeat;border:none;height:50px;text-indent:-9999px;width:50px}@media (min-width:480px){.a-enter-vr{bottom:20px;right:20px}.a-enter-vr-modal{width:400px}}"; (_dereq_("browserify-css").createStyle(css, { "href": "src/style/aframe.css"})); module.exports = css;
-},{"browserify-css":1}],105:[function(_dereq_,module,exports){
-var css = ".rs-base{background-color:#333;border-radius:0;font:10px monospace;left:5px;line-height:1em;opacity:.85;overflow:hidden;padding:10px;position:fixed;top:5px;width:300px;z-index:10000}.rs-base div.hidden{display:none}.rs-base h1{color:#fff;cursor:pointer;font-size:1.4em;font-weight:300;margin:0 0 5px;padding:0}.rs-group{display:-webkit-box;display:-webkit-flex;display:flex;-webkit-flex-direction:column-reverse;flex-direction:column-reverse;margin-bottom:5px}.rs-group:last-child{margin-bottom:0}.rs-counter-base{align-items:center;display:-webkit-box;display:-webkit-flex;display:flex;height:10px;-webkit-justify-content:space-between;justify-content:space-between;margin:2px 0}.rs-counter-id{font-weight:300;-webkit-box-ordinal-group:0;-webkit-order:0;order:0;width:54px}.rs-counter-value{font-weight:300;-webkit-box-ordinal-group:1;-webkit-order:1;order:1;text-align:right;width:35px}.rs-canvas{-webkit-box-ordinal-group:2;-webkit-order:2;order:2}@media (min-width:480px){.rs-base{left:20px;top:20px}}"; (_dereq_("browserify-css").createStyle(css, { "href": "src/style/rStats.css"})); module.exports = css;
+},{"../core/shader":65,"../lib/three":101,"../utils/":117}],105:[function(_dereq_,module,exports){
+var css = ".a-html{bottom:0;left:0;position:fixed;right:0;top:0}.a-body{height:100%;margin:0;overflow:hidden;padding:0;width:100%}:-webkit-full-screen{background-color:transparent}.a-hidden{display:none!important}.a-canvas{height:100%;left:0;position:absolute;top:0;width:100%}.a-canvas.fullscreen{width:100%!important;height:100%!important;top:0!important;left:0!important;right:0!important;bottom:0!important;z-index:999999!important;position:fixed}a-scene{display:block;position:relative;height:100%;width:100%}a-assets,a-scene audio,a-scene img,a-scene video{display:none}.a-enter-vr-modal,.a-orientation-modal{font-family:Consolas,Andale Mono,Courier New,monospace}.a-enter-vr-modal a{border-bottom:1px solid #fff;padding:2px 0;text-decoration:none;transition:.1s color ease-in}.a-enter-vr-modal a:hover{background-color:#fff;color:#111;padding:2px 4px;position:relative;left:-4px}.a-enter-vr{font-family:sans-serif,monospace;font-size:13px;width:100%;font-weight:200;line-height:16px;height:10%;position:absolute;right:20px;bottom:20px}.a-enter-vr.embedded{right:5px;bottom:5px}.a-enter-vr-button,.a-enter-vr-modal,.a-enter-vr-modal a{color:#fff}.a-enter-vr-button{background:url(data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20245.82%20141.73%22%3E%3Cdefs%3E%3Cstyle%3E.a%7Bfill%3A%23fff%3Bfill-rule%3Aevenodd%3B%7D%3C%2Fstyle%3E%3C%2Fdefs%3E%3Ctitle%3Emask%3C%2Ftitle%3E%3Cpath%20class%3D%22a%22%20d%3D%22M175.56%2C111.37c-22.52%2C0-40.77-18.84-40.77-42.07S153%2C27.24%2C175.56%2C27.24s40.77%2C18.84%2C40.77%2C42.07S198.08%2C111.37%2C175.56%2C111.37ZM26.84%2C69.31c0-23.23%2C18.25-42.07%2C40.77-42.07s40.77%2C18.84%2C40.77%2C42.07-18.26%2C42.07-40.77%2C42.07S26.84%2C92.54%2C26.84%2C69.31ZM27.27%2C0C11.54%2C0%2C0%2C12.34%2C0%2C28.58V110.9c0%2C16.24%2C11.54%2C30.83%2C27.27%2C30.83H99.57c2.17%2C0%2C4.19-1.83%2C5.4-3.7L116.47%2C118a8%2C8%2C0%2C0%2C1%2C12.52-.18l11.51%2C20.34c1.2%2C1.86%2C3.22%2C3.61%2C5.39%2C3.61h72.29c15.74%2C0%2C27.63-14.6%2C27.63-30.83V28.58C245.82%2C12.34%2C233.93%2C0%2C218.19%2C0H27.27Z%22%2F%3E%3C%2Fsvg%3E) 50% 50%/70% 70% no-repeat rgba(0,0,0,.35);border:0;bottom:0;cursor:pointer;min-width:50px;min-height:30px;padding-right:5%;padding-top:4%;position:absolute;right:0;transition:background-color .05s ease;-webkit-transition:background-color .05s ease;z-index:9999}.a-enter-vr-button.fullscreen{background:url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPCEtLSBHZW5lcmF0ZWQgYnkgSWNvTW9vbi5pbyAtLT4KPCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4KPHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHZpZXdCb3g9IjAgMCAxNiAxNiI+CjxwYXRoIGZpbGw9IiNmZmZmZmYiIGQ9Ik0xNiAwaC02LjVsMi41IDIuNS0zIDMgMS41IDEuNSAzLTMgMi41IDIuNXoiPjwvcGF0aD4KPHBhdGggZmlsbD0iI2ZmZmZmZiIgZD0iTTE2IDE2di02LjVsLTIuNSAyLjUtMy0zLTEuNSAxLjUgMyAzLTIuNSAyLjV6Ij48L3BhdGg+CjxwYXRoIGZpbGw9IiNmZmZmZmYiIGQ9Ik0wIDE2aDYuNWwtMi41LTIuNSAzLTMtMS41LTEuNS0zIDMtMi41LTIuNXoiPjwvcGF0aD4KPHBhdGggZmlsbD0iI2ZmZmZmZiIgZD0iTTAgMHY2LjVsMi41LTIuNSAzIDMgMS41LTEuNS0zLTMgMi41LTIuNXoiPjwvcGF0aD4KPC9zdmc+Cg==) 50% 50%/60% 60% no-repeat rgba(0,0,0,.35);min-width:45px;min-height:45px}.a-enter-vr-button:active,.a-enter-vr-button:hover{background-color:#666}[data-a-enter-vr-no-webvr] .a-enter-vr-button{border-color:#666;opacity:.65}[data-a-enter-vr-no-webvr] .a-enter-vr-button:active,[data-a-enter-vr-no-webvr] .a-enter-vr-button:hover{background-color:rgba(0,0,0,.35);cursor:not-allowed}.a-enter-vr-modal{background-color:#666;border-radius:0;display:none;min-height:32px;margin-right:70px;padding:9px;width:280px;right:2%;position:absolute}.a-enter-vr-modal:after{border-bottom:10px solid transparent;border-left:10px solid #666;border-top:10px solid transparent;display:inline-block;content:'';position:absolute;right:-5px;top:5px;width:0;height:0}.a-enter-vr-modal a,.a-enter-vr-modal p{display:inline}.a-enter-vr-modal p{margin:0}.a-enter-vr-modal p:after{content:' '}[data-a-enter-vr-no-headset].a-enter-vr:hover .a-enter-vr-modal,[data-a-enter-vr-no-webvr].a-enter-vr:hover .a-enter-vr-modal{display:block}.a-orientation-modal{background:url(data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20xmlns%3Axlink%3D%22http%3A//www.w3.org/1999/xlink%22%20version%3D%221.1%22%20x%3D%220px%22%20y%3D%220px%22%20viewBox%3D%220%200%2090%2090%22%20enable-background%3D%22new%200%200%2090%2090%22%20xml%3Aspace%3D%22preserve%22%3E%3Cpolygon%20points%3D%220%2C0%200%2C0%200%2C0%20%22%3E%3C/polygon%3E%3Cg%3E%3Cpath%20d%3D%22M71.545%2C48.145h-31.98V20.743c0-2.627-2.138-4.765-4.765-4.765H18.456c-2.628%2C0-4.767%2C2.138-4.767%2C4.765v42.789%20%20%20c0%2C2.628%2C2.138%2C4.766%2C4.767%2C4.766h5.535v0.959c0%2C2.628%2C2.138%2C4.765%2C4.766%2C4.765h42.788c2.628%2C0%2C4.766-2.137%2C4.766-4.765V52.914%20%20%20C76.311%2C50.284%2C74.173%2C48.145%2C71.545%2C48.145z%20M18.455%2C16.935h16.344c2.1%2C0%2C3.808%2C1.708%2C3.808%2C3.808v27.401H37.25V22.636%20%20%20c0-0.264-0.215-0.478-0.479-0.478H16.482c-0.264%2C0-0.479%2C0.214-0.479%2C0.478v36.585c0%2C0.264%2C0.215%2C0.478%2C0.479%2C0.478h7.507v7.644%20%20%20h-5.534c-2.101%2C0-3.81-1.709-3.81-3.81V20.743C14.645%2C18.643%2C16.354%2C16.935%2C18.455%2C16.935z%20M16.96%2C23.116h19.331v25.031h-7.535%20%20%20c-2.628%2C0-4.766%2C2.139-4.766%2C4.768v5.828h-7.03V23.116z%20M71.545%2C73.064H28.757c-2.101%2C0-3.81-1.708-3.81-3.808V52.914%20%20%20c0-2.102%2C1.709-3.812%2C3.81-3.812h42.788c2.1%2C0%2C3.809%2C1.71%2C3.809%2C3.812v16.343C75.354%2C71.356%2C73.645%2C73.064%2C71.545%2C73.064z%22%3E%3C/path%3E%3Cpath%20d%3D%22M28.919%2C58.424c-1.466%2C0-2.659%2C1.193-2.659%2C2.66c0%2C1.466%2C1.193%2C2.658%2C2.659%2C2.658c1.468%2C0%2C2.662-1.192%2C2.662-2.658%20%20%20C31.581%2C59.617%2C30.387%2C58.424%2C28.919%2C58.424z%20M28.919%2C62.786c-0.939%2C0-1.703-0.764-1.703-1.702c0-0.939%2C0.764-1.704%2C1.703-1.704%20%20%20c0.94%2C0%2C1.705%2C0.765%2C1.705%2C1.704C30.623%2C62.022%2C29.858%2C62.786%2C28.919%2C62.786z%22%3E%3C/path%3E%3Cpath%20d%3D%22M69.654%2C50.461H33.069c-0.264%2C0-0.479%2C0.215-0.479%2C0.479v20.288c0%2C0.264%2C0.215%2C0.478%2C0.479%2C0.478h36.585%20%20%20c0.263%2C0%2C0.477-0.214%2C0.477-0.478V50.939C70.131%2C50.676%2C69.917%2C50.461%2C69.654%2C50.461z%20M69.174%2C51.417V70.75H33.548V51.417H69.174z%22%3E%3C/path%3E%3Cpath%20d%3D%22M45.201%2C30.296c6.651%2C0%2C12.233%2C5.351%2C12.551%2C11.977l-3.033-2.638c-0.193-0.165-0.507-0.142-0.675%2C0.048%20%20%20c-0.174%2C0.198-0.153%2C0.501%2C0.045%2C0.676l3.883%2C3.375c0.09%2C0.075%2C0.198%2C0.115%2C0.312%2C0.115c0.141%2C0%2C0.273-0.061%2C0.362-0.166%20%20%20l3.371-3.877c0.173-0.2%2C0.151-0.502-0.047-0.675c-0.194-0.166-0.508-0.144-0.676%2C0.048l-2.592%2C2.979%20%20%20c-0.18-3.417-1.629-6.605-4.099-9.001c-2.538-2.461-5.877-3.817-9.404-3.817c-0.264%2C0-0.479%2C0.215-0.479%2C0.479%20%20%20C44.72%2C30.083%2C44.936%2C30.296%2C45.201%2C30.296z%22%3E%3C/path%3E%3C/g%3E%3C/svg%3E) center/50% 50% no-repeat rgba(244,244,244,1);bottom:0;font-size:14px;font-weight:600;left:0;line-height:20px;right:0;position:fixed;top:0;z-index:9999999}.a-orientation-modal:after{color:#666;content:\"Insert phone into Cardboard holder.\";display:block;position:absolute;text-align:center;top:70%;transform:translateY(-70%);width:100%}.a-orientation-modal button{background:url(data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20xmlns%3Axlink%3D%22http%3A//www.w3.org/1999/xlink%22%20version%3D%221.1%22%20x%3D%220px%22%20y%3D%220px%22%20viewBox%3D%220%200%20100%20100%22%20enable-background%3D%22new%200%200%20100%20100%22%20xml%3Aspace%3D%22preserve%22%3E%3Cpath%20fill%3D%22%23000000%22%20d%3D%22M55.209%2C50l17.803-17.803c1.416-1.416%2C1.416-3.713%2C0-5.129c-1.416-1.417-3.713-1.417-5.129%2C0L50.08%2C44.872%20%20L32.278%2C27.069c-1.416-1.417-3.714-1.417-5.129%2C0c-1.417%2C1.416-1.417%2C3.713%2C0%2C5.129L44.951%2C50L27.149%2C67.803%20%20c-1.417%2C1.416-1.417%2C3.713%2C0%2C5.129c0.708%2C0.708%2C1.636%2C1.062%2C2.564%2C1.062c0.928%2C0%2C1.856-0.354%2C2.564-1.062L50.08%2C55.13l17.803%2C17.802%20%20c0.708%2C0.708%2C1.637%2C1.062%2C2.564%2C1.062s1.856-0.354%2C2.564-1.062c1.416-1.416%2C1.416-3.713%2C0-5.129L55.209%2C50z%22%3E%3C/path%3E%3C/svg%3E) no-repeat;border:none;height:50px;text-indent:-9999px;width:50px}"; (_dereq_("browserify-css").createStyle(css, { "href": "src/style/aframe.css"})); module.exports = css;
 },{"browserify-css":1}],106:[function(_dereq_,module,exports){
+var css = ".rs-base{background-color:#333;border-radius:0;font:10px monospace;left:5px;line-height:1em;opacity:.85;overflow:hidden;padding:10px;position:fixed;top:5px;width:300px;z-index:10000}.rs-base div.hidden{display:none}.rs-base h1{color:#fff;cursor:pointer;font-size:1.4em;font-weight:300;margin:0 0 5px;padding:0}.rs-group{display:-webkit-box;display:-webkit-flex;display:flex;-webkit-flex-direction:column-reverse;flex-direction:column-reverse;margin-bottom:5px}.rs-group:last-child{margin-bottom:0}.rs-counter-base{align-items:center;display:-webkit-box;display:-webkit-flex;display:flex;height:10px;-webkit-justify-content:space-between;justify-content:space-between;margin:2px 0}.rs-counter-id{font-weight:300;-webkit-box-ordinal-group:0;-webkit-order:0;order:0;width:54px}.rs-counter-value{font-weight:300;-webkit-box-ordinal-group:1;-webkit-order:1;order:1;text-align:right;width:35px}.rs-canvas{-webkit-box-ordinal-group:2;-webkit-order:2;order:2}@media (min-width:480px){.rs-base{left:20px;top:20px}}"; (_dereq_("browserify-css").createStyle(css, { "href": "src/style/rStats.css"})); module.exports = css;
+},{"browserify-css":1}],107:[function(_dereq_,module,exports){
 var registerSystem = _dereq_('../core/system').registerSystem;
 
 var DEFAULT_CAMERA_ATTR = 'data-aframe-default-camera';
-var DEFAULT_CAMERA_POSITION = {x: 0, y: 1.8, z: 4};
+var DEFAULT_USER_HEIGHT = 1.8;
 
 /**
  * Camera system. Manages which camera is active among multiple cameras in scene.
@@ -64313,12 +64451,6 @@ module.exports.System = registerSystem('camera', {
   init: function () {
     this.activeCameraEl = null;
     this.setupDefaultCamera();
-    this.bindMethods();
-  },
-
-  bindMethods: function () {
-    this.addDefaultOffset = this.addDefaultOffset.bind(this);
-    this.removeDefaultOffset = this.removeDefaultOffset.bind(this);
   },
 
   /**
@@ -64340,9 +64472,10 @@ module.exports.System = registerSystem('camera', {
         return;
       }
       defaultCameraEl = document.createElement('a-entity');
-      defaultCameraEl.setAttribute('position', DEFAULT_CAMERA_POSITION);
+      defaultCameraEl.setAttribute('position', '0 0 0');
       defaultCameraEl.setAttribute(DEFAULT_CAMERA_ATTR, '');
-      defaultCameraEl.setAttribute('camera', {'active': true});
+      defaultCameraEl.setAttribute('camera',
+        {active: true, userHeight: DEFAULT_USER_HEIGHT});
       defaultCameraEl.setAttribute('wasd-controls', '');
       defaultCameraEl.setAttribute('look-controls', '');
       sceneEl.appendChild(defaultCameraEl);
@@ -64350,36 +64483,6 @@ module.exports.System = registerSystem('camera', {
       sceneEl.addEventListener('exit-vr', self.addDefaultOffset);
       sceneEl.emit('camera-ready', {cameraEl: defaultCameraEl});
     }
-  },
-
-  /**
-   * Offsets the position of the camera to set a human scale perspective
-   * This offset is not necessary when using a headset because the SDK
-   * will return the real user's head height and position.
-   */
-  addDefaultOffset: function () {
-    var defaultCamera = this.sceneEl.querySelector('[' + DEFAULT_CAMERA_ATTR + ']');
-    var currentPosition;
-    if (!defaultCamera) { return; }
-    currentPosition = defaultCamera.getAttribute('position');
-    defaultCamera.setAttribute('position', {
-      x: currentPosition.x + DEFAULT_CAMERA_POSITION.x,
-      y: currentPosition.y + DEFAULT_CAMERA_POSITION.y,
-      z: currentPosition.z + DEFAULT_CAMERA_POSITION.z
-    });
-  },
-
-  removeDefaultOffset: function () {
-    // Remove default camera if present.
-    var defaultCamera = this.sceneEl.querySelector('[' + DEFAULT_CAMERA_ATTR + ']');
-    var currentPosition;
-    if (!defaultCamera) { return; }
-    currentPosition = defaultCamera.getAttribute('position');
-    defaultCamera.setAttribute('position', {
-      x: currentPosition.x - DEFAULT_CAMERA_POSITION.x,
-      y: currentPosition.y - DEFAULT_CAMERA_POSITION.y,
-      z: currentPosition.z - DEFAULT_CAMERA_POSITION.z
-    });
   },
 
   /**
@@ -64450,11 +64553,9 @@ function removeDefaultCamera (sceneEl) {
   defaultCamera = sceneEl.querySelector('[' + DEFAULT_CAMERA_ATTR + ']');
   if (!defaultCamera) { return; }
   sceneEl.removeChild(defaultCamera);
-  sceneEl.removeEventListener('enter-vr', this.removeDefaultOffset);
-  sceneEl.removeEventListener('exit-vr', this.addDefaultOffset);
 }
 
-},{"../core/system":65}],107:[function(_dereq_,module,exports){
+},{"../core/system":66}],108:[function(_dereq_,module,exports){
 var geometries = _dereq_('../core/geometry').geometries;
 var registerSystem = _dereq_('../core/system').registerSystem;
 var THREE = _dereq_('../lib/three');
@@ -64594,7 +64695,7 @@ function toBufferGeometry (geometry, doBuffer) {
   return bufferGeometry;
 }
 
-},{"../core/geometry":57,"../core/system":65,"../lib/three":100}],108:[function(_dereq_,module,exports){
+},{"../core/geometry":58,"../core/system":66,"../lib/three":101}],109:[function(_dereq_,module,exports){
 _dereq_('./camera');
 _dereq_('./geometry');
 _dereq_('./light');
@@ -64602,7 +64703,7 @@ _dereq_('./material');
 _dereq_('./tracked-controls');
 
 
-},{"./camera":106,"./geometry":107,"./light":109,"./material":110,"./tracked-controls":111}],109:[function(_dereq_,module,exports){
+},{"./camera":107,"./geometry":108,"./light":110,"./material":111,"./tracked-controls":112}],110:[function(_dereq_,module,exports){
 var registerSystem = _dereq_('../core/system').registerSystem;
 
 var DEFAULT_LIGHT_ATTR = 'data-aframe-default-light';
@@ -64663,7 +64764,7 @@ module.exports.System = registerSystem('light', {
   }
 });
 
-},{"../core/system":65}],110:[function(_dereq_,module,exports){
+},{"../core/system":66}],111:[function(_dereq_,module,exports){
 var registerSystem = _dereq_('../core/system').registerSystem;
 var THREE = _dereq_('../lib/three');
 var utils = _dereq_('../utils/');
@@ -64976,7 +65077,7 @@ function fixVideoAttributes (videoEl) {
   return videoEl;
 }
 
-},{"../core/system":65,"../lib/three":100,"../utils/":115}],111:[function(_dereq_,module,exports){
+},{"../core/system":66,"../lib/three":101,"../utils/":117}],112:[function(_dereq_,module,exports){
 var registerSystem = _dereq_('../core/system').registerSystem;
 
 /**
@@ -64996,11 +65097,11 @@ module.exports.System = registerSystem('tracked-controls', {
   },
 
   tick: function () {
-    if (!navigator.getGamepads) { return; }
-    var gamepads = navigator.getGamepads();
+    var gamepads = navigator.getGamepads && navigator.getGamepads();
     var gamepad;
     var controllers = this.controllers = [];
     var i;
+    if (!gamepads) { return; }
     for (i = 0; i < gamepads.length; ++i) {
       gamepad = gamepads[i];
       if (gamepad && gamepad.pose) { controllers.push(gamepad); }
@@ -65008,7 +65109,25 @@ module.exports.System = registerSystem('tracked-controls', {
   }
 });
 
-},{"../core/system":65}],112:[function(_dereq_,module,exports){
+},{"../core/system":66}],113:[function(_dereq_,module,exports){
+var THREE = _dereq_('../lib/three');
+var dummyDolly = new THREE.Object3D();
+var controls = new THREE.VRControls(dummyDolly);
+
+/**
+ * Determine if a headset is connected by checking if the
+ * orientation is available
+ */
+module.exports = function checkHeadsetConnected () {
+  var orientation;
+  controls.update();
+  orientation = dummyDolly.quaternion;
+  if (orientation._x !== 0 || orientation._y !== 0 || orientation._z !== 0) {
+    return true;
+  }
+};
+
+},{"../lib/three":101}],114:[function(_dereq_,module,exports){
 /* global THREE */
 
 // Coordinate string regex. Handles negative, positive, and decimals.
@@ -65082,7 +65201,7 @@ module.exports.toVector3 = function (vec3) {
   return new THREE.Vector3(vec3.x, vec3.y, vec3.z);
 };
 
-},{}],113:[function(_dereq_,module,exports){
+},{}],115:[function(_dereq_,module,exports){
 (function (process){
 var debugLib = _dereq_('debug');
 var extend = _dereq_('object-assign');
@@ -65179,7 +65298,7 @@ module.exports = debug;
 
 }).call(this,_dereq_('_process'))
 
-},{"_process":2,"debug":3,"object-assign":9}],114:[function(_dereq_,module,exports){
+},{"_process":2,"debug":3,"object-assign":9}],116:[function(_dereq_,module,exports){
 /**
  * Get component property using encoded component name + component property name with a
  * delimiter.
@@ -65209,7 +65328,7 @@ module.exports.setComponentProperty = function (el, name, value, delimiter) {
   el.setAttribute(name, value);
 };
 
-},{}],115:[function(_dereq_,module,exports){
+},{}],117:[function(_dereq_,module,exports){
 /* global CustomEvent, location */
 /* Centralized place to reference utilities since utils is exposed to the user. */
 
@@ -65217,6 +65336,7 @@ var deepAssign = _dereq_('deep-assign');
 var objectAssign = _dereq_('object-assign');
 
 module.exports.coordinates = _dereq_('./coordinates');
+module.exports.checkHeadsetConnected = _dereq_('./checkHeadsetConnected');
 module.exports.debug = _dereq_('./debug');
 module.exports.entity = _dereq_('./entity');
 module.exports.material = _dereq_('./material');
@@ -65420,7 +65540,7 @@ module.exports.findAllScenes = function (el) {
 // Must be at bottom to avoid circular dependency.
 module.exports.srcLoader = _dereq_('./src-loader');
 
-},{"./coordinates":112,"./debug":113,"./entity":114,"./material":116,"./src-loader":117,"./styleParser":118,"deep-assign":6,"object-assign":9}],116:[function(_dereq_,module,exports){
+},{"./checkHeadsetConnected":113,"./coordinates":114,"./debug":115,"./entity":116,"./material":118,"./src-loader":119,"./styleParser":120,"deep-assign":6,"object-assign":9}],118:[function(_dereq_,module,exports){
 /**
  * Update `material.map` given `data.src`. For standard and flat shaders.
  *
@@ -65474,7 +65594,7 @@ function handleTextureEvents (el, texture) {
 }
 module.exports.handleTextureEvents = handleTextureEvents;
 
-},{}],117:[function(_dereq_,module,exports){
+},{}],119:[function(_dereq_,module,exports){
 /* global Image */
 var debug = _dereq_('./debug');
 
@@ -65623,7 +65743,7 @@ module.exports = {
   validateCubemapSrc: validateCubemapSrc
 };
 
-},{"./debug":113}],118:[function(_dereq_,module,exports){
+},{"./debug":115}],120:[function(_dereq_,module,exports){
 /* Utils for parsing style-like strings (e.g., "primitive: box; width: 5; height: 4.5"). */
 var styleParser = _dereq_('style-attr');
 
@@ -65683,7 +65803,7 @@ function transformKeysToCamelCase (obj) {
 }
 module.exports.transformKeysToCamelCase = transformKeysToCamelCase;
 
-},{"style-attr":12}],119:[function(_dereq_,module,exports){
+},{"style-attr":12}],121:[function(_dereq_,module,exports){
 /**
  * @author dmarcos / https://github.com/dmarcos
  * @author mrdoob / http://mrdoob.com
@@ -65860,7 +65980,7 @@ THREE.VRControls = function ( object, onError ) {
 
 };
 
-},{}],120:[function(_dereq_,module,exports){
+},{}],122:[function(_dereq_,module,exports){
 /**
  * @author dmarcos / https://github.com/dmarcos
  * @author mrdoob / http://mrdoob.com
@@ -66266,7 +66386,7 @@ THREE.VREffect = function ( renderer, onError ) {
 
 };
 
-},{}],121:[function(_dereq_,module,exports){
+},{}],123:[function(_dereq_,module,exports){
 window.glStats = function () {
 
     var _rS = null;
@@ -66531,7 +66651,7 @@ if (typeof module === 'object') {
   };
 }
 
-},{}],122:[function(_dereq_,module,exports){
+},{}],124:[function(_dereq_,module,exports){
 // performance.now() polyfill from https://gist.github.com/paulirish/5438650
 'use strict';
 
@@ -66986,7 +67106,7 @@ if (typeof module === 'object') {
   module.exports = window.rStats;
 }
 
-},{}],123:[function(_dereq_,module,exports){
+},{}],125:[function(_dereq_,module,exports){
 /*
  * Copyright 2015 Google Inc. All Rights Reserved.
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -67048,7 +67168,7 @@ Util.isLandscapeMode = function() {
 
 module.exports = Util;
 
-},{}],124:[function(_dereq_,module,exports){
+},{}],126:[function(_dereq_,module,exports){
 /*
  * Copyright 2015 Google Inc. All Rights Reserved.
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -67124,12 +67244,310 @@ function getWakeLock() {
 
 module.exports = getWakeLock();
 
-},{"./util.js":123}]},{},[98])(98)
+},{"./util.js":125}]},{},[99])(99)
 });
 
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{}],3:[function(require,module,exports){
+
+AFRAME.registerComponent('tracktargetvisibilty', {
+  schema: { default: true },
+
+  init: function () {
+        this.el.addEventListener('referenceframe-statuschanged', 
+                                 this.updateVisibility.bind(this));
+  },
+
+  update: function () {
+  },
+
+  updateVisibility: function (evt) {
+      if (this.data && evt.detail.target === this.el) {
+          this.el.object3D.visible = evt.detail.found;
+      }
+  }
+});
+
+
+AFRAME.registerComponent('scalewithdistance', {
+  schema: { 
+    default: 1
+  },
+
+  init: function () {
+      this.scale = 1;
+  },
+
+  update: function () {
+    var data = this.data;
+    this.scale = data === 0 ? zeroScale : data;
+  },
+
+  tick: function (t) {
+    var object3D = this.el.object3D;
+    var camera = this.el.sceneEl.camera;
+    var cameraPos = camera.getWorldPosition();
+    var thisPos = object3D.getWorldPosition();
+    var distance = thisPos.distanceTo(cameraPos);
+
+    var factor = distance * this.scale;
+    object3D.scale.set(factor, factor, factor);
+  }
+});
+
+},{}],4:[function(require,module,exports){
+const Cesium = Argon.Cesium;
+const Cartesian3 = Cesium.Cartesian3;
+const JulianDate = Cesium.JulianDate;
+const CesiumMath = Cesium.CesiumMath;
+const Transforms = Cesium.Transforms;
+const WGS84 = Cesium.Ellipsoid.WGS84;
+const ConstantPositionProperty = Cesium.ConstantPositionProperty;
+const ReferenceFrame = Cesium.ReferenceFrame;
+const ReferenceEntity = Cesium.ReferenceEntity;
+
+
+/**
+ * referenceframe component for A-Frame.
+ * 
+ * Use an Argon reference frame as the coordinate system for the position and 
+ * orientation for this entity.  The position and orientation components are
+ * expressed relative to this frame. 
+ * 
+ * By default, it uses both the position and orientation of the reference frame
+ * to define a coordinate frame for this entity, but either may be ignored, in which 
+ * case the identity will be used. This is useful, for example, if you wish to have
+ * this entity follow the position of a referenceframe but be oriented in the 
+ * coordinates of its parent (typically scene coordinates). 
+ * 
+ * Known frames include ar.user, ar.device, ar.localENU, ar.localEUS, 
+ * ar.device.orientation, ar.device.geolocation, ar.device.display
+ */
+AFRAME.registerComponent('referenceframe', {
+ 
+    schema: { 
+        lla: { type: 'vec3'},
+        parent: { default: "FIXED" },
+        userotation: { default: true},
+        useposition: { default: true}
+    },
+
+    /**
+     * Nothing to do
+     */
+    init: function () {
+        var el = this.el;                   // entity
+        var self = this;
+
+        // this component only works with an Argon Scene
+        if (!el.sceneEl.isArgon) {
+            throw new Error('referenceframe must be used on a child of a <ar-scene>.');
+        }
+	    this.localRotationEuler = new THREE.Euler(0,0,0,'XYZ');
+        this.localPosition = { x: 0, y: 0, z: 0 };
+        this.localMatrix = new THREE.Matrix4();
+        el.object3D.matrixAutoUpdate = false;
+        el.addEventListener('componentchanged', this.updateLocalTransform.bind(this));
+        el.sceneEl.addEventListener('argon-initialized', function() {
+              self.update(self.data);
+        });            
+    },
+
+    /** 
+     * Update 
+     */
+    update: function (oldData) {
+        var el = this.el;
+        var argonApp = this.el.sceneEl.argonApp;
+        var data = this.data;
+
+        var lp = el.getComputedAttribute('position');
+        if (lp) {
+            this.localPosition.x = lp.x;
+            this.localPosition.y = lp.y;
+            this.localPosition.z = lp.z;
+        } else {
+            this.localPosition.x = 0;
+            this.localPosition.y = 0;
+            this.localPosition.z = 0;
+        }
+
+        var lo = el.getComputedAttribute('rotation');
+        if (lo) {
+            this.localRotationEuler.x = lo.x;
+            this.localRotationEuler.y = lo.y;
+            this.localRotationEuler.z = lo.z;
+        } else {
+            this.localRotationEuler.x = 0;
+            this.localRotationEuler.y = 0;
+            this.localRotationEuler.z = 0;
+        }
+
+        this.localMatrix.makeRotationFromEuler(this.localRotationEuler);
+        this.localMatrix.setPosition(this.localPosition);
+
+        if (!argonApp) {
+            return;
+        }
+
+        var cesiumPosition = null;
+        if (this.attrValue.hasOwnProperty('lla'))  {
+            if (data.parent !== 'FIXED') {
+                console.warn("Using 'lla' with a 'parent' other than 'FIXED' is invalid. Ignoring parent value.");
+                data.parent = 'FIXED';
+            }
+            cesiumPosition = Cartesian3.fromDegrees(data.lla.x, data.lla.y, data.lla.z);
+        } else {
+            cesiumPosition = Cartesian3.ZERO;
+        }
+
+        var vuforia = el.sceneEl.systems["vuforia"];
+        if (vuforia) {
+            var parts = data.parent.split(".");
+            if (parts === 3 && parts[0] === "vuforia") {
+                vuforia.subscribeToTarget(parts[1], parts[2]);
+            }
+        }
+
+        // parentEntity is either FIXED or another Entity or ReferenceEntity 
+        var parentEntity;
+        if (data.parent === 'FIXED') {
+            parentEntity = ReferenceFrame.FIXED;
+        } else {
+            parentEntity = argonApp.context.entities.getById(this.data.parent);
+            if (!parentEntity) {
+                parentEntity = new ReferenceEntity(argonApp.context.entities, 
+                                                   this.data.parent);
+            }
+        }
+
+        // The first time here, we'll create a cesium Entity.  If the id has changed,
+        // we'll recreate a new entity with the new id.
+        // Otherwise, we just update the entity's position.
+        if (this.cesiumEntity == null || (el.id !== "" && el.id !== cesiumEntity.id)) {
+            var options = {
+                position: new ConstantPositionProperty(cesiumPosition, parentEntity),
+                orientation: Cesium.Quaternion.IDENTITY
+            }
+            if (el.id !== '') {
+                options.id = el.id;
+            }
+            this.cesiumEntity = new Cesium.Entity(options);
+        } else {
+            this.cesiumEntity.position.setValue(cesiumPosition, parentEntity);
+        }        
+    },
+
+  updateLocalTransform: function (evt) {
+      var el = this.el;
+      var data = evt.detail.newData;
+
+      if (evt.detail.name == 'rotation') {
+          //var lo = el.getComputedAttribute('rotation');
+          this.localRotationEuler.x = data.x;
+          this.localRotationEuler.y = data.y;
+          this.localRotationEuler.z = data.z;
+      }
+      else if (evt.detail.name == 'position') {
+          //var lp = el.getComputedAttribute('position');          
+          this.localPosition.x = data.x;
+          this.localPosition.y = data.y;
+          this.localPosition.z = data.z;
+      }
+      this.localMatrix.makeRotationFromEuler(this.localRotationEuler);
+      this.localMatrix.setPosition(this.localPosition);
+  },
+
+
+  /**
+   * update each time step.
+   */
+  tick: function () {
+      var m1 = new THREE.Matrix4();
+      var m2 = new THREE.Matrix4();
+
+      return function(t) {
+        var data = this.data;               // parameters
+        var el = this.el;                   // entity
+        var object3D = el.object3D;
+        var matrix = object3D.matrix;
+        var argonApp = el.sceneEl.argonApp;
+
+        if (!argonApp) { 
+            el.sceneEl.emit('referenceframe-statuschanged', {
+                    target: this.el,
+                    found: false
+            });                                
+            matrix.identity();
+        } else if (this.cesiumEntity) { 
+            var entityPos = argonApp.context.getEntityPose(this.cesiumEntity);
+
+            if (entityPos.poseStatus & Argon.PoseStatus.KNOWN) {
+                if (data.userotation) {
+                    matrix.makeRotationFromQuaternion(entityPos.orientation);
+                } else {
+                    matrix.identity();
+                }
+                if (data.useposition) {
+                    matrix.setPosition(entityPos.position);
+                }
+                if (entityPos.poseStatus & Argon.PoseStatus.FOUND) {
+                    el.sceneEl.emit('referenceframe-statuschanged', {
+                        target: this,
+                        found: true
+                    });                            
+                }
+            } else {
+                // el.object3D.matrix.identity();
+                if (entityPos.poseStatus & Argon.PoseStatus.LOST) {
+                    el.sceneEl.emit('referenceframe-statuschanged', {
+                        target: this.el,
+                        found: false
+                    });                            
+                }
+            }
+        }
+
+          // if this isn't a child of the scene, move it to world coordinates
+        if (!el.parentEl.isScene) {
+            m1.getInverse(el.parentEl.object3D.matrixWorld);
+            matrix.premultiply(m1);
+        }
+
+        // apply the local transformation, if any, specified by the rotation and 
+        // position components
+        matrix.multiply(this.localMatrix);
+		matrix.decompose(object3D.position, object3D.quaternion, object3D.scale );
+      };
+  }()
+});
+
+AFRAME.registerPrimitive('ar-geopose', {
+  defaultComponents: {
+    referenceframe: {}
+  },
+
+  mappings: {
+    lla: 'referenceframe.lla',
+	userotation: 'referenceframe.userotation',
+    useposition: 'referenceframe.useposition'
+  }
+});
+
+AFRAME.registerPrimitive('ar-frame', {
+  defaultComponents: {
+    referenceframe: {}
+  },
+
+  mappings: {
+    parent: 'referenceframe.parent',
+	userotation: 'referenceframe.userotation',
+    useposition: 'referenceframe.useposition'
+  }
+});
+
+},{}],5:[function(require,module,exports){
 var Cesium = Argon.Cesium;
 var Cartesian3 = Argon.Cesium.Cartesian3;
 var ReferenceFrame = Argon.Cesium.ReferenceFrame;
@@ -67138,7 +67556,8 @@ var CesiumMath = Argon.Cesium.CesiumMath;
 var AEntity = AFRAME.AEntity;
 var ANode = AFRAME.ANode;
 
-var AR_CAMERA_ATTR = "argon-aframe-ar-camera";
+var AR_CAMERA_ATTR = "data-aframe-argon-camera";
+var DEFAULT_CAMERA_ATTR = 'data-aframe-default-camera';
 
 // want to know when the document is loaded 
 document.DOMReady = function () {
@@ -67153,25 +67572,26 @@ document.DOMReady = function () {
 	});
 };
 
-document.registerElement('ar-scene', {
+AFRAME.registerElement('ar-scene', {
   prototype: Object.create(AEntity.prototype, {
-    defaultComponents: {
-      value: {
-        'camera': ''    // need a vanilla camera to prevent the disable the default one
-      }
-    },
-
+//    defaultComponents: {
+//       value: {
+//         'camera': ''
+//       }
+//     },
+    
     createdCallback: {
       value: function () {
-        this.isMobile = false;
-        this.isIOS = false;
+        this.isMobile = AFRAME.utils.isMobile();
+        this.isIOS = AFRAME.utils.isIOS();
         this.isScene = true;
+        this.isArgon = true;        
         this.object3D = new THREE.Scene();
         this.systems = {};
         this.time = 0;
         this.startTime = null;
         this.argonApp = null;
-        
+
         // finish initializing
         this.init();
       }
@@ -67183,21 +67603,20 @@ document.registerElement('ar-scene', {
         this.hasLoaded = false;
         this.isPlaying = false;
         this.originalHTML = this.innerHTML;
-        this.setupSystems();
-
-        this.render = this.render.bind(this);
-        this.update = this.update.bind(this);
+        
+        this.argonRender = this.argonRender.bind(this);
+        this.argonUpdate = this.argonUpdate.bind(this);
         this.initializeArgon = this.initializeArgon.bind(this);
         this.setupRenderer = this.setupRenderer.bind(this);
-
+        
         // var arCameraEl = this.arCameraEl = document.createElement('a-entity');
         // arCameraEl.setAttribute(AR_CAMERA_ATTR, '');
         // arCameraEl.setAttribute('camera', {'active': true});
         // this.sceneEl.appendChild(arCameraEl);
 
         // run this whenever the document is loaded, which might be now
-        //document.DOMReady().then(this.initializeArgon);
-        this.initializeArgon();
+        document.DOMReady().then(this.initializeArgon);
+        //this.initializeArgon();
       },
       writable: true 
     },
@@ -67208,14 +67627,36 @@ document.registerElement('ar-scene', {
      */
     attachedCallback: {
       value: function () {
+        var sceneEl = this.sceneEl;
+        
+        this.setupSystems();
+
         this.play();
       },
       writable: window.debug
     },
 
+    addEventListeners: {
+        value: function () {
+            this.argonApp.renderEvent.addEventListener(this.argonRender);
+            this.argonApp.updateEvent.addEventListener(this.argonUpdate);
+        },
+        writable: true
+    },
+
+    removeEventListeners: {
+        value: function () {
+            this.argonApp.updateEvent.removeEventListener(this.argonUpdate);
+            this.argonApp.renderEvent.removeEventListener(this.argonRender);
+        },
+        writable: true
+    },
+    
     play: {
       value: function () {
+        var sceneEl = this.sceneEl;
         var self = this;
+
         if (this.renderStarted) {
           AEntity.prototype.play.call(this);
           return;
@@ -67224,10 +67665,21 @@ document.registerElement('ar-scene', {
         this.addEventListener('loaded', function () {
           if (this.renderStarted) { return; }
 
-          // if we've initialized argon, set up callbacks
+          var defaultCameraEl = sceneEl.querySelector('[' + DEFAULT_CAMERA_ATTR + ']');
+          if (defaultCameraEl) {
+                defaultCameraEl.removeAttribute('wasd-controls');
+                defaultCameraEl.removeAttribute('look-controls');  
+                defaultCameraEl.removeAttribute('camera');  
+                defaultCameraEl.setAttribute('camera', {active: true, userHeight: 0});
+                // defaultCameraEl.setAttribute('camera', {active: true, userHeight: 0});
+          }
+
           if (this.argonApp) {
-            this.argonApp.renderEvent.addEventListener(this.render);
-            this.argonApp.updateEvent.addEventListener(this.update);
+              sceneEl.addEventListeners();
+          } else {
+            this.addEventListener('argon-initialized', function() {
+              self.addEventListeners();
+            });
           }
 
           AEntity.prototype.play.call(this);
@@ -67252,8 +67704,7 @@ document.registerElement('ar-scene', {
      */
     detachedCallback: {
       value: function () {
-        this.argonApp.updateEvent.removeEventListener(this.update);
-        this.argonApp.renderEvent.removeEventListener(this.render);
+          removeEventListenern();
       }
     },
 
@@ -67266,12 +67717,17 @@ document.registerElement('ar-scene', {
 
             this.setupRenderer();
 
+
             // if we've already initialized the rendering, we won't have
             // set these callbacks, so do it now
-            if (this.renderStarted) {
-                this.argonApp.renderEvent.addEventListener(this.render);
-                this.argonApp.updateEvent.addEventListener(this.update);
-            }
+            // if (this.renderStarted) {
+            //     this.addEventListens();
+            // }
+
+            this.emit('argon-initialized', {
+                target: this.argonApp
+            });
+            
         },
         writable: true
     },
@@ -67322,7 +67778,7 @@ document.registerElement('ar-scene', {
      * Abstracted to a different function to facilitate unit testing (`scene.tick()`) without
      * needing to render.
      */
-    update: {
+    argonUpdate: {
         value: function () {
             var time = 0;
             if (this.startTime) 
@@ -67374,7 +67830,7 @@ document.registerElement('ar-scene', {
      * Updates behaviors.
      * Renders with request animation frame.
      */
-    render: {
+    argonRender: {
       value: function () {
         var app = this.argonApp;
         var scene = this.object3D;
@@ -67504,186 +67960,30 @@ document.registerElement('ar-scene', {
   })
 });
 
-},{}],4:[function(require,module,exports){
-const Cesium = Argon.Cesium;
-const Cartesian3 = Cesium.Cartesian3;
-const JulianDate = Cesium.JulianDate;
-const CesiumMath = Cesium.CesiumMath;
-const Transforms = Cesium.Transforms;
-const WGS84 = Cesium.Ellipsoid.WGS84;
-const ConstantPositionProperty = Cesium.ConstantPositionProperty;
-const ReferenceFrame = Cesium.ReferenceFrame;
-const ReferenceEntity = Cesium.ReferenceEntity;
-
-// AFRAME.registerComponent('lla'), {
-
-// });
-
-// AFRAME.registerSystem('referenceframe', {
-
-// });
-
-/**
- * referenceframe component for A-Frame.
- * 
- * Use an Argon reference frame as the coordinate system for the position and 
- * orientation for this entity.  The position and orientation components are
- * expressed relative to this frame. 
- * 
- * By default, it uses both the position and orientation of the reference frame
- * to define a coordinate frame for this entity, but either may be ignored, in which 
- * case the identity will be used. This is useful, for example, if you wish to have
- * this entity follow the position of a referenceframe but be oriented in the 
- * coordinates of its parent (typically scene coordinates). 
- * 
- * Known frames include ar.user, ar.device, ar.localENU, ar.localEUS, 
- * ar.device.orientation, ar.device.geolocation, ar.device.display
- */
-AFRAME.registerComponent('referenceframe', {
-    schema: { 
-        id: { type: 'string'},
-        lla: { type: 'vec3'},
-        parentFrame: { default: "FIXED" },
-        useRotation: { default: true},
-        usePosition: { default: true}
-    },
-
-    /**
-     * Nothing to do
-     */
-    init: function () {
-        var el = this.el;                   // entity
-
-        // this component only works with an Argon Scene
-        if (!this.el.sceneEl.argonApp) {
-            throw new Error('referenceframe must be used on a child of a <ar-scene>.');
-        }
-	    this.localRotationEuler = new THREE.Euler(0,0,0,'XYZ');
-        this.localPosition = { x: 0, y: 0, z: 0 };
-        this.localMatrix = new THREE.Matrix4();
-    },
-
-    /** 
-     * Update 
-     */
-    update: function (oldData) {
-        var el = this.el;
-        var argonApp = this.el.sceneEl.argonApp;
-        var data = this.data;
-
-        var lp = el.getComputedAttribute('position');
-        var lo = el.getComputedAttribute('rotation');
-
-        this.localPosition.x = lp.x;
-        this.localPosition.y = lp.y;
-        this.localPosition.z = lp.z;
-        this.localRotationEuler.x = lo.x;
-        this.localRotationEuler.y = lo.y;
-        this.localRotationEuler.z = lo.z;
-        this.localMatrix.makeRotationFromEuler(this.localRotationEuler);
-        this.localMatrix.setPosition(this.localPosition);
-
-        var cesiumPosition = null;
-        var lla = el.getAttribute("lla");
-//        if (!(data.lla.x === 0 && data.lla.y === 0 && data.lla.z === 0) && data.parentFrame !== 'FIXED') {
-        if (lla !== null && data.parentFrame !== 'FIXED') {
-            console.warn("Using 'lla' with a 'parentFrame' other than 'FIXED' is invalid. Ignoring parentFrame value.");
-            data.parentFrame = 'FIXED';
-            cesiumPosition = Cartesian3.fromDegrees(data.lla.x, data.lla.y, data.lla.z);
-        } else {
-            cesiumPosition = Cartesian3.ZERO;
-        }
-
-        // parentEntity is either FIXED or another Entity or ReferenceEntity 
-        var parentEntity;
-        if (data.parentFrame === 'FIXED') {
-            parentEntity = ReferenceFrame.FIXED;
-        } else {
-            parentEntity = argonApp.context.entities.getById(this.data.parentFrame);
-            if (!parentEntity) {
-                parentEntity = new ReferenceEntity(argonApp.context.entities, 
-                                                   this.data.parentFrame);
-            }
-        }
-
-        // The first time here, we'll create a cesium Entity.  If the id has changed,
-        // we'll recreate a new entity with the new id.
-        // Otherwise, we just update the entity's position.
-        if (this.cesiumEntity == null || data.id !== oldData.id) {
-            var options = {
-                position: new ConstantPositionProperty(cesiumPosition, parentEntity),
-                orientation: Cesium.Quaternion.IDENTITY
-            }
-            if (this.data.id !== '') {
-                options.id = this.data.id;
-            }
-            this.cesiumEntity = new Cesium.Entity(options);
-        } else {
-            this.cesiumEntity.position.setValue(cesiumPosition, parentEntity);
-        }
-        
-        this.el.addEventListener('componentchanged', this.updateLocalTransform.bind(this));
-    },
-
-  updateLocalTransform: function (evt) {
-      var el = this.el;
-      var data = evt.detail.newData;
-
-      if (evt.detail.name == 'rotation') {
-          var lo = el.getComputedAttribute('rotation');
-          this.localRotationEuler.x = lo.x;
-          this.localRotationEuler.y = lo.y;
-          this.localRotationEuler.z = lo.z;
-      }
-      else if (evt.detail.name == 'position') {
-          var lp = el.getComputedAttribute('position');          
-          this.localPosition.x = lp.x;
-          this.localPosition.y = lp.y;
-          this.localPosition.z = lp.z;
-      }
-      this.localMatrix.makeRotationFromEuler(this.localRotationEuler);
-      this.localMatrix.setPosition(this.localPosition);
+},{}],6:[function(require,module,exports){
+AFRAME.registerComponent('css-object', {
+  schema: {
+    div: { default: '' },
   },
 
+  init: function () {
+    this.div = null;
+  },
 
-  /**
-   * update each time step.
-   */
-  tick: function () {
-      var m1 = new THREE.Matrix4();
-      var m2 = new THREE.Matrix4();
+  update: function () {
+    var data = this.data;
+    if (data.div === "") { return; }
+    
+    var div = document.querySelector(data.div);
+    if (div) {
+        this.el.setObject3D('div', new THREE.CSS3DObject(div));
+    }
+  },
 
-      return function(t) {
-        var data = this.data;               // parameters
-        var el = this.el;                   // entity
-        var argonApp = el.sceneEl.argonApp;
-
-        var entityPos = argonApp.context.getEntityPose(this.cesiumEntity);
-
-        if (entityPos.poseStatus & Argon.PoseStatus.KNOWN) {
-            if (data.useRotation) {
-                el.object3D.matrix.makeRotationFromQuaternion(entityPos.orientation);
-            } else {
-                el.object3D.matrix.identity();
-            }
-            if (data.usePosition) {
-                el.object3D.matrix.setPosition(entityPos.position);
-            }
-        } else {
-            el.object3D.matrix.identity();
-        }
-
-        // if this isn't a child of the scene, move it to world coordinates
-        if (!el.parentEl.isScene) {
-            m1.getInverse(this.parentEl.Object3D.matrixWorld);
-            el.object3D.matrix.preMultiply(m1);
-        }
-
-        // apply the local transformation, if any, specified by the rotation and 
-        // position components
-        el.object3D.applyMatrix(this.localMatrix);
-      };
-  }()
+  remove: function () {
+    if (!this.div) { return; }
+    this.el.removeObject3D('div');
+  }
 });
 
 },{}]},{},[1]);

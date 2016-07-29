@@ -1,0 +1,13 @@
+      <a-assets>
+         <ar-vuforia-dataset id="stonesandchips" src="../resources/datasets/StonesAndChips.xml"></ar-vuforia-dataset>
+      </a-assets>
+
+
+
+        if (!this.el.isArgon) {
+  //          throw new Error('vuforia component must be attached to an <ar-scene>.');
+    //    }
+
+
+
+="key: url(./key.txt);"
