@@ -6,7 +6,8 @@ var CesiumMath = Argon.Cesium.CesiumMath;
 var AEntity = AFRAME.AEntity;
 var ANode = AFRAME.ANode;
 
-var AR_CAMERA_ATTR = "argon-aframe-ar-camera";
+var AR_CAMERA_ATTR = "data-aframe-argon-camera";
+var DEFAULT_CAMERA_ATTR = 'data-aframe-default-camera';
 
 // want to know when the document is loaded 
 document.DOMReady = function () {
@@ -21,25 +22,26 @@ document.DOMReady = function () {
 	});
 };
 
-document.registerElement('ar-scene', {
+AFRAME.registerElement('ar-scene', {
   prototype: Object.create(AEntity.prototype, {
-    defaultComponents: {
-      value: {
-        'camera': ''    // need a vanilla camera to prevent the disable the default one
-      }
-    },
-
+//    defaultComponents: {
+//       value: {
+//         'camera': ''
+//       }
+//     },
+    
     createdCallback: {
       value: function () {
-        this.isMobile = false;
-        this.isIOS = false;
+        this.isMobile = AFRAME.utils.isMobile();
+        this.isIOS = AFRAME.utils.isIOS();
         this.isScene = true;
+        this.isArgon = true;        
         this.object3D = new THREE.Scene();
         this.systems = {};
         this.time = 0;
         this.startTime = null;
         this.argonApp = null;
-        
+
         // finish initializing
         this.init();
       }
@@ -51,21 +53,20 @@ document.registerElement('ar-scene', {
         this.hasLoaded = false;
         this.isPlaying = false;
         this.originalHTML = this.innerHTML;
-        this.setupSystems();
-
-        this.render = this.render.bind(this);
-        this.update = this.update.bind(this);
+        
+        this.argonRender = this.argonRender.bind(this);
+        this.argonUpdate = this.argonUpdate.bind(this);
         this.initializeArgon = this.initializeArgon.bind(this);
         this.setupRenderer = this.setupRenderer.bind(this);
-
+        
         // var arCameraEl = this.arCameraEl = document.createElement('a-entity');
         // arCameraEl.setAttribute(AR_CAMERA_ATTR, '');
         // arCameraEl.setAttribute('camera', {'active': true});
         // this.sceneEl.appendChild(arCameraEl);
 
         // run this whenever the document is loaded, which might be now
-        //document.DOMReady().then(this.initializeArgon);
-        this.initializeArgon();
+        document.DOMReady().then(this.initializeArgon);
+        //this.initializeArgon();
       },
       writable: true 
     },
@@ -76,14 +77,36 @@ document.registerElement('ar-scene', {
      */
     attachedCallback: {
       value: function () {
+        var sceneEl = this.sceneEl;
+        
+        this.setupSystems();
+
         this.play();
       },
       writable: window.debug
     },
 
+    addEventListeners: {
+        value: function () {
+            this.argonApp.renderEvent.addEventListener(this.argonRender);
+            this.argonApp.updateEvent.addEventListener(this.argonUpdate);
+        },
+        writable: true
+    },
+
+    removeEventListeners: {
+        value: function () {
+            this.argonApp.updateEvent.removeEventListener(this.argonUpdate);
+            this.argonApp.renderEvent.removeEventListener(this.argonRender);
+        },
+        writable: true
+    },
+    
     play: {
       value: function () {
+        var sceneEl = this.sceneEl;
         var self = this;
+
         if (this.renderStarted) {
           AEntity.prototype.play.call(this);
           return;
@@ -92,10 +115,21 @@ document.registerElement('ar-scene', {
         this.addEventListener('loaded', function () {
           if (this.renderStarted) { return; }
 
-          // if we've initialized argon, set up callbacks
+          var defaultCameraEl = sceneEl.querySelector('[' + DEFAULT_CAMERA_ATTR + ']');
+          if (defaultCameraEl) {
+                defaultCameraEl.removeAttribute('wasd-controls');
+                defaultCameraEl.removeAttribute('look-controls');  
+                defaultCameraEl.removeAttribute('camera');  
+                defaultCameraEl.setAttribute('camera', {active: true, userHeight: 0});
+                // defaultCameraEl.setAttribute('camera', {active: true, userHeight: 0});
+          }
+
           if (this.argonApp) {
-            this.argonApp.renderEvent.addEventListener(this.render);
-            this.argonApp.updateEvent.addEventListener(this.update);
+              sceneEl.addEventListeners();
+          } else {
+            this.addEventListener('argon-initialized', function() {
+              self.addEventListeners();
+            });
           }
 
           AEntity.prototype.play.call(this);
@@ -120,8 +154,7 @@ document.registerElement('ar-scene', {
      */
     detachedCallback: {
       value: function () {
-        this.argonApp.updateEvent.removeEventListener(this.update);
-        this.argonApp.renderEvent.removeEventListener(this.render);
+          removeEventListenern();
       }
     },
 
@@ -134,12 +167,17 @@ document.registerElement('ar-scene', {
 
             this.setupRenderer();
 
+
             // if we've already initialized the rendering, we won't have
             // set these callbacks, so do it now
-            if (this.renderStarted) {
-                this.argonApp.renderEvent.addEventListener(this.render);
-                this.argonApp.updateEvent.addEventListener(this.update);
-            }
+            // if (this.renderStarted) {
+            //     this.addEventListens();
+            // }
+
+            this.emit('argon-initialized', {
+                target: this.argonApp
+            });
+            
         },
         writable: true
     },
@@ -190,7 +228,7 @@ document.registerElement('ar-scene', {
      * Abstracted to a different function to facilitate unit testing (`scene.tick()`) without
      * needing to render.
      */
-    update: {
+    argonUpdate: {
         value: function () {
             var time = 0;
             if (this.startTime) 
@@ -242,7 +280,7 @@ document.registerElement('ar-scene', {
      * Updates behaviors.
      * Renders with request animation frame.
      */
-    render: {
+    argonRender: {
       value: function () {
         var app = this.argonApp;
         var scene = this.object3D;

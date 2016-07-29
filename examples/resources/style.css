@@ -1,0 +1,27 @@
+body {
+	font-family: Arial;
+}
+
+a {
+	color: #ffffff;
+}
+
+.menu {
+	position: absolute;
+	bottom: 0;
+	width: 100%;
+	text-align: center;
+}
+
+.label {
+    opacity: 0.5;
+    width: 100px;
+    font-size: 25px;
+    text-align: center;
+    color: black;
+    background: rgba(127,255,255,0.85);
+    outline: 1px solid rgba(127,255,255,1.0);
+    border: 0px;
+    margin-bottom: 20px;
+    padding: 5px 10px;
+}
