@@ -5,21 +5,21 @@ AFRAME.registerSystem('vuforia', {
     init: function () {
         this.key = "";
         this.api = null;
-        this.datasetsMap = {};
+        this.datasetMap = {};
         this.available = false;
 
         this.sceneEl.addEventListener('argon-initialized', this.startVuforia.bind(this));
     },
 
-    whenInitialized: function (resolve) {
-        var self = this;
-        return new Promise(function (resolve) {
-            if (self.api) { resolve(); } 
-            else {
-                self.sceneEl.addEventListener('argon-vuforia-initialized', resolve);
-            }
-        });
-    },
+    // whenInitialized: function (resolve) {
+    //     var self = this;
+    //     return new Promise(function (resolve) {
+    //         if (self.api) { resolve(); } 
+    //         else {
+    //             self.sceneEl.addEventListener('argon-vuforia-initialized', resolve);
+    //         }
+    //     });
+    // },
 
     setKey: function (key) {
         this.key = key;
@@ -34,31 +34,54 @@ AFRAME.registerSystem('vuforia', {
         var sceneEl = this.sceneEl;
         var argonApp = sceneEl.argonApp;
 
-        if (this.api) { return; }
+        // need argon
         if (!argonApp) { return; }
+
+        // if there is no vuforia API, bye bye
+        if (!argonApp.vuforia) { return; }
+
+        // if already initialized, bye bye
+        if (this.api) { return; }
+
+        // can't initialize if we don't have the key yet
         if (this.key === "") { return; }
 
-
+        // try to initialize
         argonApp.vuforia.isAvailable().then(function(available) {
             if (self.available) {
-                // this code has already run successfully!
+                // this code has already run, through to telling argon to initialize vuforia!
                 return;
             }
 
+            // vuforia no available on this platform
             if (!available) {
                 self.available = false;
                 console.warn('vuforia not available on this platform.');
+
+                // in case an application wants to take action when vuforia isn't supported
                 sceneEl.emit('argon-vuforia-not-available', {
                     target: sceneEl
                 });                            
                 return;
             } 
+
+            // vuforia is available!
             self.available = true;
 
+            // try to initialize with our key
             argonApp.vuforia.init({
-                    licenseKey: this.key
+                licenseKey: this.key
             }).then(function(api) {
+                // worked! Save the API
                 self.api = api;
+
+                // re-call createDataset to create datasets already requested
+                Object.keys(self.datasetMap).forEach(function(key,index) {
+                    var dataset = self.datasetMap[key];
+                    self.createDataset(dataset.el, key, dataset.url, dataset.active)
+                });
+
+                // tell everyone the good news
                 sceneEl.emit('argon-vuforia-initialized', {
                     target: sceneEl
                 });                            
@@ -66,9 +89,11 @@ AFRAME.registerSystem('vuforia', {
         });
     },
  
-    createEmptyDataset: function () {
+    // create an empty dataset
+    createEmptyDatasetObject: function () {
         return {
-            dataset: null, 
+            el: null,
+            api: null, 
             url: null, 
             fetched: false,
             loaded: false, 
@@ -78,24 +103,25 @@ AFRAME.registerSystem('vuforia', {
         };
     },
 
-    createDataset: function (name, url, active, fetched) {
+    // 
+    createDataset: function (el, name, url, active) {
         var api = this.api;
-
         var dataset = this.datasetMap[name];
 
-        // if dataset exists, and doesn't have a URL, it's because targets were registered before the 
-        // dataset was set up, which is fine.  Otherwise, duplicate!
-        if (dataset && dataset.url != null) {
+        // if dataset exists, and matches the previous element, it's because targets were registered before the 
+        // dataset was set up, which is fine.  Otherwise, its a duplicate dataset name, which isn't allowed!
+        if (dataset && dataset.el != el) {
             console.warn('vuforia.createDataset called multiple times for name=' + name + ', ignoring extra datasets');
             return;            
         } 
 
         // set up the mapping if not there
         if (!dataset) {
-            dataset = this.datasetMap[name] = this.createEmptyDataset();
+            dataset = this.datasetMap[name] = this.createEmptyDatasetObject();
         }
 
         // add the url and active setting to the existing one
+        dataset.el = el;
         dataset.url = url;
         dataset.active = active;
 
@@ -106,11 +132,16 @@ AFRAME.registerSystem('vuforia', {
 
         // should have both vuforia and argon initialized by now
         api.objectTracker.createDataSet(url).then(function (data) {
-            dataset.dataset = data; 
-            dataSet.fetch().then(function () {
+            dataset.api = data; 
+            data.fetch().then(function () {
                 dataset.fetched = true;
                 self.setDatasetActive(name, dataset.active);
-                fetched();
+                self.el.datasetLoaded = true;
+                
+                // tell everyone the good news
+                sceneEl.emit('argon-vuforia-dataset-loaded', {
+                    target: self.el
+                });                            
             });
         });
     },
@@ -133,13 +164,15 @@ AFRAME.registerSystem('vuforia', {
         }
 
         if (!dataset.loaded) {
-            dataSet.load().then(function () {
+            dataset.api.load().then(function () {
+                if (dataset.loaded) { return; }
+
                 dataset.loaded = true;
                 dataset.fetched = true;
-                dataset.trackables = dataset.dataSet.getTrackables();
+                dataset.trackables = dataset.api.getTrackables();
                 if (active) {
                     dataset.active = true;
-                    api.objectTracker.activateDataSet(dataset.dataSet);
+                    api.objectTracker.activateDataSet(dataset.api);
                 }
 
                 // re-call subscribeToTarget to subscribe the targets already requested
@@ -151,9 +184,9 @@ AFRAME.registerSystem('vuforia', {
             if (dataset.active != active) {
                 dataset.active = active;
                 if (active) {
-                    api.objectTracker.activateDataSet(dataset.dataSet);
+                    api.objectTracker.activateDataSet(dataset.api);
                 } else {
-                    api.objectTracker.activateDataSet(dataset.dataSet);                
+                    api.objectTracker.activateDataSet(dataset.api);                
                 }
             }
         }        
@@ -165,7 +198,7 @@ AFRAME.registerSystem('vuforia', {
 
         // set up the mapping if not there
         if (!dataset) {
-            dataset = this.datasetMap[name] = this.createEmptyDataset();
+            dataset = this.datasetMap[name] = this.createEmptyDatasetObject();
         }
         
         // either create a new target entry and set the count, or add the count to an existing one
@@ -221,6 +254,9 @@ AFRAME.registerComponent('vuforia', {
             } else {
                 system.setKey(keyAsset.innerHTML);
             }
+        } else {
+            console.warn('vuforia component cannot find asset "' + this.data + '"');
+            return;
         }
     }
 });
@@ -238,14 +274,17 @@ AFRAME.registerElement('ar-vuforia-dataset', {
     attachedCallback: {
       value: function () {
         this.init();
-        this.load();
       },
       writable: window.debug
     },
 
     detachedCallback: {
       value: function () {
-        // deactive dataset if active
+        if (this.active) {
+            var sceneEl = this.sceneEl;
+            var vuforia = sceneEl.systems["vuforia"];
+            vuforia.setDatasetActive(id, false);
+        }
         // remove dataset from system
       }
     },
@@ -264,10 +303,8 @@ AFRAME.registerElement('ar-vuforia-dataset', {
         var src = this.getAttribute('src');
         var active = this.getComputedAttribute('active');
 
-        var vuforia = sceneEl.systems.vuforia;
-        vuforia.createDataset(id, src, active, function() {
-            self.datasetLoaded = true;
-        });        
+        var vuforia = sceneEl.systems["vuforia"];
+        vuforia.createDataset(el, id, src, active);        
       }
     },
 
