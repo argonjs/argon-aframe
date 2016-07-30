@@ -3,11 +3,12 @@ var ANode = AFRAME.ANode;
 
 AFRAME.registerSystem('vuforia', {
     init: function () {
+        this.key = "";
         this.api = null;
-        this.currentDatasetURL = '';
         this.datasetsMap = {};
         this.available = false;
-        this.initPromise = null;
+
+        this.sceneEl.addEventListener('argon-initialized', this.startVuforia.bind(this));
     },
 
     whenInitialized: function (resolve) {
@@ -20,74 +21,95 @@ AFRAME.registerSystem('vuforia', {
         });
     },
 
-    startVuforia: function(key) {
-        if (this.api) { return; }
-        if (this.initPromise) { return; }
+    setKey: function (key) {
+        this.key = key;
 
+        if (this.sceneEl.argonApp) {
+            this.startVuforia();
+        }
+    },
+
+    startVuforia: function() {
         var self = this;
         var sceneEl = this.sceneEl;
+        var argonApp = sceneEl.argonApp;
 
-        this.initPromise = new Promise(function waitForArgon (resolve) {
-            if (sceneEl.argonApp) { return resolve(); }
-            sceneEl.addEventListener('argon-initialized', resolve);
-        }).then(function() {
-            var argonApp = sceneEl.argonApp;
+        if (this.api) { return; }
+        if (!argonApp) { return; }
+        if (this.key === "") { return; }
 
-            argonApp.vuforia.isAvailable().then(function(available) {
-                if (self.available) {
-                    // this code has already run successfully!
-                    return;
-                }
 
-                if (!available) {
-                    self.available = false;
-                    throw new Error('vuforia not available on this platform.');
-                } 
-                self.available = true;
+        argonApp.vuforia.isAvailable().then(function(available) {
+            if (self.available) {
+                // this code has already run successfully!
+                return;
+            }
 
-                // we know it's available to try to initialize
-                if (key) {
-                    xhrLoader.load(key, function (textResponse) {
-                        argonApp.vuforia.init({
-                            licenseKey: textResponse
-                        }).then(function(api) {
-                            self.api = api;
-                            sceneEl.emit('argon-vuforia-initialized', {
-                                target: self
-                            });                            
-                        })
-                    });
-                }                
+            if (!available) {
+                self.available = false;
+                console.warn('vuforia not available on this platform.');
+                sceneEl.emit('argon-vuforia-not-available', {
+                    target: sceneEl
+                });                            
+                return;
+            } 
+            self.available = true;
+
+            argonApp.vuforia.init({
+                    licenseKey: this.key
+            }).then(function(api) {
+                self.api = api;
+                sceneEl.emit('argon-vuforia-initialized', {
+                    target: sceneEl
+                });                            
             });
         });
     },
+ 
+    createEmptyDataset: function () {
+        return {
+            dataset: null, 
+            url: null, 
+            fetched: false,
+            loaded: false, 
+            active: false, 
+            targets: {},
+            trackables: null
+        };
+    },
 
-    createDataset: function (name, url, fetched) {
+    createDataset: function (name, url, active, fetched) {
         var api = this.api;
+
+        var dataset = this.datasetMap[name];
+
+        // if dataset exists, and doesn't have a URL, it's because targets were registered before the 
+        // dataset was set up, which is fine.  Otherwise, duplicate!
+        if (dataset && dataset.url != null) {
+            console.warn('vuforia.createDataset called multiple times for name=' + name + ', ignoring extra datasets');
+            return;            
+        } 
+
+        // set up the mapping if not there
+        if (!dataset) {
+            dataset = this.datasetMap[name] = this.createEmptyDataset();
+        }
+
+        // add the url and active setting to the existing one
+        dataset.url = url;
+        dataset.active = active;
+
+        // if it's not yet initialized, return.  
         if (!api) {
-            throw new Error('vuforia.createDataset: API not initialized');
+            return;
         }
 
         // should have both vuforia and argon initialized by now
-        var dataset = this.datasetMap[name];
-        if (dataset) {
-            if (dataset.url !== url) {
-                throw new Error('ar-vuforia-dataset "' + name + '"must be attached to an <ar-scene>.');
-            }
-            if (dataset.dataset) {
-                throw new Error('vuforia.createDataset called multiple times for name=' + name + ', url=' + url);
-            }
-        } 
-        api.objectTracker.createDataSet(url).then(function (dataSet) {
-            self.datasetMap[name] = {
-                dataset: dataSet, 
-                url: url, 
-                loaded: false, 
-                active: false, 
-                targets:  dataset ? dataset.targets || {} : {},
-                trackables: null
-            };
+        api.objectTracker.createDataSet(url).then(function (data) {
+            dataset.dataset = data; 
             dataSet.fetch().then(function () {
+                dataset.fetched = true;
+                self.setDatasetActive(name, dataset.active);
                 fetched();
             });
         });
@@ -95,23 +117,34 @@ AFRAME.registerSystem('vuforia', {
 
     setDatasetActive: function (name, active) {
         var api = this.api;
+        var dataset = this.datasetMap[name];
+
         if (!api) {
-            throw new Error('vuforia.setDatsetActive: API not initialized');
+            if (dataset) {
+                dataset.active = active;
+                return;
+            } else {
+                throw new Error('vuforia.setDatsetActive call before dataset initialized');
+            }
         }
         
-        var dataset = this.datasetMap[name];
         if (!dataset) {
-            throw new Error('ar-vuforia-dataset "' + name + '"must be created before being activated.');            
+            throw new Error('ar-vuforia-dataset "' + name + '" should have been created before being activated');
         }
+
         if (!dataset.loaded) {
             dataSet.load().then(function () {
                 dataset.loaded = true;
+                dataset.fetched = true;
+                dataset.trackables = dataset.dataSet.getTrackables();
                 if (active) {
                     dataset.active = true;
                     api.objectTracker.activateDataSet(dataset.dataSet);
                 }
+
+                // re-call subscribeToTarget to subscribe the targets already requested
                 Object.keys(dataset.targets).forEach(function(key,index) {
-                    self.subscribeToTarget(name, key, index);
+                    self.subscribeToTarget(name, key, true);
                 });
             });
         } else {
@@ -126,70 +159,40 @@ AFRAME.registerSystem('vuforia', {
         }        
     },
 
-    subscribeToTarget: function (name, target, count) {
+    subscribeToTarget: function (name, target, postLoad) {
         var api = this.api;
         var dataset = this.datasetMap[name];
 
-        if (arguments.length < 3) { 
-            count = 1;
+        // set up the mapping if not there
+        if (!dataset) {
+            dataset = this.datasetMap[name] = this.createEmptyDataset();
         }
-        if (!api || !dataset)  {
-            this.datasetMap[name] = {
-                targets: {}
-            };            
-            this.datasetMap[name].targets[target] = count;
-        } else if(!this.datasetMap[name].targets[target]) {
-            dataset.targets[target] = count;
-            if (dataset.loaded) {
-                var trackables = dataset.dataSet.getTrackables();
-                var tracker = trackables[target];
-                if (tracker && tracker.id) {
-                    this.sceneEl.argonApp.context.subscribeToEntityById(tracker.id);
-                }
+        
+        // either create a new target entry and set the count, or add the count to an existing one
+        target = dataset.targets[target];
+        if (!target) {
+            dataset.targets[target] = 1;
+        } else if (!postLoad) {
+            dataset.targets[target] += 1;
+        }
+
+        if (!api) { return; }
+
+        if (dataset.loaded) {
+            var tracker = trackables[target];
+            if (tracker && tracker.id) {
+                this.sceneEl.argonApp.context.subscribeToEntityById(tracker.id);
             }
-        } else {
-            this.datasetMap[name].targets[target] += count;
         }
     },
 });
 
-    /// How many image targets to detect and track at the same time:
-    ///     MaxSimultaneousImageTargets
-
-    /**
-     *  This hint tells the tracker how many image shall be processed
-     *  at most at the same time. E.g. if an app will never require
-     *  tracking more than two targets, this value should be set to 2.
-     *  Default is: 1.
-     */
-    
-    /// How many object targets to detect and track at the same time
-    ///     MaxSimultaneousObjectTargets
-    /**
-     *  This hint tells the tracker how many 3D objects shall be processed
-     *  at most at the same time. E.g. if an app will never require
-     *  tracking more than 1 target, this value should be set to 1.
-     *  Default is: 1.
-     */
-    
-    /// Force delayed loading for object target Dataset
-    ///     DelayedLoadingObjectDatasets
-    /**
-     *  This hint tells the tracker to enable/disable delayed loading
-     *  of object target datasets upon first detection.
-     *  Loading time of large object dataset will be reduced
-     *  but the initial detection time of targets will increase.
-     *  Please note that the hint should be set before loading
-     *  any object target dataset to be effective.
-     *  To enable delayed loading set the hint value to 1.
-     *  To disable delayed loading set the hint value to 0.
-     *  Default is: 0.
-     */
-
-
+// the parameter to vuforia is a reference to a element.
+// If the element is an a-asset-item, the key should have been downloaded into its data property
+// Otherwise, assume the key is in the innerHTML (contents) of the element
 AFRAME.registerComponent('vuforia', {
     schema: { 
-        key: {type: 'src'}
+        type: 'string'
     },
 
     /**
@@ -205,14 +208,19 @@ AFRAME.registerComponent('vuforia', {
         var el = this.el;
         var data = this.data;
         var system = this.system;
-        
-        if (!el.isScene) {
-            warn('Fog component can only be applied to <a-scene>');
+
+        if (!el.isArgon) {
+            console.warn('vuforia component can only be applied to <ar-scene>');
             return;
         }
-        if (!system.api) {
-            // vuforia hasn't been initialized, so let's start by doing that
-            system.startVuforia(data.key);    
+
+        var keyAsset = el.querySelector(this.data);
+        if (keyAsset) {
+            if (keyAsset.isAsset) {
+                system.setKey(keyAsset.data);
+            } else {
+                system.setKey(keyAsset.innerHTML);
+            }
         }
     }
 });
@@ -221,7 +229,24 @@ AFRAME.registerElement('ar-vuforia-dataset', {
   prototype: Object.create(ANode.prototype, {
     createdCallback: {
       value: function () {
-        this.isAssetItem = true;
+        this.active = false;
+        this.url = "";
+        this.datasetLoaded = false;
+      }
+    },
+
+    attachedCallback: {
+      value: function () {
+        this.init();
+        this.load();
+      },
+      writable: window.debug
+    },
+
+    detachedCallback: {
+      value: function () {
+        // deactive dataset if active
+        // remove dataset from system
       }
     },
 
@@ -231,42 +256,36 @@ AFRAME.registerElement('ar-vuforia-dataset', {
         var sceneEl = this.sceneEl;
 
         if (!sceneEl.isArgon) {
-            throw new Error('ar-vuforia-dataset must be used in an <ar-scene>.');
+            console.warn('ar-vuforia-dataset must be used in an <ar-scene>.');
+            return;
         }
 
+        var id = this.getAttribute('id');
         var src = this.getAttribute('src');
         var active = this.getComputedAttribute('active');
-        var id = this.getAttribute('id');
 
-        var vuforia = sceneEl.systems["vuforia"];
-
-        vuforia.whenInitialized(function() {
-            vuforia.createDataset(id, src, function() {
-                vuforia.whenInitialized(function () {
-                    vuforia.setDatasetActive(id, active);
-                    ANode.prototype.load.call(self);
-                })
-            });
-        });
+        var vuforia = sceneEl.systems.vuforia;
+        vuforia.createDataset(id, src, active, function() {
+            self.datasetLoaded = true;
+        });        
       }
     },
 
     attributeChangedCallback: {
-        value: function (attr, oldVal, newVal) {
-            var self = this;
-            var sceneEl = this.sceneEl;
-            var vuforia = sceneEl.systems["vuforia"];
-            var id = this.getAttribute('id');
+      value: function (attr, oldVal, newVal) {
+        var self = this;
+        var sceneEl = this.sceneEl;
+        var vuforia = sceneEl.systems["vuforia"];
+        var id = this.getAttribute('id');
 
-            if (attr === "active") {
-                vuforia.whenInitialized(function () {
-                    vuforia.setDatasetActive(id, newVal);
-                })
-            }
+        if (attr === "active") {
+            vuforia.setDatasetActive(id, newVal);
         }
-    }
-
-    
+        if (attr === "src" || attr === "id") {
+            console.warn("cannot change the id or src of an ar-vuforia-dataset")
+        }
+      }
+    }    
   })
 });
 

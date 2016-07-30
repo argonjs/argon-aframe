@@ -167,7 +167,6 @@ AFRAME.registerElement('ar-scene', {
 
             this.setupRenderer();
 
-
             // if we've already initialized the rendering, we won't have
             // set these callbacks, so do it now
             // if (this.renderStarted) {
@@ -264,11 +263,7 @@ AFRAME.registerElement('ar-scene', {
         // Systems.
         Object.keys(systems).forEach(function (key) {
             if (!systems[key].tick) { return; }
-            try {
-                systems[key].tick(time, timeDelta);
-            } catch (e) {
-                // nada!
-            }
+            systems[key].tick(time, timeDelta);
         });
       }
     },

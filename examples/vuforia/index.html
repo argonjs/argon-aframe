@@ -12,8 +12,9 @@
 
     <div id="div1" class="label">This is a div <a href="http://blairmacintyre.me/">with a link</a></div>
     
-    <ar-scene>
+    <ar-scene vuforia="#vuforiakey">
       <a-assets>
+        <a-asset-item id="vuforiakey" src="key.txt"></a-asset-item>
          <ar-vuforia-dataset id="stonesandchips" src="../resources/datasets/StonesAndChips.xml"></ar-vuforia-dataset>
       </a-assets>
       <a-entity position="0 0 0">
