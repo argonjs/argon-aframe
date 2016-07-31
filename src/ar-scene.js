@@ -7,7 +7,6 @@ var AEntity = AFRAME.AEntity;
 var ANode = AFRAME.ANode;
 
 var AR_CAMERA_ATTR = "data-aframe-argon-camera";
-var DEFAULT_CAMERA_ATTR = 'data-aframe-default-camera';
 
 // want to know when the document is loaded 
 document.DOMReady = function () {
@@ -115,14 +114,22 @@ AFRAME.registerElement('ar-scene', {
         this.addEventListener('loaded', function () {
           if (this.renderStarted) { return; }
 
-          var defaultCameraEl = sceneEl.querySelector('[' + DEFAULT_CAMERA_ATTR + ']');
-          if (defaultCameraEl) {
-                defaultCameraEl.removeAttribute('wasd-controls');
-                defaultCameraEl.removeAttribute('look-controls');  
-                defaultCameraEl.removeAttribute('camera');  
-                defaultCameraEl.setAttribute('camera', {active: true, userHeight: 0});
-                // defaultCameraEl.setAttribute('camera', {active: true, userHeight: 0});
-          }
+        //   var defaultCameraEl = sceneEl.querySelector('[' + DEFAULT_CAMERA_ATTR + ']');
+        //   if (defaultCameraEl) {
+        //         defaultCameraEl.removeAttribute('wasd-controls');
+        //         defaultCameraEl.removeAttribute('look-controls');  
+        //         defaultCameraEl.removeAttribute('camera');  
+        //         defaultCameraEl.setAttribute('camera', {active: true, userHeight: 0});
+        //         defaultCameraEl.setAttribute('position', {x: 0, y: 0, z: 0});
+        //         // defaultCameraEl.setAttribute('camera', {active: true, userHeight: 0});
+        //   }
+
+            var currentCameraEl = this.camera.el;
+            if (this.camera.el.tagName !== "AR-CAMERA") {
+                var defaultCameraEl = document.createElement('ar-camera');
+                defaultCameraEl.setAttribute(AR_CAMERA_ATTR, '');
+                sceneEl.appendChild(defaultCameraEl);
+            }
 
           if (this.argonApp) {
               sceneEl.addEventListeners();
@@ -284,6 +291,16 @@ AFRAME.registerElement('ar-scene', {
         var hud = this.hud;
         var camera = this.camera;
 
+        // the camera object is created from a camera property on an entity. This should be
+        // an ar-camera, which will have the entity position and orientation set to the pose
+        // of the user.  We want to make the camera pose 
+        var camEntityPos = null;
+        var camEntityRot = null;
+        if (camera.parent) {
+            camEntityPos = camera.parent.position.clone().negate();
+            camEntityRot = camera.parent.quaternion.clone().inverse();
+        }
+
         var viewport = app.view.getViewport();
         webglRenderer.setSize(viewport.width, viewport.height);
         cssRenderer.setSize(viewport.width, viewport.height);
@@ -292,17 +309,25 @@ AFRAME.registerElement('ar-scene', {
         // there is 1 subview in monocular mode, 2 in stereo mode    
         for (var _i = 0, _a = app.view.getSubviews(); _i < _a.length; _i++) {
             var subview = _a[_i];
+            var frustum = subview.frustum;
+            
             // set the position and orientation of the camera for 
             // this subview
             camera.position.copy(subview.pose.position);
+            if (camEntityPos)  { camera.position.add(camEntityPos); }
             camera.quaternion.copy(subview.pose.orientation);
+            if (camEntityRot)  { camera.quaternion.multiply(camEntityRot); }
+
             // the underlying system provide a full projection matrix
             // for the camera. 
             camera.projectionMatrix.fromArray(subview.projectionMatrix);
             // set the viewport for this view
             var _b = subview.viewport, x = _b.x, y = _b.y, width = _b.width, height = _b.height;
             // set the CSS rendering up, by computing the FOV, and render this view
-            cssRenderer.updateCameraFOVFromProjection(camera);
+            
+            //cssRenderer.updateCameraFOVFromProjection(camera);
+            camera.fov = THREE.Math.radToDeg(frustum.fovy);
+            
             cssRenderer.setViewport(x, y, width, height, subview.index);
             cssRenderer.render(scene, camera, subview.index);
             // set the webGL rendering parameters and render this view
@@ -403,4 +428,11 @@ AFRAME.registerElement('ar-scene', {
     }
     
   })
+});
+
+AFRAME.registerPrimitive('ar-camera', {
+  defaultComponents: {
+    camera: {active: true},
+    referenceframe: {parent: 'ar.user'}
+  }
 });

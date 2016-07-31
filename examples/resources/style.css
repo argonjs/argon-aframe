@@ -15,13 +15,13 @@ a {
 
 .label {
     opacity: 0.5;
-    width: 100px;
+    width: 90px;
     font-size: 25px;
     text-align: center;
     color: black;
     background: rgba(127,255,255,0.85);
-    outline: 1px solid rgba(127,255,255,1.0);
+    outline: 5px solid rgba(12,25,25,1.0);
     border: 0px;
-    margin-bottom: 20px;
-    padding: 5px 10px;
+    margin-bottom: 0px;
+    padding: 0px 0px;
 }

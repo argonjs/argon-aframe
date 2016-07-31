@@ -6,6 +6,7 @@
     <script src="../build.js"></script>
     <script src="../resources/js/CSS3DArgonRenderer.js"></script>
     <script src="../resources/js/CSS3DArgonHUD.js"></script>
+    <script src="../resources/js/aframe-look-at-component.js"></script>
 	  <link rel="stylesheet" type="text/css" href="../resources/style.css">
   </head>
   <body>
@@ -14,7 +15,7 @@
       <ar-geopose id="GT" lla=" -84.398881 33.778463" userotation="false"> 
          <a-entity scalewithdistance="0.05">
            <a-sphere radius="1" color="#ffff00"  ></a-sphere>
-           <a-entity css-object="div: #mydiv" scale="0.01 0.01 0.01" position="0 2.75 0"></a-entity>
+           <a-entity css-object="div: #mydiv" scale="0.02 0.02 0.02" position="0 2 0" look-at="[camera]"></a-entity>
         </a-entity>
       </ar-geopose>
       <ar-frame id="me" parent="ar.user" userotation="false" track>

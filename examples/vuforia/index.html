@@ -6,7 +6,7 @@
     <script src="../build.js"></script>
     <script src="../resources/js/CSS3DArgonRenderer.js"></script>
     <script src="../resources/js/CSS3DArgonHUD.js"></script>
-	  <link rel="stylesheet" type="text/css" href="../resources/style.css">
+<script src="https://rawgit.com/ngokevin/aframe-look-at-component/master/dist/aframe-look-at-component.min.js"></script>	  <link rel="stylesheet" type="text/css" href="../resources/style.css">
   </head>
   <body>
 
@@ -15,7 +15,7 @@
     <ar-scene vuforia="#vuforiakey">
       <a-assets>
         <a-asset-item id="vuforiakey" src="key.txt"></a-asset-item>
-         <ar-vuforia-dataset id="stonesandchips" src="../resources/datasets/StonesAndChips.xml"></ar-vuforia-dataset>
+        <ar-vuforia-dataset id="stonesandchips" src="../resources/datasets/StonesAndChips.xml"></ar-vuforia-dataset>
       </a-assets>
       <a-entity position="0 0 0">
         <a-entity css-object="div: #div1" scale="0.01 0.01 0.01" position="0 2.75 -1" ></a-entity>
