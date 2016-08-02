@@ -11,16 +11,6 @@ AFRAME.registerSystem('vuforia', {
         this.sceneEl.addEventListener('argon-initialized', this.startVuforia.bind(this));
     },
 
-    // whenInitialized: function (resolve) {
-    //     var self = this;
-    //     return new Promise(function (resolve) {
-    //         if (self.api) { resolve(); } 
-    //         else {
-    //             self.sceneEl.addEventListener('argon-vuforia-initialized', resolve);
-    //         }
-    //     });
-    // },
-
     setKey: function (key) {
         this.key = key;
 
@@ -70,15 +60,18 @@ AFRAME.registerSystem('vuforia', {
 
             // try to initialize with our key
             argonApp.vuforia.init({
-                licenseKey: this.key
+                licenseKey: self.key
             }).then(function(api) {
                 // worked! Save the API
                 self.api = api;
 
-                // re-call createDataset to create datasets already requested
+                console.log("vuforia initialized!")
+
+                // re-call createOrUpdateDataset to create datasets already requested
                 Object.keys(self.datasetMap).forEach(function(key,index) {
                     var dataset = self.datasetMap[key];
-                    self.createDataset(dataset.el, key, dataset.url, dataset.active)
+                    console.log("re-initializing dataset " + key + " as active=" + dataset.active);
+                    self.createOrUpdateDataset(dataset.component, key, dataset.url, dataset.active)
                 });
 
                 // tell everyone the good news
@@ -88,67 +81,113 @@ AFRAME.registerSystem('vuforia', {
             });
         });
     },
- 
+
     // create an empty dataset
     createEmptyDatasetObject: function () {
         return {
-            el: null,
+            component: null,
             api: null, 
             url: null, 
             fetched: false,
             loaded: false, 
             active: false, 
             targets: {},
-            trackables: null
+            trackables: null,
+            initInProgress: false
         };
     },
 
-    // 
-    createDataset: function (el, name, url, active) {
+    // create a new dataset or update one currently created.  
+    createOrUpdateDataset: function (component, name, url, active) {
+        var self = this;
         var api = this.api;
         var dataset = this.datasetMap[name];
 
         // if dataset exists, and matches the previous element, it's because targets were registered before the 
         // dataset was set up, which is fine.  Otherwise, its a duplicate dataset name, which isn't allowed!
-        if (dataset && dataset.el != el) {
-            console.warn('vuforia.createDataset called multiple times for name=' + name + ', ignoring extra datasets');
-            return;            
-        } 
-
-        // set up the mapping if not there
-        if (!dataset) {
+        if (dataset) {
+          if (dataset.component) {
+            if (dataset.component != component) {
+                console.warn('vuforia.createOrUpdateDataset called multiple times for id=' + name + ', ignoring extra datasets');
+                return;
+            }   
+            if (dataset.url != url) {
+                console.warn("can't change the url for a vuforia dataset once it's created.  Ignoring new URL '" + url + "' for dataset '" + name + "'")
+                return;
+            }
+          } else {
+            // first time this has been called, the dataset is there
+            // because of calls to set up targets, etc.
+            dataset.component = component;
+            dataset.url = url;
+          }
+        } else {
+            // set up the mapping if not there
             dataset = this.datasetMap[name] = this.createEmptyDatasetObject();
+            dataset.component = component;
+            dataset.url = url;
         }
 
-        // add the url and active setting to the existing one
-        dataset.el = el;
-        dataset.url = url;
         dataset.active = active;
 
-        // if it's not yet initialized, return.  
+        console.log("creating dataset " + name + " active=" + active );
+
+        // if vuforia has not yet initialized, return.  
         if (!api) {
             return;
         }
 
+        if (dataset.initInProgress) {
+            // just update the active flag, will get dealt with when fetch is done
+            dataset.active = active;
+            return;
+        }
+
+        // if the api is initialized, deal with the active state
+        if (dataset.api) {
+            dataset.active = active;
+
+            // if already fetched, update the active state
+            if (fetched) {
+                self.setDatasetActive(name, dataset.active);
+            }
+            return;
+        }
+
+        console.log("objectTracker.createDataSet " + name );
+
+        dataset.initInProgress = true;
         // should have both vuforia and argon initialized by now
         api.objectTracker.createDataSet(url).then(function (data) {
+            console.log("created dataset " + name );
+
+            dataset.initInProgress = false;
             dataset.api = data; 
             data.fetch().then(function () {
+
+                console.log("fetched dataset " + name );
+
                 dataset.fetched = true;
+
+                console.log("now, re-activate dataset " + name + " active=" + dataset.active );
                 self.setDatasetActive(name, dataset.active);
-                self.el.datasetLoaded = true;
+                dataset.component.datasetLoaded = true;
+                console.log("re-activated dataset " + name + " active=" + dataset.active );
                 
                 // tell everyone the good news
-                sceneEl.emit('argon-vuforia-dataset-loaded', {
-                    target: self.el
+                self.sceneEl.emit('argon-vuforia-dataset-downloaded', {
+                    target: dataset.component
                 });                            
             });
         });
     },
 
     setDatasetActive: function (name, active) {
+        var self = this;
         var api = this.api;
         var dataset = this.datasetMap[name];
+
+        console.log("make dataset " + name + " active=" +active );
 
         if (!api) {
             if (dataset) {
@@ -163,8 +202,12 @@ AFRAME.registerSystem('vuforia', {
             throw new Error('ar-vuforia-dataset "' + name + '" should have been created before being activated');
         }
 
-        if (!dataset.loaded) {
+        console.log("really making dataset " + name + " active=" +active );
+
+        if (!dataset.loaded && active) {
+            console.log("loading dataset " + name + " active=" +active );
             dataset.api.load().then(function () {
+                console.log("loaded dataset " + name + " active=" +active );
                 if (dataset.loaded) { return; }
 
                 dataset.loaded = true;
@@ -177,8 +220,16 @@ AFRAME.registerSystem('vuforia', {
 
                 // re-call subscribeToTarget to subscribe the targets already requested
                 Object.keys(dataset.targets).forEach(function(key,index) {
+                    console.log("re-subscribing to target " + name + "." + key );
                     self.subscribeToTarget(name, key, true);
                 });
+
+                // tell everyone the good news
+                self.sceneEl.emit('argon-vuforia-dataset-loaded', {
+                    target: dataset.component
+                });               
+                console.log("dataset " + name + " loaded, ready to go");
+                           
             });
         } else {
             if (dataset.active != active) {
@@ -186,7 +237,7 @@ AFRAME.registerSystem('vuforia', {
                 if (active) {
                     api.objectTracker.activateDataSet(dataset.api);
                 } else {
-                    api.objectTracker.activateDataSet(dataset.api);                
+                    api.objectTracker.deactivateDataSet(dataset.api);                
                 }
             }
         }        
@@ -202,36 +253,68 @@ AFRAME.registerSystem('vuforia', {
         }
         
         // either create a new target entry and set the count, or add the count to an existing one
-        target = dataset.targets[target];
-        if (!target) {
+        targetItem = dataset.targets[target];
+        if (!targetItem) {
             dataset.targets[target] = 1;
         } else if (!postLoad) {
             dataset.targets[target] += 1;
         }
+        console.log("subscribe to " + name + "." + target)
 
-        if (!api) { return; }
-
+        if (!api) { return null; }
+            
         if (dataset.loaded) {
-            var tracker = trackables[target];
+            var tracker = dataset.trackables[target];
+            console.log("dataset loaded, subscribe to " + name + "." + target)
             if (tracker && tracker.id) {
-                this.sceneEl.argonApp.context.subscribeToEntityById(tracker.id);
+                console.log("subscribed to " + name + "." + target + " as " + tracker.id)
+                return this.sceneEl.argonApp.context.subscribeToEntityById(tracker.id);
+            } else {
+                console.warn("can't subscribe to target '" + target + "' does not exist in dataset '" + name + "'");
+                return null;
             }
         }
+        // not loaded yet
+        return null;
     },
+
+    getTargetEntity: function (name, target) {
+        var api = this.api;
+        var dataset = this.datasetMap[name];
+        var tracker;
+
+        console.log("getTargetEntity " + name + "." + target)
+
+        // set up the mapping if not there
+        if (!api || !dataset || !dataset.loaded) {
+            return null;
+        }
+        
+        tracker = dataset.trackables[target];
+        console.log("everything loaded, get " + name + "." + target)
+        if (tracker && tracker.id) {
+            console.log("retrieved " + name + "." + target + " as " + tracker.id)
+            return this.sceneEl.argonApp.context.entities.getById(tracker.id);
+        } else {
+            console.warn("can't get target '" + target + "', does not exist in dataset '" + name + "'");
+        }
+        return null;
+    }
 });
 
 // the parameter to vuforia is a reference to a element.
 // If the element is an a-asset-item, the key should have been downloaded into its data property
 // Otherwise, assume the key is in the innerHTML (contents) of the element
-AFRAME.registerComponent('vuforia', {
+AFRAME.registerComponent('vuforiakey', {
     schema: { 
-        type: 'string'
+        default: " "
     },
 
     /**
      * Nothing to do
      */
     init: function () {
+        this.key = null;
     },
 
     /** 
@@ -240,18 +323,22 @@ AFRAME.registerComponent('vuforia', {
     update: function (oldData) {
         var el = this.el;
         var data = this.data;
-        var system = this.system;
-
+        var sceneEl = this.el.sceneEl;
+        var system = sceneEl.systems["vuforia"];
+            
         if (!el.isArgon) {
             console.warn('vuforia component can only be applied to <ar-scene>');
             return;
         }
 
         var keyAsset = el.querySelector(this.data);
+
         if (keyAsset) {
-            if (keyAsset.isAsset) {
+            if (keyAsset.isAssetItem) {
+                this.key = keyAsset.data;
                 system.setKey(keyAsset.data);
             } else {
+                this.key = keyAsset.innerHTML;
                 system.setKey(keyAsset.innerHTML);
             }
         } else {
@@ -261,69 +348,42 @@ AFRAME.registerComponent('vuforia', {
     }
 });
 
-AFRAME.registerElement('ar-vuforia-dataset', {
-  prototype: Object.create(ANode.prototype, {
-    createdCallback: {
-      value: function () {
+AFRAME.registerComponent('vuforiadataset', {
+    multiple: true,
+
+    schema: {
+        src: {type: 'src'},
+        active: {default: true}
+    },
+
+    init: function () {
+        var el = this.el;
+
+        this.name = "default_dataset";
         this.active = false;
-        this.url = "";
         this.datasetLoaded = false;
-      }
+
+        if (!el.isArgon) {
+            console.warn('vuforiadataset should be attached to an <ar-scene>.');
+        }
     },
 
-    attachedCallback: {
-      value: function () {
-        this.init();
-      },
-      writable: window.debug
-    },
-
-    detachedCallback: {
-      value: function () {
+    remove: function () {
         if (this.active) {
-            var sceneEl = this.sceneEl;
+            var sceneEl = this.el.sceneEl;
             var vuforia = sceneEl.systems["vuforia"];
-            vuforia.setDatasetActive(id, false);
+            vuforia.setDatasetActive(this.name, false);
         }
-        // remove dataset from system
-      }
+        // remove dataset from system, when argon supports that
     },
 
-    init: { 
-      value: function () {
-        var self = this;
-        var sceneEl = this.sceneEl;
-
-        if (!sceneEl.isArgon) {
-            console.warn('ar-vuforia-dataset must be used in an <ar-scene>.');
-            return;
-        }
-
-        var id = this.getAttribute('id');
-        var src = this.getAttribute('src');
-        var active = this.getComputedAttribute('active');
+    update: function (oldData) {
+        var sceneEl = this.el.sceneEl;
+        this.name = this.id ? this.id : "default_dataset";
 
         var vuforia = sceneEl.systems["vuforia"];
-        vuforia.createDataset(el, id, src, active);        
-      }
-    },
-
-    attributeChangedCallback: {
-      value: function (attr, oldVal, newVal) {
-        var self = this;
-        var sceneEl = this.sceneEl;
-        var vuforia = sceneEl.systems["vuforia"];
-        var id = this.getAttribute('id');
-
-        if (attr === "active") {
-            vuforia.setDatasetActive(id, newVal);
-        }
-        if (attr === "src" || attr === "id") {
-            console.warn("cannot change the id or src of an ar-vuforia-dataset")
-        }
-      }
-    }    
-  })
+        vuforia.createOrUpdateDataset(this, this.name, this.data.src, this.data.active);
+    }
 });
 
 // AFRAME.registerElement('ar-vuforia-key', {

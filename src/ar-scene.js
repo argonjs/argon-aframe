@@ -8,6 +8,27 @@ var ANode = AFRAME.ANode;
 
 var AR_CAMERA_ATTR = "data-aframe-argon-camera";
 
+var style = document.createElement("style");
+style.type = 'text/css';
+document.head.insertBefore(style, document.head.firstChild);
+var sheet = style.sheet;
+sheet.insertRule(`
+ar-scene {
+  display: block;
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+`, 0);
+sheet.insertRule(`
+ar-scene video,
+ar-scene img,
+ar-scene audio {
+  display: none;
+}
+`, 1);
+
+
 // want to know when the document is loaded 
 document.DOMReady = function () {
 	return new Promise(function(resolve, reject) {

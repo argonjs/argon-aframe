@@ -2,6 +2,7 @@
   <head>
     <title>Hello, World! Argon + A-Frame</title>
     <meta name="description" content="Hello, World! Argon + A-Frame">
+    <script src="../resources/js/aframe.min.js"></script>
     <script src="../resources/js/argon.umd.js"></script>
     <script src="../build.js"></script>
     <script src="../resources/js/CSS3DArgonRenderer.js"></script>
@@ -10,8 +11,10 @@
 	  <link rel="stylesheet" type="text/css" href="../resources/style.css">
   </head>
   <body>
-    <div id="mydiv" class="label">This is more text!</div>
-    <div id="mydiv2" class="label">This is some text!</div>
+    <div hidden>
+      <div id="mydiv" class="label">This is more text!</div>
+      <div id="mydiv2" class="label">This is some text!</div>
+    </div>
     <ar-scene>
       <a-entity position="0 -1.5 -10" >
         <a-sphere position="0 1.25 -1" radius="1.25" color="#EF2D5E" ></a-sphere>

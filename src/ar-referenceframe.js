@@ -41,6 +41,8 @@ AFRAME.registerComponent('referenceframe', {
         var el = this.el;                   // entity
         var self = this;
 
+        this.update = this.update.bind(this);
+
         // this component only works with an Argon Scene
         if (!el.sceneEl.isArgon) {
             throw new Error('referenceframe must be used on a child of a <ar-scene>.');
@@ -60,6 +62,7 @@ AFRAME.registerComponent('referenceframe', {
      */
     update: function (oldData) {
         var el = this.el;
+        var self = this;
         var argonApp = this.el.sceneEl.argonApp;
         var data = this.data;
 
@@ -103,20 +106,48 @@ AFRAME.registerComponent('referenceframe', {
             cesiumPosition = Cartesian3.ZERO;
         }
 
-        var vuforia = el.sceneEl.systems["vuforia"];
-        if (vuforia) {
-            var parts = data.parent.split(".");
-            if (parts === 3 && parts[0] === "vuforia") {
-                vuforia.subscribeToTarget(parts[1], parts[2]);
-            }
-        }
-
         // parentEntity is either FIXED or another Entity or ReferenceEntity 
         var parentEntity;
         if (data.parent === 'FIXED') {
             parentEntity = ReferenceFrame.FIXED;
         } else {
-            parentEntity = argonApp.context.entities.getById(this.data.parent);
+            var vuforia = el.sceneEl.systems["vuforia"];
+            if (vuforia) {
+                var parts = data.parent.split(".");
+                if (parts.length === 3 && parts[0] === "vuforia") {
+                    // see if it's already a known target entity
+                    console.log("looking for target '" + data.parent + "'");
+                    
+                    parentEntity = vuforia.getTargetEntity(parts[1], parts[2]);
+
+                    // if not known, subscribe to it
+                    if (parentEntity === null) {
+                        console.log("not found, subscribing to target '" + data.parent + "'");
+                        parentEntity = vuforia.subscribeToTarget(parts[1], parts[2]);
+                    }
+
+                    // if still not known, try again when our dataset is loaded
+                    if (parentEntity === null) {
+                        console.log("not loaded, waiting for dataset for target '" + data.parent + "'");
+                        var name = parts[1];
+                        el.sceneEl.addEventListener('argon-vuforia-dataset-loaded', function(evt) {
+                            console.log('dataset loaded.');
+                            console.log("dataset name '" + evt.detail.target.name + "', our name '" + name + "'");
+                            if (evt.detail.target.name === name) {
+                                self.update(self.data);
+                            }
+                        });            
+                        console.log("finished setting up to wait for dataset for target '" + data.parent + "'");
+                    }
+                }
+            }
+
+            // if it's a vuforia refernece frame, we might have found it above.  Otherwise, look for 
+            // an entity with the parent ID
+            if (!parentEntity) {
+                parentEntity = argonApp.context.entities.getById(this.data.parent);
+            }
+            // If we didn't find the entity at all, create it
             if (!parentEntity) {
                 parentEntity = new ReferenceEntity(argonApp.context.entities, 
                                                    this.data.parent);
@@ -126,7 +157,7 @@ AFRAME.registerComponent('referenceframe', {
         // The first time here, we'll create a cesium Entity.  If the id has changed,
         // we'll recreate a new entity with the new id.
         // Otherwise, we just update the entity's position.
-        if (this.cesiumEntity == null || (el.id !== "" && el.id !== cesiumEntity.id)) {
+        if (this.cesiumEntity == null || (el.id !== "" && el.id !== this.cesiumEntity.id)) {
             var options = {
                 position: new ConstantPositionProperty(cesiumPosition, parentEntity),
                 orientation: Cesium.Quaternion.IDENTITY
@@ -176,14 +207,15 @@ AFRAME.registerComponent('referenceframe', {
         var argonApp = el.sceneEl.argonApp;
 
         if (!argonApp) { 
+            console.log("initial visibility set to false because argon not initialized");            
             el.sceneEl.emit('referenceframe-statuschanged', {
                     target: this.el,
                     found: false
-            });                                
-            matrix.identity();
+            });                       
+            // just use the local components, etc to create a transformation         
+            object3D.updateMatrix();  
         } else if (this.cesiumEntity) { 
             var entityPos = argonApp.context.getEntityPose(this.cesiumEntity);
-
             if (entityPos.poseStatus & Argon.PoseStatus.KNOWN) {
                 if (data.userotation) {
                     matrix.makeRotationFromQuaternion(entityPos.orientation);
@@ -194,14 +226,27 @@ AFRAME.registerComponent('referenceframe', {
                     matrix.setPosition(entityPos.position);
                 }
                 if (entityPos.poseStatus & Argon.PoseStatus.FOUND) {
+                    console.log("reference frame changed to FOUND");            
                     el.sceneEl.emit('referenceframe-statuschanged', {
-                        target: this,
+                        target: this.el,
                         found: true
                     });                            
                 }
+
+                // if this isn't a child of the scene, move it to world coordinates
+                if (!el.parentEl.isScene) {
+                    m1.getInverse(el.parentEl.object3D.matrixWorld);
+                    matrix.premultiply(m1);
+                }
+                // apply the local transformation, if any, specified by the rotation and 
+                // position components
+                matrix.multiply(this.localMatrix);
+                matrix.decompose(object3D.position, object3D.quaternion, object3D.scale );
+
             } else {
                 // el.object3D.matrix.identity();
                 if (entityPos.poseStatus & Argon.PoseStatus.LOST) {
+                    console.log("reference frame changed to LOST");            
                     el.sceneEl.emit('referenceframe-statuschanged', {
                         target: this.el,
                         found: false
@@ -209,17 +254,6 @@ AFRAME.registerComponent('referenceframe', {
                 }
             }
         }
-
-          // if this isn't a child of the scene, move it to world coordinates
-        if (!el.parentEl.isScene) {
-            m1.getInverse(el.parentEl.object3D.matrixWorld);
-            matrix.premultiply(m1);
-        }
-
-        // apply the local transformation, if any, specified by the rotation and 
-        // position components
-        matrix.multiply(this.localMatrix);
-		matrix.decompose(object3D.position, object3D.quaternion, object3D.scale );
       };
   }()
 });

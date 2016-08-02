@@ -234,10 +234,18 @@ THREE.CSS3DArgonRenderer = function () {
 
 	};
 
-	var renderObject = function ( object, camera, cameraElement, side ) {
+	var renderObject = function ( object, camera, cameraElement, side, visible ) {
+		visible = (visible && object.visible);
 
 		if ( object instanceof THREE.CSS3DObject ) {
-
+			var element = object.elements[side];
+			
+			if (visible === false) {
+				element.style.display = "none";
+			} else {
+				element.style.display = "inline-block";				
+			}
+	
 			var style;
 
 			if ( object instanceof THREE.CSS3DSprite ) {
@@ -262,7 +270,6 @@ THREE.CSS3DArgonRenderer = function () {
 
 			}
 
-			var element = object.elements[side];
 
 			element.style.WebkitTransform = style;
 			element.style.MozTransform = style;
@@ -272,14 +279,17 @@ THREE.CSS3DArgonRenderer = function () {
 			if ( element.parentNode !== cameraElement ) {
 
 				cameraElement.appendChild( element );
-
+			
 			}
-
 		}
+
+		// we can't short circuit this, because we have to make sure we clear all the children of this 
+		// hidden node
+		// if (!object.visible) { return; }
 
 		for ( var i = 0, l = object.children.length; i < l; i ++ ) {
 
-			renderObject( object.children[ i ], camera, cameraElement, side );
+			renderObject( object.children[ i ], camera, cameraElement, side, visible );
 
 		}
 
@@ -321,7 +331,7 @@ THREE.CSS3DArgonRenderer = function () {
 			cache.camera.style[side] = style;
 		}
 
-        renderObject( scene, camera, cameraElements[side], side);
+        renderObject( scene, camera, cameraElements[side], side, scene.visible);
 	};
 	
     // code to compute the FOV we need to render the CSS properly 

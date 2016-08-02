@@ -2,6 +2,7 @@
   <head>
     <title>Hello, World! Argon + A-Frame</title>
     <meta name="description" content="Hello, World! Geolocation Argon + A-Frame">
+    <script src="../resources/js/aframe.min.js"></script>
     <script src="../resources/js/argon.umd.js"></script>
     <script src="../build.js"></script>
     <script src="../resources/js/CSS3DArgonRenderer.js"></script>
@@ -10,15 +11,17 @@
 	  <link rel="stylesheet" type="text/css" href="../resources/style.css">
   </head>
   <body>
-    <div id="mydiv" class="label">This is some text at GT!</div>
+    <div hidden>    
+      <div id="mydiv" class="label">This is some text at GT!</div>
+    </div>
     <ar-scene>
       <ar-geopose id="GT" lla=" -84.398881 33.778463" userotation="false"> 
-         <a-entity scalewithdistance="0.05">
+         <a-entity fixedsize="0.05">
            <a-sphere radius="1" color="#ffff00"  ></a-sphere>
-           <a-entity css-object="div: #mydiv" scale="0.02 0.02 0.02" position="0 2 0" look-at="[camera]"></a-entity>
+           <a-entity css-object="div: #mydiv" scale="0.02 0.02 0.02" position="0 2 0" billboard></a-entity>
         </a-entity>
       </ar-geopose>
-      <ar-frame id="me" parent="ar.user" userotation="false" track>
+      <ar-frame id="me" parent="ar.user" userotation="false">
         <a-entity position="0 -1.5 -10">
           <a-sphere position="0 1.25 -1" radius="1.25" color="#EF2D5E"></a-sphere>
           <a-box position="-1 0.5 1" rotation="0 45 0" width="1" height="1" depth="1"  color="#4CC3D9"></a-box>

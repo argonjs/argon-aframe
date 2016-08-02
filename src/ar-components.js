@@ -1,24 +1,4 @@
-
-AFRAME.registerComponent('tracktargetvisibilty', {
-  schema: { default: true },
-
-  init: function () {
-        this.el.addEventListener('referenceframe-statuschanged', 
-                                 this.updateVisibility.bind(this));
-  },
-
-  update: function () {
-  },
-
-  updateVisibility: function (evt) {
-      if (this.data && evt.detail.target === this.el) {
-          this.el.object3D.visible = evt.detail.found;
-      }
-  }
-});
-
-
-AFRAME.registerComponent('scalewithdistance', {
+AFRAME.registerComponent('fixedsize', {
   schema: { 
     default: 1
   },
@@ -43,3 +23,28 @@ AFRAME.registerComponent('scalewithdistance', {
     object3D.scale.set(factor, factor, factor);
   }
 });
+
+AFRAME.registerComponent('trackvisibility', {
+  schema: { 
+    default: true
+  },
+
+  init: function () {
+    var self = this;
+    console.log("INIT TEST COMPONENT");
+    this.el.sceneEl.addEventListener('referenceframe-statuschanged', function(evt) {
+        self.updateVisibility(evt);
+    });
+  },
+
+  updateVisibility: function (evt) {
+    console.log("visibility changed: " + evt.detail.found)
+    if (this.data && evt.detail.target === this.el) {
+      this.el.object3D.visible = evt.detail.found;
+    }
+  },
+
+  update: function () {
+    console.log("updated TEST COMPONENT")
+  }
+}); 
