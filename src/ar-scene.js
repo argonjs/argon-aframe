@@ -216,14 +216,14 @@ AFRAME.registerElement('ar-scene', {
 
         this.cssRenderer = new THREE.CSS3DArgonRenderer();
         this.hud = new THREE.CSS3DArgonHUD();
-        this.webglRenderer = new THREE.WebGLRenderer({
+        this.renderer = new THREE.WebGLRenderer({
             alpha: true,
             antialias: antialias,
             logarithmicDepthBuffer: true
         });
-        this.webglRenderer.setPixelRatio(window.devicePixelRatio);
+        this.renderer.setPixelRatio(window.devicePixelRatio);
 
-        this.argonApp.view.element.appendChild(this.webglRenderer.domElement);
+        this.argonApp.view.element.appendChild(this.renderer.domElement);
         this.argonApp.view.element.appendChild(this.cssRenderer.domElement);
         this.argonApp.view.element.appendChild(this.hud.domElement);
       },
@@ -307,7 +307,7 @@ AFRAME.registerElement('ar-scene', {
       value: function () {
         var app = this.argonApp;
         var scene = this.object3D;
-        var webglRenderer = this.webglRenderer;
+        var renderer = this.renderer;
         var cssRenderer = this.cssRenderer;
         var hud = this.hud;
         var camera = this.camera;
@@ -323,7 +323,7 @@ AFRAME.registerElement('ar-scene', {
         }
 
         var viewport = app.view.getViewport();
-        webglRenderer.setSize(viewport.width, viewport.height);
+        renderer.setSize(viewport.width, viewport.height);
         cssRenderer.setSize(viewport.width, viewport.height);
         hud.setSize(viewport.width, viewport.height);
 
@@ -352,10 +352,10 @@ AFRAME.registerElement('ar-scene', {
             cssRenderer.setViewport(x, y, width, height, subview.index);
             cssRenderer.render(scene, camera, subview.index);
             // set the webGL rendering parameters and render this view
-            webglRenderer.setViewport(x, y, width, height);
-            webglRenderer.setScissor(x, y, width, height);
-            webglRenderer.setScissorTest(true);
-            webglRenderer.render(scene, camera);
+            renderer.setViewport(x, y, width, height);
+            renderer.setScissor(x, y, width, height);
+            renderer.setScissorTest(true);
+            renderer.render(scene, camera);
             // adjust the hud
             hud.setViewport(x, y, width, height, subview.index);
             hud.render(subview.index);
