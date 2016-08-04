@@ -1,5 +1,4 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-
 require('../src/ar-scene.js');
 require('../src/ar-components.js');
 require('../src/ar-referenceframe.js');
@@ -60,10 +59,6 @@ AFRAME.registerComponent('trackvisibility', {
 },{}],3:[function(require,module,exports){
 const Cesium = Argon.Cesium;
 const Cartesian3 = Cesium.Cartesian3;
-const JulianDate = Cesium.JulianDate;
-const CesiumMath = Cesium.CesiumMath;
-const Transforms = Cesium.Transforms;
-const WGS84 = Cesium.Ellipsoid.WGS84;
 const ConstantPositionProperty = Cesium.ConstantPositionProperty;
 const ReferenceFrame = Cesium.ReferenceFrame;
 const ReferenceEntity = Cesium.ReferenceEntity;
@@ -232,7 +227,6 @@ AFRAME.registerComponent('referenceframe', {
     },
 
   updateLocalTransform: function (evt) {
-      var el = this.el;
       var data = evt.detail.newData;
 
       if (evt.detail.name == 'rotation') {
@@ -257,7 +251,6 @@ AFRAME.registerComponent('referenceframe', {
    */
   tick: function () {
       var m1 = new THREE.Matrix4();
-      var m2 = new THREE.Matrix4();
 
       return function(t) {
         var data = this.data;               // parameters
@@ -343,11 +336,7 @@ AFRAME.registerPrimitive('ar-frame', {
 });
 
 },{}],4:[function(require,module,exports){
-var Cesium = Argon.Cesium;
-var Cartesian3 = Argon.Cesium.Cartesian3;
-var ReferenceFrame = Argon.Cesium.ReferenceFrame;
 var JulianDate = Argon.Cesium.JulianDate;
-var CesiumMath = Argon.Cesium.CesiumMath;
 var AEntity = AFRAME.AEntity;
 var ANode = AFRAME.ANode;
 
@@ -357,21 +346,18 @@ var style = document.createElement("style");
 style.type = 'text/css';
 document.head.insertBefore(style, document.head.firstChild);
 var sheet = style.sheet;
-sheet.insertRule(`
-ar-scene {
-  display: block;
-  position: relative;
-  height: 100%;
-  width: 100%;
-}
-`, 0);
-sheet.insertRule(`
-ar-scene video,
-ar-scene img,
-ar-scene audio {
-  display: none;
-}
-`, 1);
+sheet.insertRule('ar-scene {\n' + 
+'  display: block;\n' +
+'  position: relative;\n' +
+'  height: 100%;\n' +
+'  width: 100%;\n' +
+'}\n', 0);
+sheet.insertRule('\n' +
+'ar-scene video,\n' +
+'ar-scene img,\n' +
+'ar-scene audio {\n' +
+'  display: none;\n' +
+'}\n', 1);
 
 
 // want to know when the document is loaded 
@@ -441,11 +427,8 @@ AFRAME.registerElement('ar-scene', {
      * Scene waits for all entities to load.
      */
     attachedCallback: {
-      value: function () {
-        var sceneEl = this.sceneEl;
-        
+      value: function () {        
         this.setupSystems();
-
         this.play();
       },
       writable: window.debug
@@ -490,7 +473,6 @@ AFRAME.registerElement('ar-scene', {
         //         // defaultCameraEl.setAttribute('camera', {active: true, userHeight: 0});
         //   }
 
-            var currentCameraEl = this.camera.el;
             if (this.camera.el.tagName !== "AR-CAMERA") {
                 var defaultCameraEl = document.createElement('ar-camera');
                 defaultCameraEl.setAttribute(AR_CAMERA_ATTR, '');
@@ -556,7 +538,6 @@ AFRAME.registerElement('ar-scene', {
 
     setupRenderer: {
       value: function () {        
-        var scene = this.object3D;
         var antialias = this.getAttribute('antialias') === 'true';
 
         this.cssRenderer = new THREE.CSS3DArgonRenderer();
@@ -804,9 +785,6 @@ AFRAME.registerPrimitive('ar-camera', {
 });
 
 },{}],5:[function(require,module,exports){
-var AEntity = AFRAME.AEntity;
-var ANode = AFRAME.ANode;
-
 AFRAME.registerSystem('vuforia', {
     init: function () {
         this.key = "";
@@ -1128,7 +1106,6 @@ AFRAME.registerComponent('vuforiakey', {
      */
     update: function (oldData) {
         var el = this.el;
-        var data = this.data;
         var sceneEl = this.el.sceneEl;
         var system = sceneEl.systems["vuforia"];
             
@@ -1191,31 +1168,6 @@ AFRAME.registerComponent('vuforiadataset', {
         vuforia.createOrUpdateDataset(this, this.name, this.data.src, this.data.active);
     }
 });
-
-// AFRAME.registerElement('ar-vuforia-key', {
-//   prototype: Object.create(ANode.prototype, {
-//     createdCallback: {
-//       value: function () {
-//         this.data = null;
-//         this.isAssetItem = true;
-//       }
-//     },
-
-//     attachedCallback: {
-//       value: function () {
-//         var self = this;
-        
-//         var src = this.getAttribute('src');
-//         if (src) {
-//             xhrLoader.load(src, function (textResponse) {
-//                 self.data = textResponse;
-//                 ANode.prototype.load.call(self);
-//             });
-//         }
-//       }
-//     }
-//   })
-// });
 
 },{}],6:[function(require,module,exports){
 AFRAME.registerComponent('css-object', {

@@ -1,8 +1,4 @@
-var Cesium = Argon.Cesium;
-var Cartesian3 = Argon.Cesium.Cartesian3;
-var ReferenceFrame = Argon.Cesium.ReferenceFrame;
 var JulianDate = Argon.Cesium.JulianDate;
-var CesiumMath = Argon.Cesium.CesiumMath;
 var AEntity = AFRAME.AEntity;
 var ANode = AFRAME.ANode;
 
@@ -12,21 +8,18 @@ var style = document.createElement("style");
 style.type = 'text/css';
 document.head.insertBefore(style, document.head.firstChild);
 var sheet = style.sheet;
-sheet.insertRule(`
-ar-scene {
-  display: block;
-  position: relative;
-  height: 100%;
-  width: 100%;
-}
-`, 0);
-sheet.insertRule(`
-ar-scene video,
-ar-scene img,
-ar-scene audio {
-  display: none;
-}
-`, 1);
+sheet.insertRule('ar-scene {\n' + 
+'  display: block;\n' +
+'  position: relative;\n' +
+'  height: 100%;\n' +
+'  width: 100%;\n' +
+'}\n', 0);
+sheet.insertRule('\n' +
+'ar-scene video,\n' +
+'ar-scene img,\n' +
+'ar-scene audio {\n' +
+'  display: none;\n' +
+'}\n', 1);
 
 
 // want to know when the document is loaded 
@@ -96,11 +89,8 @@ AFRAME.registerElement('ar-scene', {
      * Scene waits for all entities to load.
      */
     attachedCallback: {
-      value: function () {
-        var sceneEl = this.sceneEl;
-        
+      value: function () {        
         this.setupSystems();
-
         this.play();
       },
       writable: window.debug
@@ -145,7 +135,6 @@ AFRAME.registerElement('ar-scene', {
         //         // defaultCameraEl.setAttribute('camera', {active: true, userHeight: 0});
         //   }
 
-            var currentCameraEl = this.camera.el;
             if (this.camera.el.tagName !== "AR-CAMERA") {
                 var defaultCameraEl = document.createElement('ar-camera');
                 defaultCameraEl.setAttribute(AR_CAMERA_ATTR, '');
@@ -211,7 +200,6 @@ AFRAME.registerElement('ar-scene', {
 
     setupRenderer: {
       value: function () {        
-        var scene = this.object3D;
         var antialias = this.getAttribute('antialias') === 'true';
 
         this.cssRenderer = new THREE.CSS3DArgonRenderer();

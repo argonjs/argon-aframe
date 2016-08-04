@@ -1,9 +1,5 @@
 const Cesium = Argon.Cesium;
 const Cartesian3 = Cesium.Cartesian3;
-const JulianDate = Cesium.JulianDate;
-const CesiumMath = Cesium.CesiumMath;
-const Transforms = Cesium.Transforms;
-const WGS84 = Cesium.Ellipsoid.WGS84;
 const ConstantPositionProperty = Cesium.ConstantPositionProperty;
 const ReferenceFrame = Cesium.ReferenceFrame;
 const ReferenceEntity = Cesium.ReferenceEntity;
@@ -172,7 +168,6 @@ AFRAME.registerComponent('referenceframe', {
     },
 
   updateLocalTransform: function (evt) {
-      var el = this.el;
       var data = evt.detail.newData;
 
       if (evt.detail.name == 'rotation') {
@@ -197,7 +192,6 @@ AFRAME.registerComponent('referenceframe', {
    */
   tick: function () {
       var m1 = new THREE.Matrix4();
-      var m2 = new THREE.Matrix4();
 
       return function(t) {
         var data = this.data;               // parameters

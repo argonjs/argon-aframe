@@ -1,6 +1,3 @@
-var AEntity = AFRAME.AEntity;
-var ANode = AFRAME.ANode;
-
 AFRAME.registerSystem('vuforia', {
     init: function () {
         this.key = "";
@@ -322,7 +319,6 @@ AFRAME.registerComponent('vuforiakey', {
      */
     update: function (oldData) {
         var el = this.el;
-        var data = this.data;
         var sceneEl = this.el.sceneEl;
         var system = sceneEl.systems["vuforia"];
             
@@ -385,28 +381,3 @@ AFRAME.registerComponent('vuforiadataset', {
         vuforia.createOrUpdateDataset(this, this.name, this.data.src, this.data.active);
     }
 });
-
-// AFRAME.registerElement('ar-vuforia-key', {
-//   prototype: Object.create(ANode.prototype, {
-//     createdCallback: {
-//       value: function () {
-//         this.data = null;
-//         this.isAssetItem = true;
-//       }
-//     },
-
-//     attachedCallback: {
-//       value: function () {
-//         var self = this;
-        
-//         var src = this.getAttribute('src');
-//         if (src) {
-//             xhrLoader.load(src, function (textResponse) {
-//                 self.data = textResponse;
-//                 ANode.prototype.load.call(self);
-//             });
-//         }
-//       }
-//     }
-//   })
-// });
