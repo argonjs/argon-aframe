@@ -54,7 +54,8 @@ THREE.CSS3DArgonRenderer = function () {
 	var _viewWidth = [];
 	var _viewHeight = [];
 
-	var matrix = new THREE.Matrix4();
+	var tempMatrix = new THREE.Matrix4();
+    var tempMatrix2 = new THREE.Matrix4();
 
 	var cache = {
 		camera: { fov: [], style: [] },
@@ -185,7 +186,10 @@ THREE.CSS3DArgonRenderer = function () {
     	return String(Math.round(value * power) / power);
 	}
 
-	var getCameraCSSMatrix = function ( matrix ) {
+	var getCameraCSSMatrix = function ( m ) {
+		var matrix = tempMatrix2;
+		matrix.copy(m);
+ 		matrix.multiplyScalar(100);
 		var elements = matrix.elements;
 
 		return 'matrix3d(' +
@@ -207,10 +211,12 @@ THREE.CSS3DArgonRenderer = function () {
 			epsilon( elements[ 15 ] ) +
 		')';
 
-	};
+	}; 
 
-	var getObjectCSSMatrix = function ( matrix ) {
-
+	var getObjectCSSMatrix = function ( m ) {
+		var matrix = tempMatrix2;
+		matrix.copy(m); 
+ 		matrix.multiplyScalar(100); 
 		var elements = matrix.elements;
 
 		return 'translate3d(-50%,-50%,0) matrix3d(' +
@@ -251,7 +257,7 @@ THREE.CSS3DArgonRenderer = function () {
 			if ( object instanceof THREE.CSS3DSprite ) {
 
 				// http://swiftcoder.wordpress.com/2008/11/25/constructing-a-billboard-matrix/
-
+				var matrix = tempMatrix;
 				matrix.copy( camera.matrixWorldInverse );
 				matrix.transpose();
 				matrix.copyPosition( object.matrixWorld );
