@@ -3,3 +3,4 @@ require('../src/ar-components.js');
 require('../src/ar-referenceframe.js');
 require('../src/css-object.js');
 require('../src/ar-vuforia.js');
+require('../src/shadow-material.js');
