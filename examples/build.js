@@ -4,7 +4,8 @@ require('../src/ar-components.js');
 require('../src/ar-referenceframe.js');
 require('../src/css-object.js');
 require('../src/ar-vuforia.js');
-},{"../src/ar-components.js":2,"../src/ar-referenceframe.js":3,"../src/ar-scene.js":4,"../src/ar-vuforia.js":5,"../src/css-object.js":6}],2:[function(require,module,exports){
+require('../src/shadow-material.js');
+},{"../src/ar-components.js":2,"../src/ar-referenceframe.js":3,"../src/ar-scene.js":4,"../src/ar-vuforia.js":5,"../src/css-object.js":6,"../src/shadow-material.js":7}],2:[function(require,module,exports){
 AFRAME.registerComponent('fixedsize', {
   schema: { 
     default: 1
@@ -37,16 +38,18 @@ AFRAME.registerComponent('trackvisibility', {
   },
 
   init: function () {
+    var self = this;
     console.log("INIT TEST COMPONENT");
-        this.el.addEventListener('referenceframe-statuschanged', 
-                                 this.updateVisibility.bind(this));
+    this.el.sceneEl.addEventListener('referenceframe-statuschanged', function(evt) {
+        self.updateVisibility(evt);
+    });
   },
 
   updateVisibility: function (evt) {
- //     console.log("visibility changed: " + evt.detail.found)
-   //   if (this.data && evt.detail.target === this.el) {
-     //     this.el.object3D.visible = evt.detail.found;
-      //}
+    console.log("visibility changed: " + evt.detail.found)
+    if (this.data && evt.detail.target === this.el) {
+      this.el.object3D.visible = evt.detail.found;
+    }
   },
 
   update: function () {
@@ -284,7 +287,7 @@ AFRAME.registerComponent('referenceframe', {
                 if (entityPos.poseStatus & Argon.PoseStatus.FOUND) {
                     console.log("reference frame changed to FOUND");            
                     el.sceneEl.emit('referenceframe-statuschanged', {
-                        target: this,
+                        target: this.el,
                         found: true
                     });                            
                 }
@@ -1237,6 +1240,26 @@ AFRAME.registerComponent('css-object', {
     if (!this.div) { return; }
     this.el.removeObject3D('div');
   }
+});
+
+},{}],7:[function(require,module,exports){
+AFRAME.registerShader('shadow', {
+  schema: {
+  },
+
+  /**
+   * Initializes the shader.
+   * Adds a reference from the scene to this entity as the camera.
+   */
+  init: function (data) {
+    this.textureSrc = null;
+    this.material = new THREE.ShadowMaterial();
+    AFRAME.utils.material.updateMap(this, data);
+  },
+
+  update: function (data) {
+    AFRAME.utils.material.updateMap(this, data);
+  },
 });
 
 },{}]},{},[1]);
