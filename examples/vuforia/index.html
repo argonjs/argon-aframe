@@ -3,10 +3,19 @@
     <title>Vuforia, with Argon + A-Frame</title>
     <meta name="description" content="Vuforia, with Argon + A-Frame">
     <link rel="stylesheet" type="text/css" href="../resources/splash.css">
+    <link rel="stylesheet" type="text/css" href="app.css">
+
+    <script src="../resources/js/aframe.min.js"></script>
+    <script src="../resources/js/argon.umd.js"></script>
+    <script src="../build.js"></script>
+    <script src="../resources/js/CSS3DArgonRenderer.js"></script>
+    <script src="../resources/js/CSS3DArgonHUD.js"></script>
+    <script src="../resources/js/aframe-look-at-component.js"></script>
   </head>
   <body>
     <div hidden>
       <div id="div1" class="label">This is a div <a href="http://blairmacintyre.me/">with a link</a></div>
+      <div id="lookattarget" class="bottomScreen">Look at the "stones" target ...</div>
     </div>  
     <div id="loader-wrapper">
       <div class="splashtext">
@@ -18,49 +27,41 @@
       <div class="loader-section section-left"></div>
       <div class="loader-section section-right"></div>
     </div>
-    <script src="../resources/js/aframe.min.js"></script>
-    <script src="../resources/js/argon.umd.js"></script>
-    <script src="../build.js"></script>
-    <script src="../resources/js/CSS3DArgonRenderer.js"></script>
-    <script src="../resources/js/CSS3DArgonHUD.js"></script>
-    <script src="../resources/js/aframe-look-at-component.js"></script>
 
     <ar-scene vuforiakey="#vuforiakey"
               vuforiadataset__stonesandchips="src:url(../resources/datasets/StonesAndChips.xml);">
       <a-assets>
         <a-asset-item id="vuforiakey" src="key.txt"></a-asset-item>
+        <a-mixin id="light" geometry="primitive: sphere; radius: 1.5"
+                 material="color: #FFF; shader: flat"
+                 light="color: #DDDDFF; distance: 120; intensity: 2; type: point">
+        </a-mixin>
+        <a-mixin id="torus-knot" geometry="primitive: torusKnot"
+                 material="color: red"></a-mixin>
       </a-assets>
-      <ar-frame id="stuff" trackvisibility="true" visible="false" parent="vuforia.stonesandchips.stones" position=".01 0 0" >
-       <a-entity position="0 0 0" scale=".04325 .04325 .04325" rotation="90 0 0" >
-        <a-entity css-object="div: #div1" scale="0.01 0.01 0.01" rotation="-90 0 0" position="-1 0 2.1" ></a-entity>
-        <a-sphere position="0 1.25 -1" radius="1.25" color="#EF2D5E" ></a-sphere>
-        <a-box position="-1 0.5 1" rotation="0 45 0" width="1" height="1" depth="1"  color="#4CC3D9"  ></a-box>
-        <a-cylinder position="1 0.75 1" radius="0.5" height="1.5" color="#FFC65D"  ></a-cylinder>
+
+      <!-- attach to stones target. x/y in the plane, z up -->
+      <ar-frame id="frame" trackvisibility="true" visible="false" parent="vuforia.stonesandchips.stones" position="0 0 0" rotation="0 0 0">
+       <a-entity scale="0.003 0.003 0.003">
+        <a-entity id="stuff"></a-entity>
+
+        <!-- Lights. -->
+        <a-entity position="0 0 25">
+          <a-animation attribute="rotation" to="0 0 360"
+                      repeat="indefinite" easing="linear" dur="4096">
+          </a-animation>
+          <a-entity mixin="light" position="15 0 0"></a-entity>
+        </a-entity>
+
+        <a-entity position="0 0 25">
+          <a-animation attribute="rotation" to="360 0 0"
+                      repeat="indefinite" easing="linear" dur="4096">
+          </a-animation>
+          <a-entity mixin="light" position="0 0 25"></a-entity>
+        </a-entity>
        </a-entity>
-      </ar-frame>
+      </ar-frame>      
     </ar-scene>
-    <script>
-
-      // this is all about the load/splash screen
-      var arScene = document.querySelector('ar-scene');
-      var statusMsg = document.querySelector('#status');
-      var loader = document.querySelector('#loader-wrapper');
-      statusMsg.innerHTML = "loading argon and aframe...";
-
-      arScene.addEventListener('argon-initialized', function(evt) {
-          statusMsg.innerHTML = "argon initialized, starting vuforia...";
-      });
-      arScene.addEventListener('argon-vuforia-initialized', function(evt) {
-          statusMsg.innerHTML = "vuforia initialized, downloading dataset...";
-      });
-      arScene.addEventListener('argon-vuforia-dataset-loaded', function(evt) {
-          statusMsg.innerHTML = "done";
-          loader.classList.add('loaded');
-      });
-      arScene.addEventListener('argon-vuforia-not-available', function(evt) {
-          statusMsg.innerHTML = "done";
-          loader.classList.add('loaded');
-      });
-    </script>
+    <script src="app.js"></script>
   </body>
 </html>

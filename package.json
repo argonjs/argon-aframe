@@ -10,6 +10,7 @@
     "postpublish": "npm run dist",
     "preghpages": "npm run build && rm -rf gh-pages && cp -r examples gh-pages",
     "ghpages": "npm run preghpages && ghpages -p gh-pages",
+    "pushghpages": "ghpages -p gh-pages",
     "test": "karma start ./tests/karma.conf.js",
     "unboil": "node scripts/unboil.js"
   },

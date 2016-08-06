@@ -28,6 +28,14 @@ THREE.CSS3DArgonHUD = function () {
 	hudElements[1].style.overflow = 'hidden';
 	domElement.appendChild( hudElements[1] );
 
+	this.appendChild = function (element, element2) {
+		if (!element2) {
+			element2 = element.cloneNode( true );
+		}
+		this.hudElements[0].appendChild(element);
+		this.hudElements[1].appendChild(element2);
+	}
+
     this.setViewport = function ( x, y, width, height, side ) {
 		hudElements[side].style.display = 'inline-block';
 		hudElements[side].style.top = y + 'px';

@@ -1,4 +1,3 @@
-var JulianDate = Argon.Cesium.JulianDate;
 var AEntity = AFRAME.AEntity;
 var ANode = AFRAME.ANode;
 
@@ -20,7 +19,6 @@ sheet.insertRule('\n' +
 'ar-scene audio {\n' +
 '  display: none;\n' +
 '}\n', 1);
-
 
 // want to know when the document is loaded 
 document.DOMReady = function () {
@@ -52,7 +50,7 @@ AFRAME.registerElement('ar-scene', {
         this.object3D = new THREE.Scene();
         this.systems = {};
         this.time = 0;
-        this.startTime = null;
+  //      this.startTime = 0;
         this.argonApp = null;
 
         // finish initializing
@@ -71,7 +69,8 @@ AFRAME.registerElement('ar-scene', {
         this.argonUpdate = this.argonUpdate.bind(this);
         this.initializeArgon = this.initializeArgon.bind(this);
         this.setupRenderer = this.setupRenderer.bind(this);
-        
+     //   this.rAFRenderFunc = this.rAFRenderFunc.bind(this);
+
         // var arCameraEl = this.arCameraEl = document.createElement('a-entity');
         // arCameraEl.setAttribute(AR_CAMERA_ATTR, '');
         // arCameraEl.setAttribute('camera', {'active': true});
@@ -171,6 +170,10 @@ AFRAME.registerElement('ar-scene', {
      */
     detachedCallback: {
       value: function () {
+          if (this.animationFrameID) {
+            cancelAnimationFrame(this.animationFrameID);
+            this.animationFrameID = null;
+          }
           removeEventListenern();
       }
     },
@@ -178,8 +181,8 @@ AFRAME.registerElement('ar-scene', {
     initializeArgon: {
         value: function () {
             this.argonApp = Argon.init();
-            this.startTime = this.argonApp.context.getTime();
-            if (this.startTime) this.startTime = this.startTime.clone();
+            // this.startTime = this.argonApp.context.getTime();
+            // if (this.startTime) this.startTime = this.startTime.clone();
             this.argonApp.context.setDefaultReferenceFrame(this.argonApp.context.localOriginEastUpSouth);
 
             this.setupRenderer();
@@ -244,16 +247,9 @@ AFRAME.registerElement('ar-scene', {
      * needing to render.
      */
     argonUpdate: {
-        value: function () {
-            var time = 0;
-            if (this.startTime) 
-                time = JulianDate.secondsDifference(this.argonApp.context.getTime(), 
-                                                    this.startTime);
-        
-            var timeDelta = time - this.time;
-            if (timeDelta > 0.5) {
-                timeDelta = 0;  // large deltas make no sense in most cases 
-            }
+        value: function (frame) {
+            var time = frame.systemTime;
+            var timeDelta = frame.deltaTime;
 
             if (this.isPlaying) {
                 this.tick(time, timeDelta);
@@ -292,6 +288,29 @@ AFRAME.registerElement('ar-scene', {
      * Renders with request animation frame.
      */
     argonRender: {
+       value: function (frame) {
+        if (!this.animationFrameID) {
+          var app = this.argonApp;
+          var self = this;
+
+          this.rAFviewport = app.view.getViewport();
+          this.rAFsubViews = app.view.getSubviews();
+          this.animationFrameID = requestAnimationFrame(this.rAFRenderFunc.bind(this));
+        }
+      },
+      writable: true 
+    },
+
+    rAFviewport: {
+      value: null,
+      writable: true
+    },
+    rAFsubViews: {
+      value: null,
+      writable: true
+    },
+
+    rAFRenderFunc: {
       value: function () {
         var app = this.argonApp;
         var scene = this.object3D;
@@ -310,13 +329,30 @@ AFRAME.registerElement('ar-scene', {
             camEntityRot = camera.parent.quaternion.clone().inverse();
         }
 
-        var viewport = app.view.getViewport();
+        //var viewport = app.view.getViewport()
+        var viewport = this.rAFviewport;
         renderer.setSize(viewport.width, viewport.height);
         cssRenderer.setSize(viewport.width, viewport.height);
         hud.setSize(viewport.width, viewport.height);
 
+        // leverage vr-mode.  Question: perhaps we shouldn't, perhaps we should use ar-mode?
+        // unclear right now how much of the components that use vr-mode are re-purposable
+        //var _a = app.view.getSubviews();
+        var _a = this.rAFsubViews;
+        if (this.is('vr-mode')) {
+          if (_a.length == 1) {
+            this.removeState('vr-mode');
+            this.emit('exit-vr', {target: this});
+          } 
+        } else {
+          if (_a.length > 1) {
+            this.addState('vr-mode');
+            this.emit('enter-vr', {target: this});
+          }
+        }
+
         // there is 1 subview in monocular mode, 2 in stereo mode    
-        for (var _i = 0, _a = app.view.getSubviews(); _i < _a.length; _i++) {
+        for (var _i = 0; _i < _a.length; _i++) {
             var subview = _a[_i];
             var frustum = subview.frustum;
             
@@ -339,15 +375,19 @@ AFRAME.registerElement('ar-scene', {
             
             cssRenderer.setViewport(x, y, width, height, subview.index);
             cssRenderer.render(scene, camera, subview.index);
+
             // set the webGL rendering parameters and render this view
             renderer.setViewport(x, y, width, height);
             renderer.setScissor(x, y, width, height);
             renderer.setScissorTest(true);
             renderer.render(scene, camera);
+
             // adjust the hud
             hud.setViewport(x, y, width, height, subview.index);
             hud.render(subview.index);
         }
+
+        this.animationFrameID = null;
       },
       writable: true
     },

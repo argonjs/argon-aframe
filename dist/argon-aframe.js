@@ -55,7 +55,6 @@
 /* 1 */
 /***/ function(module, exports) {
 
-	var JulianDate = Argon.Cesium.JulianDate;
 	var AEntity = AFRAME.AEntity;
 	var ANode = AFRAME.ANode;
 
@@ -109,7 +108,7 @@
 	        this.object3D = new THREE.Scene();
 	        this.systems = {};
 	        this.time = 0;
-	        this.startTime = null;
+	  //      this.startTime = 0;
 	        this.argonApp = null;
 
 	        // finish initializing
@@ -235,8 +234,8 @@
 	    initializeArgon: {
 	        value: function () {
 	            this.argonApp = Argon.init();
-	            this.startTime = this.argonApp.context.getTime();
-	            if (this.startTime) this.startTime = this.startTime.clone();
+	            // this.startTime = this.argonApp.context.getTime();
+	            // if (this.startTime) this.startTime = this.startTime.clone();
 	            this.argonApp.context.setDefaultReferenceFrame(this.argonApp.context.localOriginEastUpSouth);
 
 	            this.setupRenderer();
@@ -301,16 +300,9 @@
 	     * needing to render.
 	     */
 	    argonUpdate: {
-	        value: function () {
-	            var time = 0;
-	            if (this.startTime) 
-	                time = JulianDate.secondsDifference(this.argonApp.context.getTime(), 
-	                                                    this.startTime);
-	        
-	            var timeDelta = time - this.time;
-	            if (timeDelta > 0.5) {
-	                timeDelta = 0;  // large deltas make no sense in most cases 
-	            }
+	        value: function (frame) {
+	            var time = frame.systemTime;
+	            var timeDelta = frame.deltaTime;
 
 	            if (this.isPlaying) {
 	                this.tick(time, timeDelta);
@@ -349,7 +341,7 @@
 	     * Renders with request animation frame.
 	     */
 	    argonRender: {
-	      value: function () {
+	      value: function (frame) {
 	        var app = this.argonApp;
 	        var scene = this.object3D;
 	        var renderer = this.renderer;
@@ -563,12 +555,12 @@
 /* 3 */
 /***/ function(module, exports) {
 
-	const Cesium = Argon.Cesium;
-	const Cartesian3 = Cesium.Cartesian3;
-	const ConstantPositionProperty = Cesium.ConstantPositionProperty;
-	const ReferenceFrame = Cesium.ReferenceFrame;
-	const ReferenceEntity = Cesium.ReferenceEntity;
-
+	var Cesium = Argon.Cesium;
+	var Cartesian3 = Cesium.Cartesian3;
+	var ConstantPositionProperty = Cesium.ConstantPositionProperty;
+	var ReferenceFrame = Cesium.ReferenceFrame;
+	var ReferenceEntity = Cesium.ReferenceEntity;
+	var degToRad = THREE.Math.degToRad;
 
 	/**
 	 * referenceframe component for A-Frame.
@@ -608,10 +600,9 @@
 	        if (!el.sceneEl.isArgon) {
 	            throw new Error('referenceframe must be used on a child of a <ar-scene>.');
 	        }
-		    this.localRotationEuler = new THREE.Euler(0,0,0,'XYZ');
-	        this.localPosition = { x: 0, y: 0, z: 0 };
-	        this.localMatrix = new THREE.Matrix4();
-	        el.object3D.matrixAutoUpdate = false;
+		   this.localRotationEuler = new THREE.Euler(0,0,0,'XYZ');
+	       this.localPosition = { x: 0, y: 0, z: 0 };
+	       this.localScale = { x: 1, y: 1, z: 1 };
 	        el.addEventListener('componentchanged', this.updateLocalTransform.bind(this));
 	        el.sceneEl.addEventListener('argon-initialized', function() {
 	              self.update(self.data);
@@ -640,18 +631,25 @@
 
 	        var lo = el.getComputedAttribute('rotation');
 	        if (lo) {
-	            this.localRotationEuler.x = lo.x;
-	            this.localRotationEuler.y = lo.y;
-	            this.localRotationEuler.z = lo.z;
+	            this.localRotationEuler.x = degToRad(lo.x);
+	            this.localRotationEuler.y = degToRad(lo.y);
+	            this.localRotationEuler.z = degToRad(lo.z);
 	        } else {
 	            this.localRotationEuler.x = 0;
 	            this.localRotationEuler.y = 0;
 	            this.localRotationEuler.z = 0;
 	        }
 
-	        this.localMatrix.makeRotationFromEuler(this.localRotationEuler);
-	        this.localMatrix.setPosition(this.localPosition);
-
+	        var ls = el.getComputedAttribute('scale');
+	        if (ls) {
+	            this.localScale.x = ls.x;
+	            this.localScale.y = ls.y;
+	            this.localScale.z = ls.z;
+	        } else {
+	            this.localScale.x = 1;
+	            this.localScale.y = 1;
+	            this.localScale.z = 1;
+	        }
 	        if (!argonApp) {
 	            return;
 	        }
@@ -734,23 +732,22 @@
 
 	  updateLocalTransform: function (evt) {
 	      var data = evt.detail.newData;
+	      if (evt.target != this.el) { return; }
 
 	      if (evt.detail.name == 'rotation') {
-	          //var lo = el.getComputedAttribute('rotation');
-	          this.localRotationEuler.x = data.x;
-	          this.localRotationEuler.y = data.y;
-	          this.localRotationEuler.z = data.z;
-	      }
-	      else if (evt.detail.name == 'position') {
-	          //var lp = el.getComputedAttribute('position');          
+	          this.localRotationEuler.x = degToRad(data.x);
+	          this.localRotationEuler.y = degToRad(data.y);
+	          this.localRotationEuler.z = degToRad(data.z);
+	      } else if (evt.detail.name == 'position') {
 	          this.localPosition.x = data.x;
 	          this.localPosition.y = data.y;
 	          this.localPosition.z = data.z;
+	      } else if (evt.detail.name == 'scale') {
+	          this.localScale.x = data.x;
+	          this.localScale.y = data.y;
+	          this.localScale.z = data.z;
 	      }
-	      this.localMatrix.makeRotationFromEuler(this.localRotationEuler);
-	      this.localMatrix.setPosition(this.localPosition);
 	  },
-
 
 	  /**
 	   * update each time step.
@@ -764,25 +761,23 @@
 	        var object3D = el.object3D;
 	        var matrix = object3D.matrix;
 	        var argonApp = el.sceneEl.argonApp;
+	        var isNestedEl = !el.parentEl.isScene;
 
-	        if (!argonApp) { 
-	            console.log("initial visibility set to false because argon not initialized");            
-	            el.sceneEl.emit('referenceframe-statuschanged', {
-	                    target: this.el,
-	                    found: false
-	            });                       
-	            // just use the local components, etc to create a transformation         
-	            object3D.updateMatrix();  
-	        } else if (this.cesiumEntity) { 
+	        if (!argonApp) { return };
+
+	        if (this.cesiumEntity) { 
 	            var entityPos = argonApp.context.getEntityPose(this.cesiumEntity);
 	            if (entityPos.poseStatus & Argon.PoseStatus.KNOWN) {
 	                if (data.userotation) {
-	                    matrix.makeRotationFromQuaternion(entityPos.orientation);
-	                } else {
-	                    matrix.identity();
+	                    object3D.quaternion.copy(entityPos.orientation);
+	                } else if (isNestedEl) {
+	                    object3D.rotation.copy(this.localRotationEuler);
+	                    object3D.rotation.order = 'YXZ';
 	                }
 	                if (data.useposition) {
-	                    matrix.setPosition(entityPos.position);
+	                    object3D.position.copy(entityPos.position);
+	                } else if (isNestedEl) {
+	                    object3D.position.copy(this.localPosition);                    
 	                }
 	                if (entityPos.poseStatus & Argon.PoseStatus.FOUND) {
 	                    console.log("reference frame changed to FOUND");            
@@ -794,16 +789,13 @@
 
 	                // if this isn't a child of the scene, move it to world coordinates
 	                if (!el.parentEl.isScene) {
+	                    object3D.scale.set(1,1,1);
+	                    el.parentEl.object3D.updateMatrixWorld();
 	                    m1.getInverse(el.parentEl.object3D.matrixWorld);
 	                    matrix.premultiply(m1);
-	                }
-	                // apply the local transformation, if any, specified by the rotation and 
-	                // position components
-	                matrix.multiply(this.localMatrix);
-	                matrix.decompose(object3D.position, object3D.quaternion, object3D.scale );
-
+	                    matrix.decompose(object3D.position, object3D.quaternion, object3D.scale );
+	                } 
 	            } else {
-	                // el.object3D.matrix.identity();
 	                if (entityPos.poseStatus & Argon.PoseStatus.LOST) {
 	                    console.log("reference frame changed to LOST");            
 	                    el.sceneEl.emit('referenceframe-statuschanged', {
