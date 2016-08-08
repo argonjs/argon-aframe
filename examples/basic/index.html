@@ -16,15 +16,33 @@
       <div id="mydiv2" class="boxface">WebGL<br>+<br>CSS</div>
     </div>
     <ar-scene>
-      <a-entity position="0 -1 -8">
+      <a-entity id="helloworld" position="0 -1 -8">
         <a-sphere position="0 1.25 -1" radius="1.25" color="#EF2D5E" ></a-sphere>
-        <a-box position="-1 0.5 1" rotation="0 45 0" width="1" height="1" depth="1"  color="#4CC3D9" >
-                  <a-entity css-object="div: #mydiv" scale="0.01 0.01 0.01" position="0 1 0.5"></a-entity>
-                  <a-entity css-object="div: #mydiv2" scale="0.01 0.01 0.01" rotation="0 -90 0" position="-0.5 1 "></a-entity>
-        </a-box>
+        <a-box position="-1 0.5 1" rotation="0 45 0" width="1" height="1" depth="1"  color="#4CC3D9" ></a-box>
+        <a-entity billboard position="0 3 0">
+          <a-entity rotation="0 45 0">
+                  <a-entity css-object="div: #mydiv" scale="0.01 0.01 0.01" rotation="0 0 0" position="0 0 0.5"></a-entity>
+                  <a-entity css-object="div: #mydiv2" scale="0.01 0.01 0.01" rotation="0 -90 0" position="-0.5 0 0"></a-entity>
+          </a-entity>
+        </a-entity>
         <a-cylinder position="1 0.75 1" radius="0.5" height="1.5" color="#FFC65D"></a-cylinder>
         <a-plane rotation="-90 0 0" width="4" height="4" color="#7BC8A4"></a-plane>
       </a-entity>
     </ar-scene>
+    <script>
+
+      var arScene = document.querySelector('ar-scene');
+      var content = document.querySelector('#helloworld');
+
+      // the ar-camera has an argon reference frame attached, so when it gets it's first value,
+      // we'll get this event 
+      arScene.addEventListener("referenceframe-statuschanged", function () {
+        var camera = document.querySelector('ar-camera');
+        var vec = camera.object3D.getWorldDirection();
+        vec.multiplyScalar(-10);
+        vec.y -= 1;
+        content.setAttribute("position", {x: vec.x, y: vec.y, z: vec.z});
+      })
+    </script>
   </body>
 </html>
