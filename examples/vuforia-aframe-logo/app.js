@@ -52,7 +52,7 @@ arScene.addEventListener('argon-vuforia-not-available', function(evt) {
     frame.setAttribute("visible", true);
     frame.setAttribute("position", {x: 0, y: 0, z: -0.5});
 
-    contentRoot.setAttribute("rotation", { x: 0, y: 0, z:0 });
+    contentRoot.setAttribute("rotation", { x: 0, y: -90, z:0 });
 
     hudElem.innerHTML = "No Vuforia. Showing scene that would be on the target."
     hudElem.style.display = 'inline-block'; // show when target lost
