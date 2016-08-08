@@ -190,6 +190,10 @@ THREE.CSS3DArgonRenderer = function () {
 		var matrix = tempMatrix2;
 		matrix.copy(m);
  		matrix.multiplyScalar(100);
+		
+		// we don't want the lower corner to be scaled, just the rest
+		matrix.elements[15] = m.elements[15];
+
 		var elements = matrix.elements;
 
 		return 'matrix3d(' +
@@ -217,6 +221,10 @@ THREE.CSS3DArgonRenderer = function () {
 		var matrix = tempMatrix2;
 		matrix.copy(m); 
  		matrix.multiplyScalar(100); 
+
+		// we don't want the lower corner to be scaled, just the rest
+		matrix.elements[15] = m.elements[15];
+
 		var elements = matrix.elements;
 
 		return 'translate3d(-50%,-50%,0) matrix3d(' +

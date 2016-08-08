@@ -46,6 +46,7 @@ AFRAME.registerComponent('referenceframe', {
 	   this.localRotationEuler = new THREE.Euler(0,0,0,'XYZ');
        this.localPosition = { x: 0, y: 0, z: 0 };
        this.localScale = { x: 1, y: 1, z: 1 };
+       this.knownFrame = false;
         el.addEventListener('componentchanged', this.updateLocalTransform.bind(this));
         el.sceneEl.addEventListener('argon-initialized', function() {
               self.update(self.data);
@@ -109,52 +110,7 @@ AFRAME.registerComponent('referenceframe', {
         }
 
         // parentEntity is either FIXED or another Entity or ReferenceEntity 
-        var parentEntity;
-        if (data.parent === 'FIXED') {
-            parentEntity = ReferenceFrame.FIXED;
-        } else {
-            var vuforia = el.sceneEl.systems["vuforia"];
-            if (vuforia) {
-                var parts = data.parent.split(".");
-                if (parts.length === 3 && parts[0] === "vuforia") {
-                    // see if it's already a known target entity
-                    console.log("looking for target '" + data.parent + "'");
-                    
-                    parentEntity = vuforia.getTargetEntity(parts[1], parts[2]);
-
-                    // if not known, subscribe to it
-                    if (parentEntity === null) {
-                        console.log("not found, subscribing to target '" + data.parent + "'");
-                        parentEntity = vuforia.subscribeToTarget(parts[1], parts[2]);
-                    }
-
-                    // if still not known, try again when our dataset is loaded
-                    if (parentEntity === null) {
-                        console.log("not loaded, waiting for dataset for target '" + data.parent + "'");
-                        var name = parts[1];
-                        el.sceneEl.addEventListener('argon-vuforia-dataset-loaded', function(evt) {
-                            console.log('dataset loaded.');
-                            console.log("dataset name '" + evt.detail.target.name + "', our name '" + name + "'");
-                            if (evt.detail.target.name === name) {
-                                self.update(self.data);
-                            }
-                        });            
-                        console.log("finished setting up to wait for dataset for target '" + data.parent + "'");
-                    }
-                }
-            }
-
-            // if it's a vuforia refernece frame, we might have found it above.  Otherwise, look for 
-            // an entity with the parent ID
-            if (!parentEntity) {
-                parentEntity = argonApp.context.entities.getById(this.data.parent);
-            }
-            // If we didn't find the entity at all, create it
-            if (!parentEntity) {
-                parentEntity = new ReferenceEntity(argonApp.context.entities, 
-                                                   this.data.parent);
-            }
-        }
+        var parentEntity = this.getParentEntity(data.parent);
 
         // The first time here, we'll create a cesium Entity.  If the id has changed,
         // we'll recreate a new entity with the new id.
@@ -171,6 +127,74 @@ AFRAME.registerComponent('referenceframe', {
         } else {
             this.cesiumEntity.position.setValue(cesiumPosition, parentEntity);
         }        
+    },
+
+    getParentEntity: function (parent) {
+        var el = this.el;
+        var self = this;
+        var argonApp = this.el.sceneEl.argonApp;
+
+        var parentEntity = null;
+
+        if (parent === 'FIXED') {
+            parentEntity = ReferenceFrame.FIXED;
+        } else {
+            var vuforia = el.sceneEl.systems["vuforia"];
+            if (vuforia) {
+                var parts = parent.split(".");
+                if (parts.length === 3 && parts[0] === "vuforia") {
+                    // see if it's already a known target entity
+                    console.log("looking for target '" + parent + "'");
+                    
+                    parentEntity = vuforia.getTargetEntity(parts[1], parts[2]);
+
+                    // if not known, subscribe to it
+                    if (parentEntity === null) {
+                        console.log("not found, subscribing to target '" + parent + "'");
+                        parentEntity = vuforia.subscribeToTarget(parts[1], parts[2]);
+                    }
+
+                    // if still not known, try again when our dataset is loaded
+                    if (parentEntity === null) {
+                        console.log("not loaded, waiting for dataset for target '" + parent + "'");
+                        var name = parts[1];
+                        el.sceneEl.addEventListener('argon-vuforia-dataset-loaded', function(evt) {
+                            console.log('dataset loaded.');
+                            console.log("dataset name '" + evt.detail.target.name + "', our name '" + name + "'");
+                            if (evt.detail.target.name === name) {
+                                self.update(self.data);
+                            }
+                        });            
+                        console.log("finished setting up to wait for dataset for target '" + parent + "'");
+                    }
+                }
+            }
+
+            // if it's a vuforia refernece frame, we might have found it above.  Otherwise, look for 
+            // an entity with the parent ID
+            if (!parentEntity) {
+                parentEntity = argonApp.context.entities.getById(parent);
+            }
+            // If we didn't find the entity at all, create it
+            if (!parentEntity) {
+                parentEntity = new ReferenceEntity(argonApp.context.entities, parent);
+            }
+        }    
+        return parentEntity;
+    },
+
+    convertReferenceFrame: function (newParent) {
+        var el = this.el;                   // entity
+
+        // can't do anything without a cesium entity
+        if (!this.cesiumEntity)  { 
+            console.warn("Tried to convertReferenceFrame on element '" + el.id + "' but no cesiumEntity initialized on that element");
+            return; 
+        }
+
+        // eventually we'll convert the current reference frame to a new one, keeping the pose the same
+        // but a bunch of changes are needed above to make this work
+
     },
 
   updateLocalTransform: function (evt) {
@@ -211,6 +235,7 @@ AFRAME.registerComponent('referenceframe', {
         if (this.cesiumEntity) { 
             var entityPos = argonApp.context.getEntityPose(this.cesiumEntity);
             if (entityPos.poseStatus & Argon.PoseStatus.KNOWN) {
+                this.knownFrame = true;
                 if (data.userotation) {
                     object3D.quaternion.copy(entityPos.orientation);
                 } else if (isNestedEl) {
@@ -239,6 +264,7 @@ AFRAME.registerComponent('referenceframe', {
                     matrix.decompose(object3D.position, object3D.quaternion, object3D.scale );
                 } 
             } else {
+                this.knownFrame = false;
                 if (entityPos.poseStatus & Argon.PoseStatus.LOST) {
                     console.log("reference frame changed to LOST");            
                     el.sceneEl.emit('referenceframe-statuschanged', {

@@ -13,12 +13,17 @@ AFRAME.registerComponent('css-object', {
     
     var div = document.querySelector(data.div);
     if (div) {
-        this.el.setObject3D('div', new THREE.CSS3DObject(div));
+        if (THREE.CSS3DObject) {
+          this.el.setObject3D('div', new THREE.CSS3DObject(div));
+        }
     }
   },
 
   remove: function () {
     if (!this.div) { return; }
-    this.el.removeObject3D('div');
+
+    if (THREE.CSS3DObject) {
+      this.el.removeObject3D('div');
+    }
   }
 });
