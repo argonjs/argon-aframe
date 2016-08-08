@@ -77,7 +77,6 @@
 	'  display: none;\n' +
 	'}\n', 1);
 
-
 	// want to know when the document is loaded 
 	document.DOMReady = function () {
 		return new Promise(function(resolve, reject) {
@@ -127,7 +126,8 @@
 	        this.argonUpdate = this.argonUpdate.bind(this);
 	        this.initializeArgon = this.initializeArgon.bind(this);
 	        this.setupRenderer = this.setupRenderer.bind(this);
-	        
+	     //   this.rAFRenderFunc = this.rAFRenderFunc.bind(this);
+
 	        // var arCameraEl = this.arCameraEl = document.createElement('a-entity');
 	        // arCameraEl.setAttribute(AR_CAMERA_ATTR, '');
 	        // arCameraEl.setAttribute('camera', {'active': true});
@@ -227,6 +227,10 @@
 	     */
 	    detachedCallback: {
 	      value: function () {
+	          if (this.animationFrameID) {
+	            cancelAnimationFrame(this.animationFrameID);
+	            this.animationFrameID = null;
+	          }
 	          removeEventListenern();
 	      }
 	    },
@@ -258,8 +262,16 @@
 	      value: function () {        
 	        var antialias = this.getAttribute('antialias') === 'true';
 
-	        this.cssRenderer = new THREE.CSS3DArgonRenderer();
-	        this.hud = new THREE.CSS3DArgonHUD();
+	        if (THREE.CSS3DArgonRenderer) {
+	          this.cssRenderer = new THREE.CSS3DArgonRenderer();
+	        } else {
+	          this.cssRenderer = null;
+	        }
+	        if (THREE.CSS3DArgonHUD) {
+	          this.hud = new THREE.CSS3DArgonHUD();
+	        } else {
+	          this.hud = null;
+	        }
 	        this.renderer = new THREE.WebGLRenderer({
 	            alpha: true,
 	            antialias: antialias,
@@ -268,8 +280,12 @@
 	        this.renderer.setPixelRatio(window.devicePixelRatio);
 
 	        this.argonApp.view.element.appendChild(this.renderer.domElement);
-	        this.argonApp.view.element.appendChild(this.cssRenderer.domElement);
-	        this.argonApp.view.element.appendChild(this.hud.domElement);
+	        if (this.cssRenderer) {
+	          this.argonApp.view.element.appendChild(this.cssRenderer.domElement);
+	        }
+	        if (this.hud) {
+	          this.argonApp.view.element.appendChild(this.hud.domElement);
+	        }
 	      },
 	      writable: true
 	    },
@@ -341,8 +357,29 @@
 	     * Renders with request animation frame.
 	     */
 	    argonRender: {
-	      value: function (frame) {
-	        var app = this.argonApp;
+	       value: function (frame) {
+	        if (!this.animationFrameID) {
+	          var app = this.argonApp;
+
+	          this.rAFviewport = app.view.getViewport();
+	          this.rAFsubViews = app.view.getSubviews();
+	          this.animationFrameID = requestAnimationFrame(this.rAFRenderFunc.bind(this));
+	        }
+	      },
+	      writable: true 
+	    },
+
+	    rAFviewport: {
+	      value: null,
+	      writable: true
+	    },
+	    rAFsubViews: {
+	      value: null,
+	      writable: true
+	    },
+
+	    rAFRenderFunc: {
+	      value: function () {
 	        var scene = this.object3D;
 	        var renderer = this.renderer;
 	        var cssRenderer = this.cssRenderer;
@@ -359,13 +396,34 @@
 	            camEntityRot = camera.parent.quaternion.clone().inverse();
 	        }
 
-	        var viewport = app.view.getViewport();
+	        //var viewport = app.view.getViewport()
+	        var viewport = this.rAFviewport;
 	        renderer.setSize(viewport.width, viewport.height);
-	        cssRenderer.setSize(viewport.width, viewport.height);
-	        hud.setSize(viewport.width, viewport.height);
+	        if (this.cssRenderer) {
+	          cssRenderer.setSize(viewport.width, viewport.height);
+	        }
+	        if (this.hud) {
+	          hud.setSize(viewport.width, viewport.height);
+	        }
+
+	        // leverage vr-mode.  Question: perhaps we shouldn't, perhaps we should use ar-mode?
+	        // unclear right now how much of the components that use vr-mode are re-purposable
+	        //var _a = app.view.getSubviews();
+	        var _a = this.rAFsubViews;
+	        if (this.is('vr-mode')) {
+	          if (_a.length == 1) {
+	            this.removeState('vr-mode');
+	            this.emit('exit-vr', {target: this});
+	          } 
+	        } else {
+	          if (_a.length > 1) {
+	            this.addState('vr-mode');
+	            this.emit('enter-vr', {target: this});
+	          }
+	        }
 
 	        // there is 1 subview in monocular mode, 2 in stereo mode    
-	        for (var _i = 0, _a = app.view.getSubviews(); _i < _a.length; _i++) {
+	        for (var _i = 0; _i < _a.length; _i++) {
 	            var subview = _a[_i];
 	            var frustum = subview.frustum;
 	            
@@ -383,20 +441,28 @@
 	            var _b = subview.viewport, x = _b.x, y = _b.y, width = _b.width, height = _b.height;
 	            // set the CSS rendering up, by computing the FOV, and render this view
 	            
-	            //cssRenderer.updateCameraFOVFromProjection(camera);
-	            camera.fov = THREE.Math.radToDeg(frustum.fovy);
-	            
-	            cssRenderer.setViewport(x, y, width, height, subview.index);
-	            cssRenderer.render(scene, camera, subview.index);
+	            if (this.cssRenderer) {
+	              //cssRenderer.updateCameraFOVFromProjection(camera);
+	              camera.fov = THREE.Math.radToDeg(frustum.fovy);
+	              
+	              cssRenderer.setViewport(x, y, width, height, subview.index);
+	              cssRenderer.render(scene, camera, subview.index);
+	            }
+
 	            // set the webGL rendering parameters and render this view
 	            renderer.setViewport(x, y, width, height);
 	            renderer.setScissor(x, y, width, height);
 	            renderer.setScissorTest(true);
 	            renderer.render(scene, camera);
-	            // adjust the hud
-	            hud.setViewport(x, y, width, height, subview.index);
-	            hud.render(subview.index);
+
+	            if (this.hud) {
+	              // adjust the hud
+	              hud.setViewport(x, y, width, height, subview.index);
+	              hud.render(subview.index);
+	            }
 	        }
+
+	        this.animationFrameID = null;
 	      },
 	      writable: true
 	    },
@@ -603,6 +669,7 @@
 		   this.localRotationEuler = new THREE.Euler(0,0,0,'XYZ');
 	       this.localPosition = { x: 0, y: 0, z: 0 };
 	       this.localScale = { x: 1, y: 1, z: 1 };
+	       this.knownFrame = false;
 	        el.addEventListener('componentchanged', this.updateLocalTransform.bind(this));
 	        el.sceneEl.addEventListener('argon-initialized', function() {
 	              self.update(self.data);
@@ -614,7 +681,6 @@
 	     */
 	    update: function (oldData) {
 	        var el = this.el;
-	        var self = this;
 	        var argonApp = this.el.sceneEl.argonApp;
 	        var data = this.data;
 
@@ -666,52 +732,7 @@
 	        }
 
 	        // parentEntity is either FIXED or another Entity or ReferenceEntity 
-	        var parentEntity;
-	        if (data.parent === 'FIXED') {
-	            parentEntity = ReferenceFrame.FIXED;
-	        } else {
-	            var vuforia = el.sceneEl.systems["vuforia"];
-	            if (vuforia) {
-	                var parts = data.parent.split(".");
-	                if (parts.length === 3 && parts[0] === "vuforia") {
-	                    // see if it's already a known target entity
-	                    console.log("looking for target '" + data.parent + "'");
-	                    
-	                    parentEntity = vuforia.getTargetEntity(parts[1], parts[2]);
-
-	                    // if not known, subscribe to it
-	                    if (parentEntity === null) {
-	                        console.log("not found, subscribing to target '" + data.parent + "'");
-	                        parentEntity = vuforia.subscribeToTarget(parts[1], parts[2]);
-	                    }
-
-	                    // if still not known, try again when our dataset is loaded
-	                    if (parentEntity === null) {
-	                        console.log("not loaded, waiting for dataset for target '" + data.parent + "'");
-	                        var name = parts[1];
-	                        el.sceneEl.addEventListener('argon-vuforia-dataset-loaded', function(evt) {
-	                            console.log('dataset loaded.');
-	                            console.log("dataset name '" + evt.detail.target.name + "', our name '" + name + "'");
-	                            if (evt.detail.target.name === name) {
-	                                self.update(self.data);
-	                            }
-	                        });            
-	                        console.log("finished setting up to wait for dataset for target '" + data.parent + "'");
-	                    }
-	                }
-	            }
-
-	            // if it's a vuforia refernece frame, we might have found it above.  Otherwise, look for 
-	            // an entity with the parent ID
-	            if (!parentEntity) {
-	                parentEntity = argonApp.context.entities.getById(this.data.parent);
-	            }
-	            // If we didn't find the entity at all, create it
-	            if (!parentEntity) {
-	                parentEntity = new ReferenceEntity(argonApp.context.entities, 
-	                                                   this.data.parent);
-	            }
-	        }
+	        var parentEntity = this.getParentEntity(data.parent);
 
 	        // The first time here, we'll create a cesium Entity.  If the id has changed,
 	        // we'll recreate a new entity with the new id.
@@ -728,6 +749,74 @@
 	        } else {
 	            this.cesiumEntity.position.setValue(cesiumPosition, parentEntity);
 	        }        
+	    },
+
+	    getParentEntity: function (parent) {
+	        var el = this.el;
+	        var self = this;
+	        var argonApp = this.el.sceneEl.argonApp;
+
+	        var parentEntity = null;
+
+	        if (parent === 'FIXED') {
+	            parentEntity = ReferenceFrame.FIXED;
+	        } else {
+	            var vuforia = el.sceneEl.systems["vuforia"];
+	            if (vuforia) {
+	                var parts = parent.split(".");
+	                if (parts.length === 3 && parts[0] === "vuforia") {
+	                    // see if it's already a known target entity
+	                    console.log("looking for target '" + parent + "'");
+	                    
+	                    parentEntity = vuforia.getTargetEntity(parts[1], parts[2]);
+
+	                    // if not known, subscribe to it
+	                    if (parentEntity === null) {
+	                        console.log("not found, subscribing to target '" + parent + "'");
+	                        parentEntity = vuforia.subscribeToTarget(parts[1], parts[2]);
+	                    }
+
+	                    // if still not known, try again when our dataset is loaded
+	                    if (parentEntity === null) {
+	                        console.log("not loaded, waiting for dataset for target '" + parent + "'");
+	                        var name = parts[1];
+	                        el.sceneEl.addEventListener('argon-vuforia-dataset-loaded', function(evt) {
+	                            console.log('dataset loaded.');
+	                            console.log("dataset name '" + evt.detail.target.name + "', our name '" + name + "'");
+	                            if (evt.detail.target.name === name) {
+	                                self.update(self.data);
+	                            }
+	                        });            
+	                        console.log("finished setting up to wait for dataset for target '" + parent + "'");
+	                    }
+	                }
+	            }
+
+	            // if it's a vuforia refernece frame, we might have found it above.  Otherwise, look for 
+	            // an entity with the parent ID
+	            if (!parentEntity) {
+	                parentEntity = argonApp.context.entities.getById(parent);
+	            }
+	            // If we didn't find the entity at all, create it
+	            if (!parentEntity) {
+	                parentEntity = new ReferenceEntity(argonApp.context.entities, parent);
+	            }
+	        }    
+	        return parentEntity;
+	    },
+
+	    convertReferenceFrame: function (newParent) {
+	        var el = this.el;                   // entity
+
+	        // can't do anything without a cesium entity
+	        if (!this.cesiumEntity)  { 
+	            console.warn("Tried to convertReferenceFrame on element '" + el.id + "' but no cesiumEntity initialized on that element");
+	            return; 
+	        }
+
+	        // eventually we'll convert the current reference frame to a new one, keeping the pose the same
+	        // but a bunch of changes are needed above to make this work
+
 	    },
 
 	  updateLocalTransform: function (evt) {
@@ -768,6 +857,7 @@
 	        if (this.cesiumEntity) { 
 	            var entityPos = argonApp.context.getEntityPose(this.cesiumEntity);
 	            if (entityPos.poseStatus & Argon.PoseStatus.KNOWN) {
+	                this.knownFrame = true;
 	                if (data.userotation) {
 	                    object3D.quaternion.copy(entityPos.orientation);
 	                } else if (isNestedEl) {
@@ -796,6 +886,7 @@
 	                    matrix.decompose(object3D.position, object3D.quaternion, object3D.scale );
 	                } 
 	            } else {
+	                this.knownFrame = false;
 	                if (entityPos.poseStatus & Argon.PoseStatus.LOST) {
 	                    console.log("reference frame changed to LOST");            
 	                    el.sceneEl.emit('referenceframe-statuschanged', {
@@ -853,13 +944,18 @@
 	    
 	    var div = document.querySelector(data.div);
 	    if (div) {
-	        this.el.setObject3D('div', new THREE.CSS3DObject(div));
+	        if (THREE.CSS3DObject) {
+	          this.el.setObject3D('div', new THREE.CSS3DObject(div));
+	        }
 	    }
 	  },
 
 	  remove: function () {
 	    if (!this.div) { return; }
-	    this.el.removeObject3D('div');
+
+	    if (THREE.CSS3DObject) {
+	      this.el.removeObject3D('div');
+	    }
 	  }
 	});
 

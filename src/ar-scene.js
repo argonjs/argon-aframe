@@ -303,7 +303,6 @@ AFRAME.registerElement('ar-scene', {
        value: function (frame) {
         if (!this.animationFrameID) {
           var app = this.argonApp;
-          var self = this;
 
           this.rAFviewport = app.view.getViewport();
           this.rAFsubViews = app.view.getSubviews();
@@ -324,7 +323,6 @@ AFRAME.registerElement('ar-scene', {
 
     rAFRenderFunc: {
       value: function () {
-        var app = this.argonApp;
         var scene = this.object3D;
         var renderer = this.renderer;
         var cssRenderer = this.cssRenderer;

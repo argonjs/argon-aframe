@@ -58,7 +58,6 @@ AFRAME.registerComponent('referenceframe', {
      */
     update: function (oldData) {
         var el = this.el;
-        var self = this;
         var argonApp = this.el.sceneEl.argonApp;
         var data = this.data;
 

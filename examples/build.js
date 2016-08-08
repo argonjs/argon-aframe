@@ -117,7 +117,6 @@ AFRAME.registerComponent('referenceframe', {
      */
     update: function (oldData) {
         var el = this.el;
-        var self = this;
         var argonApp = this.el.sceneEl.argonApp;
         var data = this.data;
 
@@ -569,8 +568,16 @@ AFRAME.registerElement('ar-scene', {
       value: function () {        
         var antialias = this.getAttribute('antialias') === 'true';
 
-        this.cssRenderer = new THREE.CSS3DArgonRenderer();
-        this.hud = new THREE.CSS3DArgonHUD();
+        if (THREE.CSS3DArgonRenderer) {
+          this.cssRenderer = new THREE.CSS3DArgonRenderer();
+        } else {
+          this.cssRenderer = null;
+        }
+        if (THREE.CSS3DArgonHUD) {
+          this.hud = new THREE.CSS3DArgonHUD();
+        } else {
+          this.hud = null;
+        }
         this.renderer = new THREE.WebGLRenderer({
             alpha: true,
             antialias: antialias,
@@ -579,8 +586,12 @@ AFRAME.registerElement('ar-scene', {
         this.renderer.setPixelRatio(window.devicePixelRatio);
 
         this.argonApp.view.element.appendChild(this.renderer.domElement);
-        this.argonApp.view.element.appendChild(this.cssRenderer.domElement);
-        this.argonApp.view.element.appendChild(this.hud.domElement);
+        if (this.cssRenderer) {
+          this.argonApp.view.element.appendChild(this.cssRenderer.domElement);
+        }
+        if (this.hud) {
+          this.argonApp.view.element.appendChild(this.hud.domElement);
+        }
       },
       writable: true
     },
@@ -655,7 +666,6 @@ AFRAME.registerElement('ar-scene', {
        value: function (frame) {
         if (!this.animationFrameID) {
           var app = this.argonApp;
-          var self = this;
 
           this.rAFviewport = app.view.getViewport();
           this.rAFsubViews = app.view.getSubviews();
@@ -676,7 +686,6 @@ AFRAME.registerElement('ar-scene', {
 
     rAFRenderFunc: {
       value: function () {
-        var app = this.argonApp;
         var scene = this.object3D;
         var renderer = this.renderer;
         var cssRenderer = this.cssRenderer;
@@ -696,8 +705,12 @@ AFRAME.registerElement('ar-scene', {
         //var viewport = app.view.getViewport()
         var viewport = this.rAFviewport;
         renderer.setSize(viewport.width, viewport.height);
-        cssRenderer.setSize(viewport.width, viewport.height);
-        hud.setSize(viewport.width, viewport.height);
+        if (this.cssRenderer) {
+          cssRenderer.setSize(viewport.width, viewport.height);
+        }
+        if (this.hud) {
+          hud.setSize(viewport.width, viewport.height);
+        }
 
         // leverage vr-mode.  Question: perhaps we shouldn't, perhaps we should use ar-mode?
         // unclear right now how much of the components that use vr-mode are re-purposable
@@ -734,11 +747,13 @@ AFRAME.registerElement('ar-scene', {
             var _b = subview.viewport, x = _b.x, y = _b.y, width = _b.width, height = _b.height;
             // set the CSS rendering up, by computing the FOV, and render this view
             
-            //cssRenderer.updateCameraFOVFromProjection(camera);
-            camera.fov = THREE.Math.radToDeg(frustum.fovy);
-            
-            cssRenderer.setViewport(x, y, width, height, subview.index);
-            cssRenderer.render(scene, camera, subview.index);
+            if (this.cssRenderer) {
+              //cssRenderer.updateCameraFOVFromProjection(camera);
+              camera.fov = THREE.Math.radToDeg(frustum.fovy);
+              
+              cssRenderer.setViewport(x, y, width, height, subview.index);
+              cssRenderer.render(scene, camera, subview.index);
+            }
 
             // set the webGL rendering parameters and render this view
             renderer.setViewport(x, y, width, height);
@@ -746,9 +761,11 @@ AFRAME.registerElement('ar-scene', {
             renderer.setScissorTest(true);
             renderer.render(scene, camera);
 
-            // adjust the hud
-            hud.setViewport(x, y, width, height, subview.index);
-            hud.render(subview.index);
+            if (this.hud) {
+              // adjust the hud
+              hud.setViewport(x, y, width, height, subview.index);
+              hud.render(subview.index);
+            }
         }
 
         this.animationFrameID = null;
@@ -1251,13 +1268,18 @@ AFRAME.registerComponent('css-object', {
     
     var div = document.querySelector(data.div);
     if (div) {
-        this.el.setObject3D('div', new THREE.CSS3DObject(div));
+        if (THREE.CSS3DObject) {
+          this.el.setObject3D('div', new THREE.CSS3DObject(div));
+        }
     }
   },
 
   remove: function () {
     if (!this.div) { return; }
-    this.el.removeObject3D('div');
+
+    if (THREE.CSS3DObject) {
+      this.el.removeObject3D('div');
+    }
   }
 });
 
