@@ -6,6 +6,8 @@ require('../src/css-object.js');
 require('../src/ar-vuforia.js');
 require('../src/shadow-material.js');
 },{"../src/ar-components.js":2,"../src/ar-referenceframe.js":3,"../src/ar-scene.js":4,"../src/ar-vuforia.js":5,"../src/css-object.js":6,"../src/shadow-material.js":7}],2:[function(require,module,exports){
+var zeroScale = 0.00001;
+
 AFRAME.registerComponent('fixedsize', {
   schema: { 
     default: 1
@@ -27,7 +29,8 @@ AFRAME.registerComponent('fixedsize', {
     var thisPos = object3D.getWorldPosition();
     var distance = thisPos.distanceTo(cameraPos);
 
-    var factor = distance * this.scale;
+    // if distance < near clipping plane, just use scale.  Don't go any bigger
+    var factor = distance < camera.near ? this.scale : distance * this.scale;
     object3D.scale.set(factor, factor, factor);
   }
 });
@@ -728,6 +731,14 @@ AFRAME.registerElement('ar-scene', {
           }
         }
 
+        // set the camera properties to the values of the 1st subview.
+        // While this is arbitrary, it's likely many of these will be the same
+        // across all subviews, and it's better than leaving them at the 
+        // defaults, which are almost certainly incorrect
+        camera.near = _a[0].frustum.near;
+        camera.far = _a[0].frustum.far;
+        camera.aspect = _a[0].frustum.aspect;
+        
         // there is 1 subview in monocular mode, 2 in stereo mode    
         for (var _i = 0; _i < _a.length; _i++) {
             var subview = _a[_i];

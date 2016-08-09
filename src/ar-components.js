@@ -1,3 +1,5 @@
+var zeroScale = 0.00001;
+
 AFRAME.registerComponent('fixedsize', {
   schema: { 
     default: 1
@@ -19,7 +21,8 @@ AFRAME.registerComponent('fixedsize', {
     var thisPos = object3D.getWorldPosition();
     var distance = thisPos.distanceTo(cameraPos);
 
-    var factor = distance * this.scale;
+    // if distance < near clipping plane, just use scale.  Don't go any bigger
+    var factor = distance < camera.near ? this.scale : distance * this.scale;
     object3D.scale.set(factor, factor, factor);
   }
 });

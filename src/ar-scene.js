@@ -365,6 +365,14 @@ AFRAME.registerElement('ar-scene', {
           }
         }
 
+        // set the camera properties to the values of the 1st subview.
+        // While this is arbitrary, it's likely many of these will be the same
+        // across all subviews, and it's better than leaving them at the 
+        // defaults, which are almost certainly incorrect
+        camera.near = _a[0].frustum.near;
+        camera.far = _a[0].frustum.far;
+        camera.aspect = _a[0].frustum.aspect;
+        
         // there is 1 subview in monocular mode, 2 in stereo mode    
         for (var _i = 0; _i < _a.length; _i++) {
             var subview = _a[_i];
