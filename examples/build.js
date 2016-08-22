@@ -495,21 +495,11 @@ AFRAME.registerElement('ar-scene', {
         this.addEventListener('loaded', function () {
           if (this.renderStarted) { return; }
 
-        //   var defaultCameraEl = sceneEl.querySelector('[' + DEFAULT_CAMERA_ATTR + ']');
-        //   if (defaultCameraEl) {
-        //         defaultCameraEl.removeAttribute('wasd-controls');
-        //         defaultCameraEl.removeAttribute('look-controls');  
-        //         defaultCameraEl.removeAttribute('camera');  
-        //         defaultCameraEl.setAttribute('camera', {active: true, userHeight: 0});
-        //         defaultCameraEl.setAttribute('position', {x: 0, y: 0, z: 0});
-        //         // defaultCameraEl.setAttribute('camera', {active: true, userHeight: 0});
-        //   }
-
-            if (this.camera.el.tagName !== "AR-CAMERA") {
-                var defaultCameraEl = document.createElement('ar-camera');
-                defaultCameraEl.setAttribute(AR_CAMERA_ATTR, '');
-                sceneEl.appendChild(defaultCameraEl);
-            }
+          if (!this.camera || this.camera.el.tagName !== "AR-CAMERA") {
+              var defaultCameraEl = document.createElement('ar-camera');
+              defaultCameraEl.setAttribute(AR_CAMERA_ATTR, '');
+              sceneEl.appendChild(defaultCameraEl);
+          }
 
           if (this.argonApp) {
               sceneEl.addEventListeners();
