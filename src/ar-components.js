@@ -17,6 +17,8 @@ AFRAME.registerComponent('fixedsize', {
   tick: function (t) {
     var object3D = this.el.object3D;
     var camera = this.el.sceneEl.camera;
+    if (!camera) {return;}
+
     var cameraPos = camera.getWorldPosition();
     var thisPos = object3D.getWorldPosition();
     var distance = thisPos.distanceTo(cameraPos);

@@ -1,6 +1,8 @@
 var AEntity = AFRAME.AEntity;
 var ANode = AFRAME.ANode;
 
+var constants = require('../node_modules/aframe/src/constants/');
+
 var AR_CAMERA_ATTR = "data-aframe-argon-camera";
 
 var style = document.createElement("style");
@@ -35,11 +37,6 @@ document.DOMReady = function () {
 
 AFRAME.registerElement('ar-scene', {
   prototype: Object.create(AEntity.prototype, {
-//    defaultComponents: {
-//       value: {
-//         'camera': ''
-//       }
-//     },
     
     createdCallback: {
       value: function () {
@@ -50,7 +47,6 @@ AFRAME.registerElement('ar-scene', {
         this.object3D = new THREE.Scene();
         this.systems = {};
         this.time = 0;
-  //      this.startTime = 0;
         this.argonApp = null;
 
         // finish initializing
@@ -118,7 +114,6 @@ AFRAME.registerElement('ar-scene', {
     
     play: {
       value: function () {
-        var sceneEl = this.sceneEl;
         var self = this;
 
         if (this.renderStarted) {
@@ -129,14 +124,33 @@ AFRAME.registerElement('ar-scene', {
         this.addEventListener('loaded', function () {
           if (this.renderStarted) { return; }
 
-          if (!this.camera || this.camera.el.tagName !== "AR-CAMERA") {
-              var defaultCameraEl = document.createElement('ar-camera');
-              defaultCameraEl.setAttribute(AR_CAMERA_ATTR, '');
-              sceneEl.appendChild(defaultCameraEl);
-          }
+
+          // if there are any cameras aside from the AR-CAMERA loaded, 
+          // make them inactive.
+          this.addEventListener('camera-set-active', function () {
+            var arCameraEl = null;
+            var cameraEls = this.querySelectorAll('[camera]');
+            for (i = 0; i < cameraEls.length; i++) {
+                cameraEl = cameraEls[i];
+                if (cameraEl.tagName === "AR-CAMERA") { 
+                  arCameraEl = cameraEl;
+                  continue; 
+                }
+                cameraEl.setAttribute('camera', 'active', false);
+                cameraEl.pause();
+            }
+
+            if (arCameraEl == null) {
+                var defaultCameraEl = document.createElement('ar-camera');
+                defaultCameraEl.setAttribute(AR_CAMERA_ATTR, '');
+                defaultCameraEl.setAttribute(constants.AFRAME_INJECTED, '');
+                self.appendChild(defaultCameraEl);
+            }
+          });
+
 
           if (this.argonApp) {
-              sceneEl.addEventListeners();
+              self.addEventListeners();
           } else {
             this.addEventListener('argon-initialized', function() {
               self.addEventListeners();
@@ -175,23 +189,11 @@ AFRAME.registerElement('ar-scene', {
 
     initializeArgon: {
         value: function () {
-            // Moved this above!
-
-            // this.argonApp = Argon.init();
-            // this.argonApp.context.setDefaultReferenceFrame(this.argonApp.context.localOriginEastUpSouth);
-
             this.setupRenderer();
-
-            // if we've already initialized the rendering, we won't have
-            // set these callbacks, so do it now
-            // if (this.renderStarted) {
-            //     this.addEventListens();
-            // }
 
             this.emit('argon-initialized', {
                 target: this.argonApp
-            });
-            
+            });            
         },
         writable: true
     },
