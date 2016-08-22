@@ -64,7 +64,12 @@ AFRAME.registerElement('ar-scene', {
         this.hasLoaded = false;
         this.isPlaying = false;
         this.originalHTML = this.innerHTML;
-        
+
+        // let's initialize argon immediately, but wait till the document is
+        // loaded to set up the DOM parts
+        this.argonApp = Argon.init();
+        this.argonApp.context.setDefaultReferenceFrame(this.argonApp.context.localOriginEastUpSouth);
+
         this.argonRender = this.argonRender.bind(this);
         this.argonUpdate = this.argonUpdate.bind(this);
         this.initializeArgon = this.initializeArgon.bind(this);
@@ -124,21 +129,11 @@ AFRAME.registerElement('ar-scene', {
         this.addEventListener('loaded', function () {
           if (this.renderStarted) { return; }
 
-        //   var defaultCameraEl = sceneEl.querySelector('[' + DEFAULT_CAMERA_ATTR + ']');
-        //   if (defaultCameraEl) {
-        //         defaultCameraEl.removeAttribute('wasd-controls');
-        //         defaultCameraEl.removeAttribute('look-controls');  
-        //         defaultCameraEl.removeAttribute('camera');  
-        //         defaultCameraEl.setAttribute('camera', {active: true, userHeight: 0});
-        //         defaultCameraEl.setAttribute('position', {x: 0, y: 0, z: 0});
-        //         // defaultCameraEl.setAttribute('camera', {active: true, userHeight: 0});
-        //   }
-
-            if (this.camera.el.tagName !== "AR-CAMERA") {
-                var defaultCameraEl = document.createElement('ar-camera');
-                defaultCameraEl.setAttribute(AR_CAMERA_ATTR, '');
-                sceneEl.appendChild(defaultCameraEl);
-            }
+          if (!this.camera || this.camera.el.tagName !== "AR-CAMERA") {
+              var defaultCameraEl = document.createElement('ar-camera');
+              defaultCameraEl.setAttribute(AR_CAMERA_ATTR, '');
+              sceneEl.appendChild(defaultCameraEl);
+          }
 
           if (this.argonApp) {
               sceneEl.addEventListeners();
@@ -180,10 +175,10 @@ AFRAME.registerElement('ar-scene', {
 
     initializeArgon: {
         value: function () {
-            this.argonApp = Argon.init();
-            // this.startTime = this.argonApp.context.getTime();
-            // if (this.startTime) this.startTime = this.startTime.clone();
-            this.argonApp.context.setDefaultReferenceFrame(this.argonApp.context.localOriginEastUpSouth);
+            // Moved this above!
+
+            // this.argonApp = Argon.init();
+            // this.argonApp.context.setDefaultReferenceFrame(this.argonApp.context.localOriginEastUpSouth);
 
             this.setupRenderer();
 
@@ -328,6 +323,12 @@ AFRAME.registerElement('ar-scene', {
         var cssRenderer = this.cssRenderer;
         var hud = this.hud;
         var camera = this.camera;
+
+        if (!this.renderer) {
+          // renderer hasn't been setup yet
+          this.animationFrameID = null;
+          return;
+        }
 
         // the camera object is created from a camera property on an entity. This should be
         // an ar-camera, which will have the entity position and orientation set to the pose

@@ -121,7 +121,12 @@
 	        this.hasLoaded = false;
 	        this.isPlaying = false;
 	        this.originalHTML = this.innerHTML;
-	        
+
+	        // let's initialize argon immediately, but wait till the document is
+	        // loaded to set up the DOM parts
+	        this.argonApp = Argon.init();
+	        this.argonApp.context.setDefaultReferenceFrame(this.argonApp.context.localOriginEastUpSouth);
+
 	        this.argonRender = this.argonRender.bind(this);
 	        this.argonUpdate = this.argonUpdate.bind(this);
 	        this.initializeArgon = this.initializeArgon.bind(this);
@@ -237,10 +242,10 @@
 
 	    initializeArgon: {
 	        value: function () {
-	            this.argonApp = Argon.init();
-	            // this.startTime = this.argonApp.context.getTime();
-	            // if (this.startTime) this.startTime = this.startTime.clone();
-	            this.argonApp.context.setDefaultReferenceFrame(this.argonApp.context.localOriginEastUpSouth);
+	            // Moved this above!
+
+	            // this.argonApp = Argon.init();
+	            // this.argonApp.context.setDefaultReferenceFrame(this.argonApp.context.localOriginEastUpSouth);
 
 	            this.setupRenderer();
 
@@ -385,6 +390,12 @@
 	        var cssRenderer = this.cssRenderer;
 	        var hud = this.hud;
 	        var camera = this.camera;
+
+	        if (!this.renderer) {
+	          // renderer hasn't been setup yet
+	          this.animationFrameID = null;
+	          return;
+	        }
 
 	        // the camera object is created from a camera property on an entity. This should be
 	        // an ar-camera, which will have the entity position and orientation set to the pose
@@ -1017,7 +1028,7 @@
 	                return;
 	            }
 
-	            // vuforia no available on this platform
+	            // vuforia not available on this platform
 	            if (!available) {
 	                self.available = false;
 	                console.warn('vuforia not available on this platform.');
@@ -1034,7 +1045,8 @@
 
 	            // try to initialize with our key
 	            argonApp.vuforia.init({
-	                licenseKey: self.key
+	                //licenseKey: self.key
+	                encryptedLicenseData: self.key
 	            }).then(function(api) {
 	                // worked! Save the API
 	                self.api = api;
@@ -1052,6 +1064,13 @@
 	                sceneEl.emit('argon-vuforia-initialized', {
 	                    target: sceneEl
 	                });                            
+	            }).catch(function(err) {
+	                console.log("vuforia failed to initialize: " + err.message);
+
+	                sceneEl.emit('argon-vuforia-initialization-failed', {
+	                    target: sceneEl,
+	                    error: err
+	                });                                            
 	            });
 	        });
 	    },
@@ -1152,6 +1171,13 @@
 	                self.sceneEl.emit('argon-vuforia-dataset-downloaded', {
 	                    target: dataset.component
 	                });                            
+	            }).catch(function(err) {
+	                console.log("couldn't download dataset: " + err.message);
+
+	                sceneEl.emit('argon-vuforia-dataset-download-failed', {
+	                    target: sceneEl,
+	                    error: err
+	                });                                            
 	            });
 	        });
 	    },
@@ -1202,8 +1228,14 @@
 	                self.sceneEl.emit('argon-vuforia-dataset-loaded', {
 	                    target: dataset.component
 	                });               
-	                console.log("dataset " + name + " loaded, ready to go");
-	                           
+	                console.log("dataset " + name + " loaded, ready to go");         
+	            }).catch(function(err) {
+	                console.log("couldn't load dataset: " + err.message);
+
+	                sceneEl.emit('argon-vuforia-dataset-load-failed', {
+	                    target: sceneEl,
+	                    error: err
+	                });                                            
 	            });
 	        } else {
 	            if (dataset.active != active) {

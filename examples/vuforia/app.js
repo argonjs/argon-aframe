@@ -15,6 +15,10 @@ arScene.addEventListener('argon-initialized', function(evt) {
 arScene.addEventListener('argon-vuforia-initialized', function(evt) {
     statusMsg.innerHTML = "vuforia initialized, downloading dataset...";
 });
+arScene.addEventListener('argon-vuforia-initialization-failed', function(evt) {
+    statusMsg.innerHTML = "vuforia failed to initialize: " + evt.detail.error.message;
+});
+
 arScene.addEventListener('argon-vuforia-dataset-loaded', function(evt) {
     statusMsg.innerHTML = "done";
     loader.classList.add('loaded');
@@ -36,6 +40,10 @@ arScene.addEventListener('argon-vuforia-dataset-loaded', function(evt) {
         }
     });
 });
+arScene.addEventListener('argon-vuforia-dataset-load-failed', function(evt) {
+    statusMsg.innerHTML = "vuforia failed to load: " + evt.detail.error.message;
+});
+
 arScene.addEventListener('argon-vuforia-not-available', function(evt) {
     var frame = document.querySelector("#frame");
     frame.setAttribute("trackvisibilty", false);

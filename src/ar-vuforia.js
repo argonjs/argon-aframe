@@ -40,7 +40,7 @@ AFRAME.registerSystem('vuforia', {
                 return;
             }
 
-            // vuforia no available on this platform
+            // vuforia not available on this platform
             if (!available) {
                 self.available = false;
                 console.warn('vuforia not available on this platform.');
@@ -57,7 +57,8 @@ AFRAME.registerSystem('vuforia', {
 
             // try to initialize with our key
             argonApp.vuforia.init({
-                licenseKey: self.key
+                //licenseKey: self.key
+                encryptedLicenseData: self.key
             }).then(function(api) {
                 // worked! Save the API
                 self.api = api;
@@ -75,6 +76,13 @@ AFRAME.registerSystem('vuforia', {
                 sceneEl.emit('argon-vuforia-initialized', {
                     target: sceneEl
                 });                            
+            }).catch(function(err) {
+                console.log("vuforia failed to initialize: " + err.message);
+
+                sceneEl.emit('argon-vuforia-initialization-failed', {
+                    target: sceneEl,
+                    error: err
+                });                                            
             });
         });
     },
@@ -175,6 +183,13 @@ AFRAME.registerSystem('vuforia', {
                 self.sceneEl.emit('argon-vuforia-dataset-downloaded', {
                     target: dataset.component
                 });                            
+            }).catch(function(err) {
+                console.log("couldn't download dataset: " + err.message);
+
+                sceneEl.emit('argon-vuforia-dataset-download-failed', {
+                    target: sceneEl,
+                    error: err
+                });                                            
             });
         });
     },
@@ -225,8 +240,14 @@ AFRAME.registerSystem('vuforia', {
                 self.sceneEl.emit('argon-vuforia-dataset-loaded', {
                     target: dataset.component
                 });               
-                console.log("dataset " + name + " loaded, ready to go");
-                           
+                console.log("dataset " + name + " loaded, ready to go");         
+            }).catch(function(err) {
+                console.log("couldn't load dataset: " + err.message);
+
+                sceneEl.emit('argon-vuforia-dataset-load-failed', {
+                    target: sceneEl,
+                    error: err
+                });                                            
             });
         } else {
             if (dataset.active != active) {
