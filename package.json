@@ -16,7 +16,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/blairmacintyre/argon-aframe.git"
+    "url": "git+https://github.com/argonjs/argon-aframe.git"
   },
   "keywords": [
     "aframe",
@@ -35,12 +35,12 @@
   "author": "Blair MacIntyre <blair@cc.gatech.e>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/blairmacintyre/argon-aframe/issues"
+    "url": "https://github.com/argonjs/argon-aframe/issues"
   },
-  "homepage": "https://github.com/blairmacintyre/argon-aframe#readme",
+  "homepage": "https://github.com/argonjs/argon-aframe#readme",
   "devDependencies": {
     "aframe": "file:../aframe",
-    "argon": "file:../../argonjs.io/argon",
+    "argon": "file:../argon",
     "browserify": "^12.0.1",
     "budo": "^7.1.0",
     "chai": "^3.4.1",
@@ -56,7 +56,5 @@
     "karma-sinon-chai": "^1.1.0",
     "mocha": "^2.3.4",
     "webpack": "^1.12.9"
-  },
-  "dependencies": {
   }
 }
