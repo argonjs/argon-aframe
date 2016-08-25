@@ -25,6 +25,16 @@ a {
     padding: 0px 0px;
 }
 
+.pin {
+    font-size: 100px;
+    text-align: center;
+    color:indianred;
+    background: transparent;
+    border: 0px;
+    margin-bottom: 0px;
+    padding: 0px 0px;
+}
+
 .boxface {
     opacity: 0.5;
     width: 90px;

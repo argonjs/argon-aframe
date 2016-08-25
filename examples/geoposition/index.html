@@ -8,11 +8,24 @@
     <script src="../resources/js/CSS3DArgonRenderer.js"></script>
     <script src="../resources/js/CSS3DArgonHUD.js"></script>
     <script src="../resources/js/aframe-look-at-component.js"></script>
+    <link rel="stylesheet" href="../resources/css/font-awesome.min.css">
 	  <link rel="stylesheet" type="text/css" href="../resources/style.css">
   </head>
   <body>
     <script>
       AFRAME.registerComponent('showdistance', {
+        schema: { 
+          default: ""
+        },
+
+        init: function () {
+            this.text = "";
+        },
+
+        update: function () {
+          this.text = this.data;
+        },
+
         tick: function (t) {
           var object3D = this.el.object3D;
           var camera = this.el.sceneEl.camera;
@@ -23,33 +36,52 @@
           var distance = Math.round(thisPos.distanceTo(cameraPos));
 
           var cssDiv = this.el.getObject3D('div');
-          var msg = "Georgia Tech is in Atlanta.<br>This spot is near the center of campus.<br>It is " + distance + " meters away";
+          var msg = this.text + distance + " meters away";
           cssDiv.elements[0].innerHTML = msg;
           cssDiv.elements[1].innerHTML = msg;
         }
       });
     </script>
     <div hidden>    
-      <div id="mydiv" class="label">Georgia Tech is in Atlanta.<br>This spot is near the center of campus</div>
+      <div id="gtdiv" class="label">Georgia Tech</div>
+      <div id="londondiv" class="label">Tower of London</div>
+      <div id="tokyodiv" class="label">Tokyo</div>
+      <div id="sydneydiv" class="label">Sydney Opera House</div>
+      <div id="londonpin" class="pin"><i class="fa fa-map-marker" aria-hidden="true"></i></div>
+      <div id="tokyopin" class="pin"><i class="fa fa-map-marker" aria-hidden="true"></i></div>
+      <div id="sydneypin" class="pin"><i class="fa fa-map-marker" aria-hidden="true"></i></div>
     </div>
     <ar-scene>
       <a-assets>
         <img id="buzzpin" src="../resources/textures/buzz-pin.png">
       </a-assets>
-      <ar-geopose id="GT" lla=" -84.398881 33.778463" userotation="false"> 
-         <a-entity fixedsize="0.05" >
-           <a-plane rotation="0 90 0" width="2.9" height="4" src="#buzzpin" transparent="true"></a-plane>
-           <a-entity css-object="div: #mydiv" scale="0.02 0.02 0.02" position="0 4 0" billboard showdistance></a-entity>
+      <ar-geopose id="GT" lla="-84.394539 33.772501" userotation="false"> 
+         <a-entity fixedsize="0.05" billboard>
+           <a-plane rotation="0 0 0" width="2.9" height="4" src="#buzzpin" transparent="true" ></a-plane>
+           <a-entity css-object="div: #gtdiv" scale="0.02 0.02 0.02" position="0 4 0" showdistance="Tech Tower @ Georgia Tech<br>Atlanta, GA, USA<br>It is "></a-entity>
         </a-entity>
       </ar-geopose>
-      <ar-frame id="me" parent="ar.user" userotation="false">
-        <a-entity position="0 -1.5 -10">
-          <a-sphere position="0 1.25 -1" radius="1.25" color="#EF2D5E"></a-sphere>
-          <a-box position="-1 0.5 1" rotation="0 45 0" width="1" height="1" depth="1"  color="#4CC3D9"></a-box>
-          <a-cylinder position="1 0.75 1" radius="0.5" height="1.5" color="#FFC65D"></a-cylinder>
-          <a-plane rotation="-90 0 0" width="4" height="4" color="#7BC8A4"></a-plane>
+      <ar-geopose id="London" lla="-0.076057 51.507953" userotation="false"> 
+         <a-entity fixedsize="0.05" billboard>
+           <a-entity css-object="div: #londonpin" scale="0.05 0.05 0.05" position="0 0 0"></a-entity>
+           <a-entity css-object="div: #londondiv" scale="0.02 0.02 0.02" position="0 3 0" showdistance="The Tower of London<br>London, England<br>It is "></a-entity>
         </a-entity>
-      </ar-frame>
+      </ar-geopose>
+      <ar-geopose id="Sydney" lla="151.215286 -33.856900" userotation="false"> 
+         <a-entity fixedsize="0.05" billboard>
+           <a-entity css-object="div: #sydneypin" scale="0.05 0.05 0.05" position="0 0 0"></a-entity>
+           <a-entity css-object="div: #sydneydiv" scale="0.02 0.02 0.02" position="0 3 0" showdistance="Sydney Opera House<br>Sydney, Australia<br>It is "></a-entity>
+        </a-entity>
+      </ar-geopose>
+      <ar-geopose id="Tokyo" lla=" 139.752797 35.685138" userotation="false"> 
+         <a-entity fixedsize="0.05" billboard>
+           <a-entity css-object="div: #tokyopin" scale="0.05 0.05 0.05" position="0 0 0"></a-entity>
+           <a-entity css-object="div: #tokyodiv" scale="0.02 0.02 0.02" position="0 3 0" showdistance="Imperial Palace<br>Tokyo, Japan<br>It is "></a-entity>
+        </a-entity>
+      </ar-geopose>
     </ar-scene>
   </body>
 </html>
+
+Chiyoda-ku, Tōkyō-to 100-0001, Japan
+,
