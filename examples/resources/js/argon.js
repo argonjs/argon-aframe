@@ -1,7 +1,7 @@
 !function(e){function r(e,r,o){return 4===arguments.length?t.apply(this,arguments):void n(e,{declarative:!0,deps:r,declare:o})}function t(e,r,t,o){n(e,{declarative:!1,deps:r,executingRequire:t,execute:o})}function n(e,r){r.name=e,e in v||(v[e]=r),r.normalizedDeps=r.deps}function o(e,r){if(r[e.groupIndex]=r[e.groupIndex]||[],-1==g.call(r[e.groupIndex],e)){r[e.groupIndex].push(e);for(var t=0,n=e.normalizedDeps.length;n>t;t++){var a=e.normalizedDeps[t],u=v[a];if(u&&!u.evaluated){var d=e.groupIndex+(u.declarative!=e.declarative);if(void 0===u.groupIndex||u.groupIndex<d){if(void 0!==u.groupIndex&&(r[u.groupIndex].splice(g.call(r[u.groupIndex],u),1),0==r[u.groupIndex].length))throw new TypeError("Mixed dependency cycle detected");u.groupIndex=d}o(u,r)}}}}function a(e){var r=v[e];r.groupIndex=0;var t=[];o(r,t);for(var n=!!r.declarative==t.length%2,a=t.length-1;a>=0;a--){for(var u=t[a],i=0;i<u.length;i++){var s=u[i];n?d(s):l(s)}n=!n}}function u(e){return y[e]||(y[e]={name:e,dependencies:[],exports:{},importers:[]})}function d(r){if(!r.module){var t=r.module=u(r.name),n=r.module.exports,o=r.declare.call(e,function(e,r){if(t.locked=!0,"object"==typeof e)for(var o in e)n[o]=e[o];else n[e]=r;for(var a=0,u=t.importers.length;u>a;a++){var d=t.importers[a];if(!d.locked)for(var i=0;i<d.dependencies.length;++i)d.dependencies[i]===t&&d.setters[i](n)}return t.locked=!1,r},{id:r.name});t.setters=o.setters,t.execute=o.execute;for(var a=0,i=r.normalizedDeps.length;i>a;a++){var l,s=r.normalizedDeps[a],c=v[s],f=y[s];f?l=f.exports:c&&!c.declarative?l=c.esModule:c?(d(c),f=c.module,l=f.exports):l=p(s),f&&f.importers?(f.importers.push(t),t.dependencies.push(f)):t.dependencies.push(null),t.setters[a]&&t.setters[a](l)}}}function i(e){var r,t=v[e];if(t)t.declarative?f(e,[]):t.evaluated||l(t),r=t.module.exports;else if(r=p(e),!r)throw new Error("Unable to load dependency "+e+".");return(!t||t.declarative)&&r&&r.__useDefault?r["default"]:r}function l(r){if(!r.module){var t={},n=r.module={exports:t,id:r.name};if(!r.executingRequire)for(var o=0,a=r.normalizedDeps.length;a>o;o++){var u=r.normalizedDeps[o],d=v[u];d&&l(d)}r.evaluated=!0;var c=r.execute.call(e,function(e){for(var t=0,n=r.deps.length;n>t;t++)if(r.deps[t]==e)return i(r.normalizedDeps[t]);throw new TypeError("Module "+e+" not declared as a dependency.")},t,n);c&&(n.exports=c),t=n.exports,t&&t.__esModule?r.esModule=t:r.esModule=s(t)}}function s(r){var t={};if(("object"==typeof r||"function"==typeof r)&&r!==e)if(m)for(var n in r)"default"!==n&&c(t,r,n);else{var o=r&&r.hasOwnProperty;for(var n in r)"default"===n||o&&!r.hasOwnProperty(n)||(t[n]=r[n])}return t["default"]=r,x(t,"__useDefault",{value:!0}),t}function c(e,r,t){try{var n;(n=Object.getOwnPropertyDescriptor(r,t))&&x(e,t,n)}catch(o){return e[t]=r[t],!1}}function f(r,t){var n=v[r];if(n&&!n.evaluated&&n.declarative){t.push(r);for(var o=0,a=n.normalizedDeps.length;a>o;o++){var u=n.normalizedDeps[o];-1==g.call(t,u)&&(v[u]?f(u,t):p(u))}n.evaluated||(n.evaluated=!0,n.module.execute.call(e))}}function p(e){if(I[e])return I[e];if("@node/"==e.substr(0,6))return I[e]=s(D(e.substr(6)));var r=v[e];if(!r)throw"Module "+e+" not present.";return a(e),f(e,[]),v[e]=void 0,r.declarative&&x(r.module.exports,"__esModule",{value:!0}),I[e]=r.declarative?r.module.exports:r.esModule}var v={},g=Array.prototype.indexOf||function(e){for(var r=0,t=this.length;t>r;r++)if(this[r]===e)return r;return-1},m=!0;try{Object.getOwnPropertyDescriptor({a:0},"a")}catch(h){m=!1}var x;!function(){try{Object.defineProperty({},"a",{})&&(x=Object.defineProperty)}catch(e){x=function(e,r,t){try{e[r]=t.value||t.get.call(e)}catch(n){}}}}();var y={},D="undefined"!=typeof System&&System._nodeRequire||"undefined"!=typeof require&&require.resolve&&"undefined"!=typeof process&&require,I={"@empty":{}};return function(e,n,o,a){return function(u){u(function(u){for(var d={_nodeRequire:D,register:r,registerDynamic:t,get:p,set:function(e,r){I[e]=r},newModule:function(e){return e}},i=0;i<n.length;i++)(function(e,r){r&&r.__esModule?I[e]=r:I[e]=s(r)})(n[i],arguments[i]);a(d);var l=p(e[0]);if(e.length>1)for(var i=1;i<e.length;i++)p(e[i]);return o?l["default"]:l})}}}("undefined"!=typeof self?self:global)
 
 (["1"], [], false, function($__System) {
-var require = this.require, exports = this.exports, module = this.module;
+var _dereq_ = this.require, exports = this.exports, module = this.module;
 !function(e){function n(e,n){e=e.replace(l,"");var r=e.match(u),t=(r[1].split(",")[n]||"require").replace(s,""),i=p[t]||(p[t]=new RegExp(a+t+f,"g"));i.lastIndex=0;for(var o,c=[];o=i.exec(e);)c.push(o[2]||o[3]);return c}function r(e,n,t,o){if("object"==typeof e&&!(e instanceof Array))return r.apply(null,Array.prototype.splice.call(arguments,1,arguments.length-1));if("string"==typeof e&&"function"==typeof n&&(e=[e]),!(e instanceof Array)){if("string"==typeof e){var l=i.get(e);return l.__useDefault?l["default"]:l}throw new TypeError("Invalid require")}for(var a=[],f=0;f<e.length;f++)a.push(i["import"](e[f],o));Promise.all(a).then(function(e){n&&n.apply(null,e)},t)}function t(t,l,a){"string"!=typeof t&&(a=l,l=t,t=null),l instanceof Array||(a=l,l=["require","exports","module"].splice(0,a.length)),"function"!=typeof a&&(a=function(e){return function(){return e}}(a)),void 0===l[l.length-1]&&l.pop();var f,u,s;-1!=(f=o.call(l,"require"))&&(l.splice(f,1),t||(l=l.concat(n(a.toString(),f)))),-1!=(u=o.call(l,"exports"))&&l.splice(u,1),-1!=(s=o.call(l,"module"))&&l.splice(s,1);var p={name:t,deps:l,execute:function(n,t,o){for(var p=[],c=0;c<l.length;c++)p.push(n(l[c]));o.uri=o.id,o.config=function(){},-1!=s&&p.splice(s,0,o),-1!=u&&p.splice(u,0,t),-1!=f&&p.splice(f,0,function(e,t,l){return"string"==typeof e&&"function"!=typeof t?n(e):r.call(i,e,t,l,o.id)});var d=a.apply(-1==u?e:t,p);return"undefined"==typeof d&&o&&(d=o.exports),"undefined"!=typeof d?d:void 0}};if(t)c.anonDefine||c.isBundle?c.anonDefine&&c.anonDefine.name&&(c.anonDefine=null):c.anonDefine=p,c.isBundle=!0,i.registerDynamic(p.name,p.deps,!1,p.execute);else{if(c.anonDefine&&!c.anonDefine.name)throw new Error("Multiple anonymous defines in module "+t);c.anonDefine=p}}var i=$__System,o=Array.prototype.indexOf||function(e){for(var n=0,r=this.length;r>n;n++)if(this[n]===e)return n;return-1},l=/(\/\*([\s\S]*?)\*\/|([^:]|^)\/\/(.*)$)/gm,a="(?:^|[^$_a-zA-Z\\xA0-\\uFFFF.])",f="\\s*\\(\\s*(\"([^\"]+)\"|'([^']+)')\\s*\\)",u=/\(([^\)]*)\)/,s=/^\s+|\s+$/g,p={};t.amd={};var c={isBundle:!1,anonDefine:null};i.amdDefine=t,i.amdRequire=r}("undefined"!=typeof self?self:global);
 (function() {
 var define = $__System.amdDefine;
@@ -982,7 +982,7 @@ var define = $__System.amdDefine;
 (function(root, factory) {
   'use strict';
   if (typeof exports === 'object') {
-    module.exports = factory(require('./punycode'), require('./IPv6'), require('./SecondLevelDomains'));
+    module.exports = factory(_dereq_('./punycode'), _dereq_('./IPv6'), _dereq_('./SecondLevelDomains'));
   } else if (typeof define === 'function' && define.amd) {
     define("7", ["4", "5", "6"], factory);
   } else {
@@ -3703,7 +3703,7 @@ $__System.register('13', ['c', '14', '10', '12'], function (exports_1, context_1
                     this._sessionIsInitialized = new WeakMap();
                     this._sessionCreatedDataSets = new WeakMap();
                     this._sessionActivatedDataSets = new WeakMap();
-                    if (sessionService.isManager) {
+                    if (sessionService.isRealityManager) {
                         this._sessionSwitcherCommandQueue.errorEvent.addEventListener(function (err) {
                             _this.sessionService.errorEvent.raiseEvent(err);
                         });
@@ -3821,7 +3821,7 @@ $__System.register('13', ['c', '14', '10', '12'], function (exports_1, context_1
                  */
                 VuforiaService.prototype.initWithUnencryptedKey = function (options, force) {
                     var _this = this;
-                    if (!force) this.sessionService.ensureIsManager();
+                    if (!force) this.sessionService.ensureIsRealityManager();
                     return this.sessionService.manager.request('ar.vuforia.init', options).then(function () {
                         return new VuforiaAPI(_this.sessionService.manager);
                     });
@@ -4297,7 +4297,7 @@ $__System.register('b', ['c', 'a', '10', '11', '12'], function (exports_1, conte
                     this.entities.addCollection(this.wellKnownReferenceFrames);
                     this.entities.addCollection(this.subscribedEntities);
                     this.subscribedEntities.add(this.user);
-                    if (this.sessionService.isManager) {
+                    if (this.sessionService.isRealityManager) {
                         this.realityService.frameEvent.addEventListener(function (state) {
                             _this._update(state);
                         });
@@ -4419,7 +4419,7 @@ $__System.register('b', ['c', 'a', '10', '11', '12'], function (exports_1, conte
                 ContextService.prototype._update = function (serializedState) {
                     var _this = this;
                     // if this session is the manager, we need to update our child sessions a.s.a.p
-                    if (this.sessionService.isManager) {
+                    if (this.sessionService.isRealityManager) {
                         delete serializedState.entities[this.user.id]; // children don't need this
                         this._entityPoseCache = {};
                         for (var _i = 0, _a = this.sessionService.managedSessions; _i < _a.length; _i++) {
@@ -4608,7 +4608,7 @@ $__System.register('14', ['c', '10', '12'], function (exports_1, context_1) {
                     sessionService.manager.on['ar.focus.state'] = function (message) {
                         _this._setFocus(message.state);
                     };
-                    if (sessionService.isManager) {
+                    if (sessionService.isRealityManager) {
                         sessionService.manager.connectEvent.addEventListener(function () {
                             setTimeout(function () {
                                 if (!_this._session) _this.setSession(_this.sessionService.manager);
@@ -4631,7 +4631,7 @@ $__System.register('14', ['c', '10', '12'], function (exports_1, context_1) {
                      * Manager-only. An event that is raised when a managed session has acquired focus.
                      */
                     get: function () {
-                        this.sessionService.ensureIsManager();
+                        this.sessionService.ensureIsRealityManager();
                         return this._sessionFocusEvent;
                     },
                     enumerable: true,
@@ -4641,14 +4641,14 @@ $__System.register('14', ['c', '10', '12'], function (exports_1, context_1) {
                  * Manager-only. The managed session which currently has focus.
                  */
                 FocusService.prototype.getSession = function () {
-                    this.sessionService.ensureIsManager();
+                    this.sessionService.ensureIsRealityManager();
                     return this._session;
                 };
                 /**
                  *  Manager-only. Grant focus to a managed session.
                  */
                 FocusService.prototype.setSession = function (session) {
-                    this.sessionService.ensureIsManager();
+                    this.sessionService.ensureIsRealityManager();
                     if (session && !session.isConnected) throw new Error('Only a connected session can be granted focus');
                     var previousFocussedSession = this._session;
                     if (previousFocussedSession !== session) {
@@ -4663,7 +4663,7 @@ $__System.register('14', ['c', '10', '12'], function (exports_1, context_1) {
                 };
                 FocusService.prototype.whenSessionHasFocus = function (session) {
                     var _this = this;
-                    this.sessionService.ensureIsManager();
+                    this.sessionService.ensureIsRealityManager();
                     return new Promise(function (resolve) {
                         var remove = _this.sessionFocusEvent.addEventListener(function (_a) {
                             var current = _a.current;
@@ -5489,27 +5489,43 @@ $__System.register("f", [], function (exports_1, context_1) {
   return {
     setters: [],
     execute: function () {
-      /*
-       * Describes the role of a session
+      /**
+       * Describes the role of an [[ArgonSystem]]
        */
       (function (Role) {
-        /*
-         * An application can augment a reality view.
+        /**
+         * A system with this role is responsible for augmenting an arbitrary view of reality,
+         * generally by overlaying computer generated graphics. A reality augmentor may also,
+         * if appropriate, be elevated to the role of a [[REALITY_MANAGER]].
          */
-        Role[Role["APPLICATION"] = "Application"] = "APPLICATION";
-        /*
-         * A reality view is a representation of reality.
+        Role[Role["REALITY_AUGMENTOR"] = "RealityAugmentor"] = "REALITY_AUGMENTOR";
+        /**
+         * A system with this role is responsible for (at minimum) describing (and providing,
+         * if necessary) a visual representation of the world and the 3D eye pose of the viewer.
          */
         Role[Role["REALITY_VIEW"] = "RealityView"] = "REALITY_VIEW";
-        /*
-         * The manager mediates access to sensors / trackers
-         * and keeps track of known entities in the world.
+        /**
+         * A system with this role is responsible for mediating access to sensors/trackers
+         * and pose data for known entities in the world, selecting/configuring/loading
+         * [[REALITY_VIEW]]s, and providing the mechanism by which any given [[REALITY_AUGMENTOR]]
+         * can augment any given [[REALITY_VIEW]]. The reality manager may also, when appropriate,
+         * take on the role of [[REALITY_AUGMENTOR]].
+         */
+        Role[Role["REALITY_MANAGER"] = "RealityManager"] = "REALITY_MANAGER";
+        /**
+         * Deprecated. Use [[REALITY_AUGMENTOR]].
+         * @private
+         */
+        Role[Role["APPLICATION"] = "Application"] = "APPLICATION";
+        /**
+         * Deprecated. Use [[REALITY_MANAGER]].
+         * @private
          */
         Role[Role["MANAGER"] = "Manager"] = "MANAGER";
       })(Role || (Role = {}));
       exports_1("Role", Role);
       /**
-       * Identifies a subview in a view configuration
+       * Identifies a subview in a [[SerializedSubview]]
        */
       (function (SubviewType) {
         /*
@@ -5587,8 +5603,7 @@ $__System.register('10', ['a', 'c', 'f', '12'], function (exports_1, context_1) 
         execute: function () {
             ;
             /**
-             * Provides two-way communication between sessions, either
-             * Application and Manager, or Reality and Manager.
+             * Provides two-way communication between two [[SessionPort]] instances.
              */
             SessionPort = function () {
                 function SessionPort(uri) {
@@ -5635,7 +5650,7 @@ $__System.register('10', ['a', 'c', 'f', '12'], function (exports_1, context_1) 
                 Object.defineProperty(SessionPort.prototype, "connectEvent", {
                     /**
                      * An event which fires when a connection has been
-                     * established to the remote session.
+                     * established to the other [[SessionPort]].
                      */
                     get: function () {
                         if (this._isConnected) throw new Error('The connectEvent only fires once and the session is already connected.');
@@ -5678,9 +5693,9 @@ $__System.register('10', ['a', 'c', 'f', '12'], function (exports_1, context_1) 
                     return supported;
                 };
                 /**
-                 * Establish a connection to another session via the provided MessagePort.
+                 * Establish a connection to another [[SessionPort]] via the provided [[MessagePort]] instance.
                  * @param messagePort the message port to post and receive messages.
-                 * @param options the configuration which describes this system.
+                 * @param options the configuration which describes this [[ArgonSystem]].
                  */
                 SessionPort.prototype.open = function (messagePort, options) {
                     var _this = this;
@@ -5814,8 +5829,8 @@ $__System.register('10', ['a', 'c', 'f', '12'], function (exports_1, context_1) 
                 return SessionPort;
             }();
             exports_1("SessionPort", SessionPort);
-            /*
-             * A factory for creating SessionPort instances.
+            /**
+             * A factory for creating [[SessionPort]] instances.
              */
             SessionPortFactory = function () {
                 function SessionPortFactory() {}
@@ -5826,15 +5841,22 @@ $__System.register('10', ['a', 'c', 'f', '12'], function (exports_1, context_1) 
             }();
             exports_1("SessionPortFactory", SessionPortFactory);
             /**
-             * Establishes a connection to the manager.
+             * A service for establishing a connection to the [[REALITY_MANAGER]].
              */
             ConnectService = function () {
                 function ConnectService() {}
                 return ConnectService;
             }();
             exports_1("ConnectService", ConnectService);
+            /**
+             * A service for managing connections to other ArgonSystem instances
+             */
             SessionService = function () {
-                function SessionService(configuration, connectService, sessionPortFactory, messageChannelFactory) {
+                function SessionService(
+                /**
+                 * The configuration of this [[ArgonSystem]]
+                 */
+                configuration, connectService, sessionPortFactory, messageChannelFactory) {
                     var _this = this;
                     this.configuration = configuration;
                     this.connectService = connectService;
@@ -5874,15 +5896,15 @@ $__System.register('10', ['a', 'c', 'f', '12'], function (exports_1, context_1) 
                      * Manager-only. A collection of ports for the sessions managed by this session.
                      */
                     get: function () {
-                        this.ensureIsManager();
+                        this.ensureIsRealityManager();
                         return this._managedSessions;
                     },
                     enumerable: true,
                     configurable: true
                 });
                 /**
-                 * Establishes a connection with the manager.
-                 * Called internally by the composition root (ArgonSystem).
+                 * Establishes a connection with the [[REALITY_MANAGER]].
+                 * Called internally by the composition root ([[ArgonSystem]]).
                  */
                 SessionService.prototype.connect = function () {
                     if (this.connectService && this.connectService.connect) {
@@ -5892,16 +5914,16 @@ $__System.register('10', ['a', 'c', 'f', '12'], function (exports_1, context_1) 
                     }
                 };
                 /**
-                 * Manager-only. Creates a session port that is managed by this service.
-                 * Session ports that are managed will automatically
-                 * forward open events to this.sessionConnectEvent and error
-                 * events to this.errorEvent. Other services are likely to add
-                 * message handlers to the newly connected port.
-                 * @return a new SessionPort instance
+                 * Manager-only. Creates a [[SessionPort]] that is managed by the current [[ArgonSystem]].
+                 * Session ports that are managed will automatically forward open events to
+                 * [[SessionService#sessionConnectEvent]] and error events to [[SessionService#errorEvent]].
+                 * Other services that are part of the current [[ArgonSystem]] are likely to
+                 * add message handlers to a newly connected [[SessionPort]].
+                 * @return a new [[SessionPort]] instance
                  */
                 SessionService.prototype.addManagedSessionPort = function (uri) {
                     var _this = this;
-                    this.ensureIsManager();
+                    this.ensureIsRealityManager();
                     var session = this.sessionPortFactory.create(uri);
                     session.errorEvent.addEventListener(function (error) {
                         _this.errorEvent.raiseEvent(error);
@@ -5917,52 +5939,50 @@ $__System.register('10', ['a', 'c', 'f', '12'], function (exports_1, context_1) 
                     return session;
                 };
                 /**
-                 * Creates a session port that is not managed by this service.
-                 * Unmanaged session ports will not forward any events to
-                 * this object.
+                 * Creates a [[SessionPort]] that is not managed by the current [[ArgonSystem]].
+                 * Unmanaged session ports will not forward open events or error events
+                 * to this [[ArgonSystem]].
                  * @return a new SessionPort instance
                  */
                 SessionService.prototype.createSessionPort = function (uri) {
                     return this.sessionPortFactory.create(uri);
                 };
                 /**
-                 * Creates a message channel.
-                 * @return a new MessageChannel instance
+                 * Creates a message channel which asyncrhonously sends and receives messages.
                  */
                 SessionService.prototype.createMessageChannel = function () {
                     return this.messageChannelFactory.create();
                 };
                 /**
-                 * Creates a synchronous message channel.
-                 * @return a new SynchronousMessageChannel instance
+                 * Creates a message channel which syncrhonously sends and receives messages.
                  */
                 SessionService.prototype.createSynchronousMessageChannel = function () {
                     return this.messageChannelFactory.createSynchronous();
                 };
-                Object.defineProperty(SessionService.prototype, "isManager", {
+                Object.defineProperty(SessionService.prototype, "isRealityManager", {
                     /**
-                     * Returns true if this session is the Manager
+                     * Returns true if this system represents a [[REALITY_MANAGER]]
                      */
                     get: function () {
-                        return this.configuration.role === common_1.Role.MANAGER;
+                        return this.configuration.role === common_1.Role.REALITY_MANAGER || this.configuration.role === common_1.Role.MANAGER; // TODO: phase out of using Role.MANAGER enum
                     },
                     enumerable: true,
                     configurable: true
                 });
-                Object.defineProperty(SessionService.prototype, "isApplication", {
+                Object.defineProperty(SessionService.prototype, "isRealityAugmenter", {
                     /**
-                     * Returns true if this session is an Application, meaning,
-                     * it is running within a Manager.
+                     * Returns true if this system represents a [[REALITY_AUGMENTOR]], meaning,
+                     * it is running within a [[REALITY_MANAGER]]
                      */
                     get: function () {
-                        return this.configuration.role === common_1.Role.APPLICATION;
+                        return this.configuration.role === common_1.Role.REALITY_AUGMENTOR || this.configuration.role === common_1.Role.APPLICATION; // TODO: phase out use of Role.APPLICATION
                     },
                     enumerable: true,
                     configurable: true
                 });
                 Object.defineProperty(SessionService.prototype, "isRealityView", {
                     /**
-                     * Returns true if this session is a Reality View
+                     * Returns true if this system is a [[REALITY_VIEW]]
                      */
                     get: function () {
                         return this.configuration.role === common_1.Role.REALITY_VIEW;
@@ -5970,30 +5990,50 @@ $__System.register('10', ['a', 'c', 'f', '12'], function (exports_1, context_1) 
                     enumerable: true,
                     configurable: true
                 });
+                Object.defineProperty(SessionService.prototype, "isManager", {
+                    /**
+                     * @private
+                     */
+                    get: function () {
+                        console.warn("Deprecated. Use isRealityManager()");return this.isManager;
+                    },
+                    enumerable: true,
+                    configurable: true
+                });
+                Object.defineProperty(SessionService.prototype, "isApplication", {
+                    /**
+                     * @private
+                     */
+                    get: function () {
+                        console.warn("Deprecated. Use isRealityAugmenter()");return this.isRealityAugmenter;
+                    },
+                    enumerable: true,
+                    configurable: true
+                });
                 /**
-                 * Throws an error if this session is not a manager
+                 * Throws an error if this system is not a [[REALITY_MANAGER]]
                  */
-                SessionService.prototype.ensureIsManager = function () {
-                    if (!this.isManager) throw new Error('An manager-only API was accessed in a non-manager session.');
+                SessionService.prototype.ensureIsRealityManager = function () {
+                    if (!this.isRealityManager) throw new Error('An reality-manager only API was accessed from a non reality-manager.');
                 };
                 /**
-                 * Throws an error if this session is not a reality
+                 * Throws an error if this session is not a [[REALITY_VIEW]]
                  */
-                SessionService.prototype.ensureIsReality = function () {
-                    if (!this.isRealityView) throw new Error('An reality-only API was accessed in a non-reality session.');
+                SessionService.prototype.ensureIsRealityView = function () {
+                    if (!this.isRealityView) throw new Error('An reality-view only API was accessed from a non reality-view.');
                 };
                 /**
-                 * Throws an error if this session is a reality
+                 * Throws an error if this session is a [[REALITY_VIEW]]
                  */
-                SessionService.prototype.ensureNotReality = function () {
-                    if (this.isRealityView) throw new Error('An non-reality API was accessed in a reality session.');
+                SessionService.prototype.ensureNotRealityView = function () {
+                    if (this.isRealityView) throw new Error('An non-permitted API was accessed from a reality-view.');
                 };
                 SessionService = __decorate([aurelia_dependency_injection_1.inject('config', ConnectService, SessionPortFactory, utils_1.MessageChannelFactory)], SessionService);
                 return SessionService;
             }();
             exports_1("SessionService", SessionService);
             /**
-             * Connect this session to itself as the manager.
+             * Connect the current [[ArgonSystem]] to itself as the [[REALITY_MANAGER]].
              */
             LoopbackConnectService = function (_super) {
                 __extends(LoopbackConnectService, _super);
@@ -6002,7 +6042,6 @@ $__System.register('10', ['a', 'c', 'f', '12'], function (exports_1, context_1) 
                 }
                 /**
                  * Create a loopback connection.
-                 * @param sessionService The session service instance.
                  */
                 LoopbackConnectService.prototype.connect = function (sessionService) {
                     var messageChannel = sessionService.createSynchronousMessageChannel();
@@ -6019,7 +6058,8 @@ $__System.register('10', ['a', 'c', 'f', '12'], function (exports_1, context_1) 
             }(ConnectService);
             exports_1("LoopbackConnectService", LoopbackConnectService);
             /**
-             * Connect this session to the manager via the parent document (assuming this system is running in an iFrame).
+             * Connect this [[ArgonSystem]] to the [[REALITY_MANAGER]] via the parent document
+             * (assuming this system is running in an iFrame).
              */
             DOMConnectService = function (_super) {
                 __extends(DOMConnectService, _super);
@@ -6028,14 +6068,12 @@ $__System.register('10', ['a', 'c', 'f', '12'], function (exports_1, context_1) 
                 }
                 /**
                   * Check whether this connect method is available or not.
-                  * @return true if this method is availble, otherwise false
                   */
                 DOMConnectService.isAvailable = function () {
                     return typeof window !== 'undefined' && typeof window.parent !== 'undefined';
                 };
                 /**
                  * Connect to the manager.
-                 * @param sessionService The session service instance.
                  */
                 DOMConnectService.prototype.connect = function (sessionService) {
                     var messageChannel = sessionService.createMessageChannel();
@@ -6055,14 +6093,12 @@ $__System.register('10', ['a', 'c', 'f', '12'], function (exports_1, context_1) 
                 }
                 /**
                  * Check whether this connect method is available or not.
-                 * @return true if this method is availble, otherwise false
                  */
                 DebugConnectService.isAvailable = function () {
                     return typeof window !== 'undefined' && !!window['__ARGON_DEBUG_PORT__'];
                 };
                 /**
                  * Connect to the manager.
-                 * @param sessionService The session service instance.
                  */
                 DebugConnectService.prototype.connect = function (_a) {
                     var manager = _a.manager,
@@ -6073,7 +6109,7 @@ $__System.register('10', ['a', 'c', 'f', '12'], function (exports_1, context_1) 
             }(ConnectService);
             exports_1("DebugConnectService", DebugConnectService);
             /**
-             * A service which connects this system to the manager via a WKWebview message handler.
+             * A service which connects this system to the [[REALITY_MANAGER]] via a WKWebview message handler.
              */
             WKWebViewConnectService = function (_super) {
                 __extends(WKWebViewConnectService, _super);
@@ -6082,14 +6118,12 @@ $__System.register('10', ['a', 'c', 'f', '12'], function (exports_1, context_1) 
                 }
                 /**
                  * Check whether this connect method is available or not.
-                 * @return true if this method is availble, otherwise false
                  */
                 WKWebViewConnectService.isAvailable = function () {
                     return typeof window !== 'undefined' && window['webkit'] && window['webkit'].messageHandlers;
                 };
                 /**
                  * Connect to the manager.
-                 * @param sessionService The session service instance.
                  */
                 WKWebViewConnectService.prototype.connect = function (sessionService) {
                     var messageChannel = sessionService.createSynchronousMessageChannel();
@@ -6197,7 +6231,7 @@ $__System.register('11', ['c', 'a', 'f', '14', '10', '12'], function (exports_1,
                     this._scratchFrustum = new cesium_imports_1.PerspectiveFrustum();
                     this._scratchArray = new Array();
                     this._loadID = -1;
-                    if (sessionService.isManager) {
+                    if (sessionService.isRealityManager) {
                         sessionService.manager.connectEvent.addEventListener(function () {
                             setTimeout(function () {
                                 if (_this._loadID === -1) _this._setNextReality(_this.onSelectReality());
@@ -6264,7 +6298,7 @@ $__System.register('11', ['c', 'a', 'f', '14', '10', '12'], function (exports_1,
                 }
                 Object.defineProperty(RealityService.prototype, "changeEvent", {
                     get: function () {
-                        this.sessionService.ensureIsManager();
+                        this.sessionService.ensureIsRealityManager();
                         return this._changeEvent;
                     },
                     enumerable: true,
@@ -6272,7 +6306,7 @@ $__System.register('11', ['c', 'a', 'f', '14', '10', '12'], function (exports_1,
                 });
                 Object.defineProperty(RealityService.prototype, "frameEvent", {
                     get: function () {
-                        this.sessionService.ensureIsManager();
+                        this.sessionService.ensureIsRealityManager();
                         return this._frameEvent;
                     },
                     enumerable: true,
@@ -6288,7 +6322,7 @@ $__System.register('11', ['c', 'a', 'f', '14', '10', '12'], function (exports_1,
                  * Manager-only. Register a reality loader
                  */
                 RealityService.prototype.registerLoader = function (handler) {
-                    this.sessionService.ensureIsManager();
+                    this.sessionService.ensureIsRealityManager();
                     this._loaders.push(handler);
                 };
                 /**
@@ -6296,7 +6330,7 @@ $__System.register('11', ['c', 'a', 'f', '14', '10', '12'], function (exports_1,
                  * @deprecated. Use app.context.getCurrentReality()
                  */
                 RealityService.prototype.getCurrent = function () {
-                    this.sessionService.ensureIsManager();
+                    this.sessionService.ensureIsRealityManager();
                     return this._current;
                 };
                 /**
@@ -6305,14 +6339,14 @@ $__System.register('11', ['c', 'a', 'f', '14', '10', '12'], function (exports_1,
                 * @return true if a handler exists and false otherwise
                 */
                 RealityService.prototype.isSupported = function (reality) {
-                    this.sessionService.ensureIsManager();
+                    this.sessionService.ensureIsRealityManager();
                     return !!this._getLoader(reality);
                 };
                 /**
                  * Reality-only. Publish the next frame state.
                  */
                 RealityService.prototype.publishFrame = function (state) {
-                    this.sessionService.ensureIsReality();
+                    this.sessionService.ensureIsRealityView();
                     if (this.sessionService.manager.isConnected) {
                         this.sessionService.manager.send('ar.reality.frameState', state);
                     }
@@ -6321,9 +6355,9 @@ $__System.register('11', ['c', 'a', 'f', '14', '10', '12'], function (exports_1,
                  * Set the desired reality.
                  */
                 RealityService.prototype.setDesired = function (reality) {
-                    this.sessionService.ensureNotReality();
+                    this.sessionService.ensureNotRealityView();
                     this._desired = reality;
-                    if (this.sessionService.isManager) {
+                    if (this.sessionService.isRealityManager) {
                         this._setNextReality(reality, true);
                     } else {
                         this.sessionService.manager.send('ar.reality.desired', { reality: reality });
@@ -6395,7 +6429,7 @@ $__System.register('11', ['c', 'a', 'f', '14', '10', '12'], function (exports_1,
                 * realities have been requested.
                 */
                 RealityService.prototype.onSelectReality = function () {
-                    this.sessionService.ensureIsManager();
+                    this.sessionService.ensureIsRealityManager();
                     var selectedReality = this.desiredRealityMap.get(this.sessionService.manager);
                     if (!selectedReality) {
                         var focusSession = this.focusService.getSession();
@@ -6562,7 +6596,7 @@ $__System.register('11', ['c', 'a', 'f', '14', '10', '12'], function (exports_1,
                     }
                 };
                 RealityService.prototype._executeRealityLoader = function (reality, callback) {
-                    this.sessionService.ensureIsManager();
+                    this.sessionService.ensureIsRealityManager();
                     var loader = this._getLoader(reality);
                     if (!loader) throw new Error('Unable to setup unsupported reality type: ' + reality.uri);
                     loader.load(reality, callback);
@@ -6701,7 +6735,7 @@ $__System.register('17', ['c', 'a', '10', 'b', '12', '14', '11'], function (expo
                             }
                         });
                     }
-                    if (this.sessionService.isManager) {
+                    if (this.sessionService.isRealityManager) {
                         this.sessionService.connectEvent.addEventListener(function (session) {
                             session.on['ar.viewport.desired'] = function (viewport) {
                                 _this.desiredViewportMap.set(session, viewport);
@@ -6807,7 +6841,7 @@ $__System.register('17', ['c', 'a', '10', 'b', '12', '14', '11'], function (expo
                     this.realityService = realityService;
                     this.contextService = contextService;
                     this.sessionService = sessionService;
-                    if (this.sessionService.isManager) {
+                    if (this.sessionService.isRealityManager) {
                         this.viewService.containingElementPromise.then(function (el) {
                             el.style.pointerEvents = 'auto';
                             var fov = -1;
@@ -11156,7 +11190,7 @@ define("56", ["55", "23", "1a", "1c"], function(Uri, defaultValue, defined, Deve
 })();
 (function() {
 var define = $__System.amdDefine;
-define("57", ["55", "1a", "1c", "54", "56", "require"], function(Uri, defined, DeveloperError, getAbsoluteUri, joinUrls, require) {
+define("57", ["55", "1a", "1c", "54", "56", "require"], function(Uri, defined, DeveloperError, getAbsoluteUri, joinUrls, _dereq_) {
   'use strict';
   var cesiumScriptRegex = /((?:.*\/)|^)cesium[\w-]*\.js(?:\W|$)/i;
   function getBaseUrlFromCesiumScript() {
@@ -11189,7 +11223,7 @@ define("57", ["55", "1a", "1c", "54", "56", "require"], function(Uri, defined, D
     return baseUrl;
   }
   function buildModuleUrlFromRequireToUrl(moduleID) {
-    return require.toUrl('../' + moduleID);
+    return _dereq_.toUrl('../' + moduleID);
   }
   function buildModuleUrlFromBaseUrl(moduleID) {
     return joinUrls(getCesiumBaseUrl(), moduleID);
@@ -11198,7 +11232,7 @@ define("57", ["55", "1a", "1c", "54", "56", "require"], function(Uri, defined, D
   var a;
   function buildModuleUrl(moduleID) {
     if (!defined(implementation)) {
-      if (defined(require.toUrl)) {
+      if (defined(_dereq_.toUrl)) {
         implementation = buildModuleUrlFromRequireToUrl;
       } else {
         implementation = buildModuleUrlFromBaseUrl;
@@ -20648,6 +20682,14 @@ $__System.register('1', ['2', 'c', 'a', '7', '10', 'f', 'b', '9', '14', '11', 'd
     var __moduleName = context_1 && context_1.id;
     var DI, Cesium, URI, session_1, common_1, context_2, device_1, focus_1, reality_1, timer_1, view_1, vuforia_1, empty_1, live_video_1, hosted_1;
     var ArgonSystem;
+    /**
+     * Create an ArgonSystem instance.
+     * If we are running within a [[REALITY_MANAGER]],
+     * this function will create an ArgonSystem which has the [[REALITY_AUGMENTOR]] role.
+     * If we are not running within a [[REALITY_MANAGER]],
+     * this function will create an ArgonSystem which has the [[REALITY_MANAGER]] role.
+     * @param initParameters InitParameters
+     */
     function init(_a) {
         var _b = _a === void 0 ? {} : _a,
             configuration = _b.configuration,
@@ -20655,11 +20697,11 @@ $__System.register('1', ['2', 'c', 'a', '7', '10', 'f', 'b', '9', '14', '11', 'd
             container = _c === void 0 ? new DI.Container() : _c;
         var role;
         if (typeof HTMLElement === 'undefined') {
-            role = common_1.Role.MANAGER;
+            role = common_1.Role.REALITY_MANAGER;
         } else if (navigator.userAgent.indexOf('Argon') > 0 || window.top !== window) {
-            role = common_1.Role.APPLICATION;
+            role = common_1.Role.APPLICATION; // TODO: switch to below after next argon-app release
         } else {
-            role = common_1.Role.MANAGER;
+            role = common_1.Role.REALITY_MANAGER;
         }
         var config = Object.assign(configuration || {}, {
             role: role
@@ -20668,6 +20710,9 @@ $__System.register('1', ['2', 'c', 'a', '7', '10', 'f', 'b', '9', '14', '11', 'd
         return new ArgonSystem(config, container);
     }
     exports_1("init", init);
+    /**
+     * Initialize an [[ArgonSystem]] with the [[REALITY_VIEW]] role
+     */
     function initReality(_a) {
         var _b = _a === void 0 ? {} : _a,
             configuration = _b.configuration,
@@ -20681,13 +20726,17 @@ $__System.register('1', ['2', 'c', 'a', '7', '10', 'f', 'b', '9', '14', '11', 'd
         return new ArgonSystem(config, container);
     }
     exports_1("initReality", initReality);
+    /**
+     * Not yet implemented.
+     * @private
+     */
     function initLocal(_a) {
         var containerElement = _a.containerElement,
             configuration = _a.configuration,
             _b = _a.container,
             container = _b === void 0 ? new DI.Container() : _b;
         var config = Object.assign(configuration || {}, {
-            role: common_1.Role.MANAGER
+            role: common_1.Role.REALITY_MANAGER
         });
         container.registerInstance('containerElement', containerElement);
         return new ArgonSystem(config, container);
@@ -20763,7 +20812,11 @@ $__System.register('1', ['2', 'c', 'a', '7', '10', 'f', 'b', '9', '14', '11', 'd
             exports_1("LiveVideoRealityLoader", live_video_1.LiveVideoRealityLoader);
             exports_1("HostedRealityLoader", hosted_1.HostedRealityLoader);
             /**
-             * A composition root which instantiates the object graph based on a provided configuration
+             * A composition root which instantiates the object graph based on a provided configuration.
+             * You generally want to create a new ArgonSystem via the provided [[init]] or [[initReality]] functions:
+             * ```ts
+             * var app = Argon.init(); // app is an instance of ArgonSystem
+             * ```
              */
             ArgonSystem = function () {
                 function ArgonSystem(config, container) {
@@ -20775,7 +20828,7 @@ $__System.register('1', ['2', 'c', 'a', '7', '10', 'f', 'b', '9', '14', '11', 'd
                     container.registerInstance('config', config);
                     container.registerInstance(ArgonSystem, this);
                     if (!container.hasResolver('containerElement')) container.registerInstance('containerElement', null);
-                    if (config.role === common_1.Role.MANAGER) {
+                    if (config.role === common_1.Role.REALITY_MANAGER) {
                         container.registerSingleton(session_1.ConnectService, session_1.LoopbackConnectService);
                     } else if (session_1.WKWebViewConnectService.isAvailable()) {
                         container.registerSingleton(session_1.ConnectService, session_1.WKWebViewConnectService);
@@ -20784,7 +20837,7 @@ $__System.register('1', ['2', 'c', 'a', '7', '10', 'f', 'b', '9', '14', '11', 'd
                     } else if (session_1.DebugConnectService.isAvailable()) {
                         container.registerSingleton(session_1.ConnectService, session_1.DebugConnectService);
                     }
-                    if (config.role === common_1.Role.MANAGER) {
+                    if (config.role === common_1.Role.REALITY_MANAGER) {
                         this.reality.registerLoader(container.get(empty_1.EmptyRealityLoader));
                         this.reality.registerLoader(container.get(live_video_1.LiveVideoRealityLoader));
                         if (typeof document !== 'undefined') {

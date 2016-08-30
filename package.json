@@ -38,9 +38,11 @@
     "url": "https://github.com/argonjs/argon-aframe/issues"
   },
   "homepage": "https://github.com/argonjs/argon-aframe#readme",
-  "devDependencies": {
+  "dependencies": {
     "aframe": "file:../aframe",
-    "argon": "file:../argon",
+    "argon": "file:../argon"
+  },
+  "devDependencies": {
     "browserify": "^12.0.1",
     "budo": "^7.1.0",
     "chai": "^3.4.1",
