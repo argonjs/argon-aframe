@@ -305,8 +305,7 @@ cost (higher resolution elements yield higher resolution textures and are slower
 
 A common need in geospatial AR is to size elements (such as labels) a constant size no
 matter where in 3D they appear.  The `fixedsize` component does that.  It takes one 
-property, representing the scale value that would be applied to the object if it were 
-1 meter from the viewer.  The object is then scaled to that size each frame taking the distance
+property, representing how big 1m in the entity should be in CSS pixels on the screen.  The object is then scaled to that size each frame taking the distance
 from the camera into account.
 
 ```html
@@ -315,13 +314,15 @@ from the camera into account.
         <img id="buzzpin" src="../resources/textures/buzz-pin.png">
       </a-assets>
       <ar-geopose id="GT" lla=" -84.398881 33.778463" userotation="false"> 
-         <a-entity billboard fixedsize="0.05">
+         <a-entity billboard fixedsize="20">
            <a-plane rotation="0 90 0" width="2.9" height="4" src="#buzzpin" transparent="true"></a-plane>
            <a-entity css-object="div: #mydiv" scale="0.02 0.02 0.02" position="0 4 0"></a-entity>
         </a-entity>
       </ar-geopose>
     </ar-scene>
 ```
+
+In this example, the `#buzzpin` plane would be approximately 80 pixels tall on the screen.
 
 ### Properties
 

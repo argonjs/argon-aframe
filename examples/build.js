@@ -934,11 +934,13 @@ AFRAME.registerComponent('fixedsize', {
 
   init: function () {
       this.scale = 1;
+      this.factor = 1;
   },
 
   update: function () {
     var data = this.data;
     this.scale = data === 0 ? zeroScale : data;
+    this.factor = 2 * (this.scale / screen.height);
   },
 
   tick: function (t) {
@@ -950,8 +952,11 @@ AFRAME.registerComponent('fixedsize', {
     var thisPos = object3D.getWorldPosition();
     var distance = thisPos.distanceTo(cameraPos);
 
+    // let's get the fov scale factor from the camera
+    fovScale = Math.tan(THREE.Math.degToRad(camera.fov) / 2) * 2;
+
     // if distance < near clipping plane, just use scale.  Don't go any bigger
-    var factor = distance < camera.near ? this.scale : distance * this.scale;
+    var factor = fovScale * (distance < camera.near ? this.factor : distance * this.factor);
     object3D.scale.set(factor, factor, factor);
   }
 });
