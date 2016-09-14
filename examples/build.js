@@ -1416,20 +1416,31 @@ AFRAME.registerElement('ar-scene', {
         this.addEventListener('loaded', function () {
           if (this.renderStarted) { return; }
 
-
-          // if there are any cameras aside from the AR-CAMERA loaded, 
-          // make them inactive.
-          this.addEventListener('camera-set-active', function () {
+          var fixCamera = function () {
             var arCameraEl = null;
-            var cameraEls = this.querySelectorAll('[camera]');
+            var cameraEls = self.querySelectorAll('[camera]');
             for (i = 0; i < cameraEls.length; i++) {
                 cameraEl = cameraEls[i];
                 if (cameraEl.tagName === "AR-CAMERA") { 
                   arCameraEl = cameraEl;
                   continue; 
                 }
-                cameraEl.setAttribute('camera', 'active', false);
-                cameraEl.pause();
+
+                // work around the issue where if this entity was added during 
+                // this sequence of loaded listeners, it will not yet have had
+                // it's attachedCallback called, which means sceneEl won't yet
+                // have been added in a-node.js.  When it's eventually added,
+                // a-node will fire nodeready.  
+                if (cameraEl.sceneEl) {
+                  cameraEl.setAttribute('camera', 'active', false);
+                  cameraEl.pause();
+                } else {
+                  var cameraToDeactivate = cameraEl;
+                  cameraEl.addEventListener('nodeready', function() {
+                    cameraToDeactivate.setAttribute('camera', 'active', false);
+                    cameraToDeactivate.pause();
+                  });
+                }
             }
 
             if (arCameraEl == null) {
@@ -1438,9 +1449,12 @@ AFRAME.registerElement('ar-scene', {
                 defaultCameraEl.setAttribute(constants.AFRAME_INJECTED, '');
                 self.appendChild(defaultCameraEl);
             }
-          });
-
-
+          }
+          // if there are any cameras aside from the AR-CAMERA loaded, 
+          // make them inactive.
+          this.addEventListener('camera-set-active', fixCamera);
+          fixCamera();
+          
           if (this.argonApp) {
               self.addEventListeners();
           } else {
