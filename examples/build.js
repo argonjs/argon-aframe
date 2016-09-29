@@ -4,8 +4,8 @@ require('../src/ar-components.js');
 require('../src/ar-referenceframe.js');
 require('../src/css-object.js');
 require('../src/ar-vuforia.js');
-require('../src/shadow-material.js');
-},{"../src/ar-components.js":6,"../src/ar-referenceframe.js":7,"../src/ar-scene.js":8,"../src/ar-vuforia.js":9,"../src/css-object.js":10,"../src/shadow-material.js":11}],2:[function(require,module,exports){
+require('../src/panorama-reality.js');
+},{"../src/ar-components.js":6,"../src/ar-referenceframe.js":7,"../src/ar-scene.js":8,"../src/ar-vuforia.js":9,"../src/css-object.js":10,"../src/panorama-reality.js":11}],2:[function(require,module,exports){
 /**
  * Animation configuration options for TWEEN.js animations.
  * Used by `<a-animation>`.
@@ -938,9 +938,10 @@ AFRAME.registerComponent('fixedsize', {
   },
 
   update: function () {
+    var self = this;
     var data = this.data;
     this.scale = data === 0 ? zeroScale : data;
-    this.factor = 2 * (this.scale / screen.height);
+
   },
 
   tick: function (t) {
@@ -951,6 +952,10 @@ AFRAME.registerComponent('fixedsize', {
     var cameraPos = camera.getWorldPosition();
     var thisPos = object3D.getWorldPosition();
     var distance = thisPos.distanceTo(cameraPos);
+
+    // base the factor on the viewport height
+    var viewport = this.el.sceneEl.argonApp.view.getViewport();
+    this.factor = 2 * (this.scale / viewport.height); 
 
     // let's get the fov scale factor from the camera
     fovScale = Math.tan(THREE.Math.degToRad(camera.fov) / 2) * 2;
@@ -985,6 +990,40 @@ AFRAME.registerComponent('trackvisibility', {
     console.log("updated TEST COMPONENT")
   }
 }); 
+
+AFRAME.registerComponent('desiredreality', {
+    schema: {
+        src: {type: 'src'},
+        name: {default: "Custom Reality"}
+    },
+    
+    init: function () {
+        var el = this.el;
+
+        if (!el.isArgon) {
+            console.warn('vuforiadataset should be attached to an <ar-scene>.');
+        }
+    },
+
+    remove: function () {
+        var el = this.el;
+        if (el.isArgon) {
+          el.argonApp.reality.setDesired(null);
+        }
+    },
+
+    update: function () {
+        var el = this.el;
+        var data = this.data;
+
+        if (el.isArgon) {
+          el.argonApp.reality.setDesired({
+            title: data.name,
+            uri: Argon.resolveURL(data.src)
+          });
+        }
+    }
+});
 },{}],7:[function(require,module,exports){
 var Cesium = Argon.Cesium;
 var Cartesian3 = Cesium.Cartesian3;
@@ -2268,23 +2307,100 @@ AFRAME.registerComponent('css-object', {
 });
 
 },{}],11:[function(require,module,exports){
-AFRAME.registerShader('shadow', {
-  schema: {
-  },
+AFRAME.registerComponent('panorama', {
+    multiple: true,
 
-  /**
-   * Initializes the shader.
-   * Adds a reference from the scene to this entity as the camera.
-   */
-  init: function (data) {
-    this.textureSrc = null;
-    this.material = new THREE.ShadowMaterial();
-    AFRAME.utils.material.updateMap(this, data);
-  },
+    schema: {
+        src: {type: 'src'},
+        lla: {type: 'vec3'},
+        initial: {default: false},
+        offsetdegrees: {default: 0},
+        easing: {default: "Quadratic.InOut"},
+        duration: {default: 500}
+    },
 
-  update: function (data) {
-    AFRAME.utils.material.updateMap(this, data);
-  },
+    init: function () {
+        var el = this.el;
+
+        this.name = "default";
+        this.active = false;
+        this.panoRealitySession = undefined;
+        this.panorama = undefined;
+        this.showOptions = undefined;
+
+        if (!el.isArgon) {
+            console.warn('panorama should be attached to an <ar-scene>.');
+        } else {
+            el.argonApp.reality.connectEvent.addEventListener(this.realityWatcher.bind(this));
+            el.addEventListener("showpanorama", this.showPanorama.bind(this));
+        }
+    },
+
+    update: function (oldData) {
+        var sceneEl = this.el.sceneEl;
+        this.name = this.id ? this.id : "default";
+
+        this.panorama = {
+            name: this.name,
+            url: Argon.resolveURL(this.data.src),
+            longitude: this.data.lla.x,
+            latitude: this.data.lla.y,
+            height: this.data.lla.z,
+            offsetDegrees: this.data.offsetdegrees
+        };
+        this.showOptions = {
+            url: Argon.resolveURL(this.data.src),
+            transition: {
+                easing: this.data.easing,
+                duration: this.data.duration
+            }            
+        }
+    },
+
+    realityWatcher: function(session) {
+        // check if the connected supports our panorama protocol
+        if (session.supportsProtocol('edu.gatech.ael.panorama')) {
+            // save a reference to this session so our buttons can send messages
+            this.panoRealitySession = session
+
+            // load our panorama
+            this.panoRealitySession.request('edu.gatech.ael.panorama.loadPanorama', this.panorama);
+  
+            if (this.data.initial) {
+                // show yourself!
+                this.el.emit("showpanorama", {name: this.name});
+            }
+
+            session.closeEvent.addEventListener(()=>{
+                this.panoRealitySession = undefined;
+            })
+        }
+    },
+
+    showPanorama: function(evt) {
+        if (evt.detail.name === this.name) { 
+            this.active = true;
+
+            if (this.panoRealitySession) {
+                this.panoRealitySession.request('edu.gatech.ael.panorama.showPanorama', this.showOptions).then(()=>{
+                    console.log("showing panorama: " + this.name);
+
+                    this.el.emit('showpanorama-success', {
+                        name: this.name
+                    });     
+                }).catch(function(err) {
+                    console.log("couldn't show panorama: " + err.message);
+
+                    this.el.emit('showpanorama-failed', {
+                        name: this.name,
+                        error: err
+                    });     
+                });                     
+            }   
+        } else {
+            this.active = false;
+        }
+    }
 });
 
 },{}]},{},[1]);

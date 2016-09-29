@@ -197,8 +197,8 @@ is successfully initialized with the key provided above).
 
 Multiple components can be specified with the multiple component syntax 
 (`vuforiadataset__` plus a name).  The name extension (after the `__`) becomes the identity
-of that dataset, and is used to create the names of the vuforia targets.  For example, in 
-this example:
+of that dataset, and is used to create the names of the vuforia targets.  The name extension 
+must be lower case. For example, in this example:  
 
 ```html
 <ar-scene vuforiakey="#vuforiakey"
@@ -300,6 +300,74 @@ cost (higher resolution elements yield higher resolution textures and are slower
 |------------|---------------------------------------------------------------------------------------------------------------------------------|---------------|
 | div  | The HTML element reference for the div. | must be specified |
 | div2 | The optional element element reference for the right stereo div. | null |
+
+# Custom Realities
+
+The `desiredreality` component is added to the `<ar-scene>` entity to specify that a custom
+reality should be used. Argon will attempt to immediately install the custom reality.
+
+The properties of the component specify a name for the reality (that will appear in Argon4's 
+reality chooser) and a URL for reality HTML file.  
+
+```html
+<ar-scene desiredreality="src:url(../resources/reality/panorama/index.html);">
+</ar-scene>
+```
+
+Removing the attribute reverts to the default reality for the browser (NOTE: a known bug in argon.js prevents this from working,
+it will be fixed soon.)
+
+### Properties
+
+The `desiredreality` component takes two properties.
+
+| Property   | Description                                                                                                                     | Default Value |
+|------------|---------------------------------------------------------------------------------------------------------------------------------|---------------|
+| src  | The URL of the reality. | must be specified |
+| name | A human readable name for this reality. | "default" |
+
+## Panorama Reality
+
+The `panorama` component is added to the `<ar-scene>` entity to specify a geopositioned panoramic image for the custom
+panorama reality (the panorama reality implements the "ael.gatech.panorama" reality protocol). 
+
+Multiple components can be specified with the multiple component syntax 
+(`panorama__` plus a name).  The name extension (after the `__`) becomes the identity
+of that panorama, and is used to show the panorama by emitting a "showpanorama" event on 
+the `<ar-scene>`.  For example, in this example:
+
+```html
+<ar-scene desiredreality="src:url(../resources/reality/panorama/index.html);"
+      panorama__aqui="src:url(/panorama/panoramas/aqui.jpg);lla:-84.3951 33.7634 206;initial:true;">
+</ar-scene>
+```
+the panorama has the identity `aqui`, and so it can be shown in the panoramic reality by emiting an event:
+```
+var arScene = document.querySelector('ar-scene');
+var menu = document.getElementById('menu');
+
+var button = document.createElement('button');
+button.textContent = "Aquarium";
+menu.appendChild(button);
+// when a button is tapped, have the reality fade in the corresponding panorama
+button.addEventListener('click', function () {
+    arScene.sceneEl.emit('showpanorama', { name: "aqui" });     
+});
+```
+
+If the `initial` property is true, argon.js will attempt to load the panorama when the 
+panorama reality is activated.
+
+### Properties
+
+| Property   | Description                                                                                                                     | Default Value |
+|------------|---------------------------------------------------------------------------------------------------------------------------------|---------------|
+| src  | The URL of the panoramic image. | must be specified |
+| initial | Is this panorama shown as the first panorama. | false |
+| lla        | The logitude, latitude and (optional) altitude of the entity. | required |
+| offsetdegrees | The yaw orientation offset, to align the panorama with north | 0 |
+| easing | Tween.js easing function for transitioning to this panorama | "Quadratic.InOut" |
+| duration | duration of the transition in milliseconds | 500 |
 
 ## Fixed Size Element
 

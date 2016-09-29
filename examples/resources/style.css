@@ -11,6 +11,7 @@ a {
 	bottom: 0;
 	width: 100%;
 	text-align: center;
+    pointer-events: auto;
 }
 
 .label {
@@ -47,4 +48,23 @@ a {
     border: 0px;
     margin-bottom: 0px;
     padding: 0px 0px;
+}
+
+button {
+    opacity: 0.5;
+    text-align: center;
+    color: black;
+    background: rgba(127,255,255,0.85);
+    outline: 5px solid rgba(12,25,25,1.0);
+    border: 0px;
+    margin-bottom: 0px;
+    font-size: 16;
+	border: 0px;
+	padding: 5px 10px;
+	cursor: pointer;
+    margin: 10px;
+}
+button:hover {
+    color: rgba(127,255,255,0.85);
+    background: black;
 }

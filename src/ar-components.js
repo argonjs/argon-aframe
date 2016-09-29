@@ -11,9 +11,10 @@ AFRAME.registerComponent('fixedsize', {
   },
 
   update: function () {
+    var self = this;
     var data = this.data;
     this.scale = data === 0 ? zeroScale : data;
-    this.factor = 2 * (this.scale / screen.height);
+
   },
 
   tick: function (t) {
@@ -24,6 +25,10 @@ AFRAME.registerComponent('fixedsize', {
     var cameraPos = camera.getWorldPosition();
     var thisPos = object3D.getWorldPosition();
     var distance = thisPos.distanceTo(cameraPos);
+
+    // base the factor on the viewport height
+    var viewport = this.el.sceneEl.argonApp.view.getViewport();
+    this.factor = 2 * (this.scale / viewport.height); 
 
     // let's get the fov scale factor from the camera
     fovScale = Math.tan(THREE.Math.degToRad(camera.fov) / 2) * 2;
@@ -41,7 +46,6 @@ AFRAME.registerComponent('trackvisibility', {
 
   init: function () {
     var self = this;
-    console.log("INIT TEST COMPONENT");
     this.el.sceneEl.addEventListener('referenceframe-statuschanged', function(evt) {
         self.updateVisibility(evt);
     });
@@ -55,6 +59,39 @@ AFRAME.registerComponent('trackvisibility', {
   },
 
   update: function () {
-    console.log("updated TEST COMPONENT")
   }
 }); 
+
+AFRAME.registerComponent('desiredreality', {
+    schema: {
+        src: {type: 'src'},
+        name: {default: "Custom Reality"}
+    },
+    
+    init: function () {
+        var el = this.el;
+
+        if (!el.isArgon) {
+            console.warn('vuforiadataset should be attached to an <ar-scene>.');
+        }
+    },
+
+    remove: function () {
+        var el = this.el;
+        if (el.isArgon) {
+          el.argonApp.reality.setDesired(undefined);
+        }
+    },
+
+    update: function () {
+        var el = this.el;
+        var data = this.data;
+
+        if (el.isArgon) {
+          el.argonApp.reality.setDesired({
+            title: data.name,
+            uri: Argon.resolveURL(data.src)
+          });
+        }
+    }
+});
