@@ -62,8 +62,15 @@ AFRAME.registerElement('ar-scene', {
         this.originalHTML = this.innerHTML;
 
         // let's initialize argon immediately, but wait till the document is
-        // loaded to set up the DOM parts
-        this.argonApp = Argon.init();
+        // loaded to set up the DOM parts.
+        //
+        // Check if Argon is already initialized, don't call init() again if so
+        if (!Argon.ArgonSystem.instance) { 
+            this.argonApp = Argon.init();
+        } else {
+            this.argonApp = Argon.ArgonSystem.instance;
+        }
+
         this.argonApp.context.setDefaultReferenceFrame(this.argonApp.context.localOriginEastUpSouth);
 
         this.argonRender = this.argonRender.bind(this);

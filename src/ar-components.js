@@ -11,10 +11,8 @@ AFRAME.registerComponent('fixedsize', {
   },
 
   update: function () {
-    var self = this;
     var data = this.data;
     this.scale = data === 0 ? zeroScale : data;
-
   },
 
   tick: function (t) {

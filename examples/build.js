@@ -938,10 +938,8 @@ AFRAME.registerComponent('fixedsize', {
   },
 
   update: function () {
-    var self = this;
     var data = this.data;
     this.scale = data === 0 ? zeroScale : data;
-
   },
 
   tick: function (t) {
@@ -973,7 +971,6 @@ AFRAME.registerComponent('trackvisibility', {
 
   init: function () {
     var self = this;
-    console.log("INIT TEST COMPONENT");
     this.el.sceneEl.addEventListener('referenceframe-statuschanged', function(evt) {
         self.updateVisibility(evt);
     });
@@ -987,7 +984,6 @@ AFRAME.registerComponent('trackvisibility', {
   },
 
   update: function () {
-    console.log("updated TEST COMPONENT")
   }
 }); 
 
@@ -1008,7 +1004,7 @@ AFRAME.registerComponent('desiredreality', {
     remove: function () {
         var el = this.el;
         if (el.isArgon) {
-          el.argonApp.reality.setDesired(null);
+          el.argonApp.reality.setDesired(undefined);
         }
     },
 
@@ -1393,8 +1389,15 @@ AFRAME.registerElement('ar-scene', {
         this.originalHTML = this.innerHTML;
 
         // let's initialize argon immediately, but wait till the document is
-        // loaded to set up the DOM parts
-        this.argonApp = Argon.init();
+        // loaded to set up the DOM parts.
+        //
+        // Check if Argon is already initialized, don't call init() again if so
+        if (!Argon.ArgonSystem.instance) { 
+            this.argonApp = Argon.init();
+        } else {
+            this.argonApp = Argon.ArgonSystem.instance;
+        }
+
         this.argonApp.context.setDefaultReferenceFrame(this.argonApp.context.localOriginEastUpSouth);
 
         this.argonRender = this.argonRender.bind(this);
@@ -2337,7 +2340,6 @@ AFRAME.registerComponent('panorama', {
     },
 
     update: function (oldData) {
-        var sceneEl = this.el.sceneEl;
         this.name = this.id ? this.id : "default";
 
         this.panorama = {
@@ -2371,7 +2373,7 @@ AFRAME.registerComponent('panorama', {
                 this.el.emit("showpanorama", {name: this.name});
             }
 
-            session.closeEvent.addEventListener(()=>{
+            session.closeEvent.addEventListener(function(){
                 this.panoRealitySession = undefined;
             })
         }
@@ -2382,7 +2384,7 @@ AFRAME.registerComponent('panorama', {
             this.active = true;
 
             if (this.panoRealitySession) {
-                this.panoRealitySession.request('edu.gatech.ael.panorama.showPanorama', this.showOptions).then(()=>{
+                this.panoRealitySession.request('edu.gatech.ael.panorama.showPanorama', this.showOptions).then(function(){
                     console.log("showing panorama: " + this.name);
 
                     this.el.emit('showpanorama-success', {

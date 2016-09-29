@@ -28,7 +28,6 @@ AFRAME.registerComponent('panorama', {
     },
 
     update: function (oldData) {
-        var sceneEl = this.el.sceneEl;
         this.name = this.id ? this.id : "default";
 
         this.panorama = {
@@ -62,7 +61,7 @@ AFRAME.registerComponent('panorama', {
                 this.el.emit("showpanorama", {name: this.name});
             }
 
-            session.closeEvent.addEventListener(()=>{
+            session.closeEvent.addEventListener(function(){
                 this.panoRealitySession = undefined;
             })
         }
@@ -73,7 +72,7 @@ AFRAME.registerComponent('panorama', {
             this.active = true;
 
             if (this.panoRealitySession) {
-                this.panoRealitySession.request('edu.gatech.ael.panorama.showPanorama', this.showOptions).then(()=>{
+                this.panoRealitySession.request('edu.gatech.ael.panorama.showPanorama', this.showOptions).then(function(){
                     console.log("showing panorama: " + this.name);
 
                     this.el.emit('showpanorama-success', {
