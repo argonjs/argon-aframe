@@ -4,7 +4,7 @@ A collection of components, entities and systems to integrate [A-Frame](https://
 
 # A note about using https for development
 
-More and more, modern web browsers demand that you use https:// instead of http://.  You cannot, for example, use the web location APIs, or access video via WebRTC, over http connections on many browsers. If you want to do development using https and node.js, you need to set up the necessary certificates.  There are numerous guides on the web showing how, one example is at [this site](https://github.com/coolaj86/node-ssl-root-cas/wiki/Painless-Self-Signed-Certificates-in-node.js).  In the package.json file, the _devssl_ target (used by doing `npm run devssl`) assumes you have put the certicates in `~/.ssl/` and named them `profblair.crt.pem` and `profblair.key.pem`.  Edit this line to correspond to where you put your keys and what you called them.
+More and more, modern web browsers demand that you use https:// instead of http://.  You cannot, for example, use the web location APIs, or access video via WebRTC, over http connections on many browsers. If you want to do development using https and node.js, you need to set up the necessary certificates.  There are numerous guides on the web showing how, one example is at [this site](https://github.com/coolaj86/node-ssl-root-cas/wiki/Painless-Self-Signed-Certificates-in-node.js).  In the package.json file, the _devssl_ target (used by doing `npm run devssl`) assumes you have put the certicates in `~/.ssl/` and named them `argon.crt.pem` and `argon.key.pem`.  Edit this line to correspond to where you put your keys and what you called them.
 
 # Entities
 
