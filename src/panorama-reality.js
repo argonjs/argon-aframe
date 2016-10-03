@@ -61,8 +61,9 @@ AFRAME.registerComponent('panorama', {
                 this.el.emit("showpanorama", {name: this.name});
             }
 
+            var self = this;
             session.closeEvent.addEventListener(function(){
-                this.panoRealitySession = undefined;
+                self.panoRealitySession = undefined;
             })
         }
     },
@@ -70,19 +71,20 @@ AFRAME.registerComponent('panorama', {
     showPanorama: function(evt) {
         if (evt.detail.name === this.name) { 
             this.active = true;
+            var self = this;
 
             if (this.panoRealitySession) {
                 this.panoRealitySession.request('edu.gatech.ael.panorama.showPanorama', this.showOptions).then(function(){
-                    console.log("showing panorama: " + this.name);
+                    console.log("showing panorama: " + self.name);
 
-                    this.el.emit('showpanorama-success', {
-                        name: this.name
+                    self.el.emit('showpanorama-success', {
+                        name: self.name
                     });     
                 }).catch(function(err) {
                     console.log("couldn't show panorama: " + err.message);
 
-                    this.el.emit('showpanorama-failed', {
-                        name: this.name,
+                    self.el.emit('showpanorama-failed', {
+                        name: self.name,
                         error: err
                     });     
                 });                     

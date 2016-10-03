@@ -97,7 +97,7 @@ AFRAME.registerElement('ar-scene', {
      */
     attachedCallback: {
       value: function () {        
-        this.setupSystems();
+        this.initSystems();
         this.play();
       },
       writable: window.debug
@@ -446,7 +446,7 @@ AFRAME.registerElement('ar-scene', {
     /**
      * Some mundane functions below here
      */
-    setupSystems: {
+    initSystems: {
       value: function () {
         var systemsKeys = Object.keys(AFRAME.systems);
         systemsKeys.forEach(this.initSystem.bind(this));
@@ -487,14 +487,25 @@ AFRAME.registerElement('ar-scene', {
     },
 
     /**
-     * Wraps Entity.getComputedAttribute to take into account for systems.
-     * If system exists, then return system data rather than possible component data.
+     * `getAttribute` used to be `getDOMAttribute` and `getComputedAttribute` used to be
+     * what `getAttribute` is now. Now legacy code.
      */
     getComputedAttribute: {
       value: function (attr) {
+        warn('`getComputedAttribute` is deprecated. Use `getAttribute` instead.');
+        this.getAttribute(attr);
+      }
+    },
+
+    /**
+     * Wraps Entity.getDOMAttribute to take into account for systems.
+     * If system exists, then return system data rather than possible component data.
+     */
+    getDOMAttribute: {
+      value: function (attr) {
         var system = this.systems[attr];
         if (system) { return system.data; }
-        return AEntity.prototype.getComputedAttribute.call(this, attr);
+        return AEntity.prototype.getDOMAttribute.call(this, attr);
       }
     },
 
@@ -525,6 +536,7 @@ AFRAME.registerElement('ar-scene', {
         behaviors.splice(index, 1);
       }
     }
+
     
   })
 });
