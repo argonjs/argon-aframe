@@ -49,6 +49,10 @@ arScene.addEventListener('argon-vuforia-dataset-loaded', function(evt) {
             contentRoot.pause();
         }
     });
+
+    arScene.addEventListener('target_trigger', function(evt) {
+        console.log("TRIGGER: " + (evt.detail.inside ? "ENTERED" : "EXITED"));
+    });
 });
 arScene.addEventListener('argon-vuforia-dataset-load-failed', function(evt) {
     statusMsg.innerHTML = "vuforia failed to load: " + evt.detail.error.message;
