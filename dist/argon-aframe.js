@@ -155,7 +155,7 @@
 	     */
 	    attachedCallback: {
 	      value: function () {        
-	        this.setupSystems();
+	        this.initSystems();
 	        this.play();
 	      },
 	      writable: window.debug
@@ -504,7 +504,7 @@
 	    /**
 	     * Some mundane functions below here
 	     */
-	    setupSystems: {
+	    initSystems: {
 	      value: function () {
 	        var systemsKeys = Object.keys(AFRAME.systems);
 	        systemsKeys.forEach(this.initSystem.bind(this));
@@ -545,14 +545,25 @@
 	    },
 
 	    /**
-	     * Wraps Entity.getComputedAttribute to take into account for systems.
-	     * If system exists, then return system data rather than possible component data.
+	     * `getAttribute` used to be `getDOMAttribute` and `getComputedAttribute` used to be
+	     * what `getAttribute` is now. Now legacy code.
 	     */
 	    getComputedAttribute: {
 	      value: function (attr) {
+	        warn('`getComputedAttribute` is deprecated. Use `getAttribute` instead.');
+	        this.getAttribute(attr);
+	      }
+	    },
+
+	    /**
+	     * Wraps Entity.getDOMAttribute to take into account for systems.
+	     * If system exists, then return system data rather than possible component data.
+	     */
+	    getDOMAttribute: {
+	      value: function (attr) {
 	        var system = this.systems[attr];
 	        if (system) { return system.data; }
-	        return AEntity.prototype.getComputedAttribute.call(this, attr);
+	        return AEntity.prototype.getDOMAttribute.call(this, attr);
 	      }
 	    },
 
@@ -583,6 +594,7 @@
 	        behaviors.splice(index, 1);
 	      }
 	    }
+
 	    
 	  })
 	});
@@ -1658,7 +1670,6 @@
 	 * ar.device.orientation, ar.device.geolocation, ar.device.display
 	 */
 	AFRAME.registerComponent('referenceframe', {
-	 
 	    schema: { 
 	        lla: { type: 'vec3'},
 	        parent: { default: "FIXED" },
@@ -1675,29 +1686,49 @@
 
 	        this.update = this.update.bind(this);
 
+	        if (!el.sceneEl) {
+	            console.warn('referenceFrame initialized but no sceneEl');
+	            this.finishedInit = false;
+	        } else {
+	            this.finishedInit = true;
+	        }
+
 	        // this component only works with an Argon Scene
-	        if (!el.sceneEl.isArgon) {
-	            throw new Error('referenceframe must be used on a child of a <ar-scene>.');
+	        // (sometimes, el.sceneEl is undefined when we get here.  weird)
+	        if (el.sceneEl && !el.sceneEl.isArgon) {
+	            console.warn('referenceframe must be used on a child of a <ar-scene>.');
 	        }
 		   this.localRotationEuler = new THREE.Euler(0,0,0,'XYZ');
 	       this.localPosition = { x: 0, y: 0, z: 0 };
 	       this.localScale = { x: 1, y: 1, z: 1 };
 	       this.knownFrame = false;
 	        el.addEventListener('componentchanged', this.updateLocalTransform.bind(this));
-	        el.sceneEl.addEventListener('argon-initialized', function() {
-	              self.update(self.data);
-	        });            
+
+	        if (el.sceneEl) {
+	            el.sceneEl.addEventListener('argon-initialized', function() {
+	                self.update(self.data);
+	            });            
+	        }
+	    },
+
+	    checkFinished: function () {
+	        if (!this.finishedInit) {
+	            this.finishedInit = true;
+	            this.update(this.data);
+	        }
 	    },
 
 	    /** 
 	     * Update 
 	     */
 	    update: function (oldData) {
+	        if (!this.el.sceneEl) { return; }
+
 	        var el = this.el;
 	        var argonApp = this.el.sceneEl.argonApp;
 	        var data = this.data;
 
-	        var lp = el.getComputedAttribute('position');
+	        var lp = el.getAttribute('position');
 	        if (lp) {
 	            this.localPosition.x = lp.x;
 	            this.localPosition.y = lp.y;
@@ -1708,7 +1739,7 @@
 	            this.localPosition.z = 0;
 	        }
 
-	        var lo = el.getComputedAttribute('rotation');
+	        var lo = el.getAttribute('rotation');
 	        if (lo) {
 	            this.localRotationEuler.x = degToRad(lo.x);
 	            this.localRotationEuler.y = degToRad(lo.y);
@@ -1719,7 +1750,7 @@
 	            this.localRotationEuler.z = 0;
 	        }
 
-	        var ls = el.getComputedAttribute('scale');
+	        var ls = el.getAttribute('scale');
 	        if (ls) {
 	            this.localScale.x = ls.x;
 	            this.localScale.y = ls.y;
@@ -1854,10 +1885,12 @@
 	  /**
 	   * update each time step.
 	   */
-	  tick: function () {
+	  tick: function () {      
 	      var m1 = new THREE.Matrix4();
 
 	      return function(t) {
+	        this.checkFinished();
+
 	        var data = this.data;               // parameters
 	        var el = this.el;                   // entity
 	        var object3D = el.object3D;
@@ -2459,8 +2492,9 @@
 	                this.el.emit("showpanorama", {name: this.name});
 	            }
 
+	            var self = this;
 	            session.closeEvent.addEventListener(function(){
-	                this.panoRealitySession = undefined;
+	                self.panoRealitySession = undefined;
 	            })
 	        }
 	    },
@@ -2468,19 +2502,20 @@
 	    showPanorama: function(evt) {
 	        if (evt.detail.name === this.name) { 
 	            this.active = true;
+	            var self = this;
 
 	            if (this.panoRealitySession) {
 	                this.panoRealitySession.request('edu.gatech.ael.panorama.showPanorama', this.showOptions).then(function(){
-	                    console.log("showing panorama: " + this.name);
+	                    console.log("showing panorama: " + self.name);
 
-	                    this.el.emit('showpanorama-success', {
-	                        name: this.name
+	                    self.el.emit('showpanorama-success', {
+	                        name: self.name
 	                    });     
 	                }).catch(function(err) {
 	                    console.log("couldn't show panorama: " + err.message);
 
-	                    this.el.emit('showpanorama-failed', {
-	                        name: this.name,
+	                    self.el.emit('showpanorama-failed', {
+	                        name: self.name,
 	                        error: err
 	                    });     
 	                });                     
