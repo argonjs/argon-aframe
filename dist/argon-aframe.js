@@ -305,7 +305,7 @@
 	            cancelAnimationFrame(this.animationFrameID);
 	            this.animationFrameID = null;
 	          }
-	          removeEventListenern();
+	          removeEventListeners();
 	      }
 	    },
 

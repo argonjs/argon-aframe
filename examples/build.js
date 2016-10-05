@@ -1666,7 +1666,7 @@ AFRAME.registerElement('ar-scene', {
             cancelAnimationFrame(this.animationFrameID);
             this.animationFrameID = null;
           }
-          removeEventListenern();
+          removeEventListeners();
       }
     },
 
