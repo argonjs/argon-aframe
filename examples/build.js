@@ -1045,21 +1045,23 @@ AFRAME.registerComponent('trigger', {
       this.laststateinthetrigger = false;
       this.name = "";
   },
-  update: function () {
-      this.radiusSquared = this.radius * this.radius;
+  update: function (oldData) {
+      this.radiusSquared = this.data.radius * this.data.radius;
       this.name = this.id ? this.id : "";
   },
   tick: function() {
       // gathering all the data
       var data = this.data;
-      var thisradiusSquared = data.radiusSquared;
+      var thisradiusSquared = this.radiusSquared;
       var triggereventname = data.event;
       var laststateset = this.laststateset;
       var laststateinthetrigger = this.laststateinthetrigger;
       var camera = this.el.sceneEl.camera;
 
+      // camera might not be set immediately
+      if (!camera) { return; }
 
-      var cameraPosition = camera.position();
+      var cameraPosition = camera.position;
       //var position = this.el.getComputedAttribute('position');
       // we don't want the attribute value, we want the "real" value
       var distanceSquared = this.el.object3D.position.distanceToSquared(cameraPosition);
@@ -1076,12 +1078,12 @@ AFRAME.registerComponent('trigger', {
       } else {
       	// we are out
         if (laststateset){
-          if (laststateinthetriggerbox) {
+          if (laststateinthetrigger) {
 	          // we were not before
             this.el.emit(triggereventname, {name: this.name, inside: false, distanceSquared: distanceSquared});
           }
         }
-        this.laststateinthetriggerbox = false;
+        this.laststateinthetrigger = false;
       }
       this.laststateset = true;
   },
@@ -1493,8 +1495,8 @@ AFRAME.registerElement('ar-scene', {
         this.argonRender = this.argonRender.bind(this);
         this.argonUpdate = this.argonUpdate.bind(this);
         this.initializeArgon = this.initializeArgon.bind(this);
-        this.setupRenderer = this.setupRenderer.bind(this);
-     //   this.rAFRenderFunc = this.rAFRenderFunc.bind(this);
+
+        this.setupRenderer();
 
         // var arCameraEl = this.arCameraEl = document.createElement('a-entity');
         // arCameraEl.setAttribute(AR_CAMERA_ATTR, '');
@@ -1503,9 +1505,52 @@ AFRAME.registerElement('ar-scene', {
 
         // run this whenever the document is loaded, which might be now
         document.DOMReady().then(this.initializeArgon);
-        //this.initializeArgon();
       },
       writable: true 
+    },
+
+    setupRenderer: {
+      value: function () {        
+        var antialias = this.getAttribute('antialias') === 'true';
+
+        if (THREE.CSS3DArgonRenderer) {
+          this.cssRenderer = new THREE.CSS3DArgonRenderer();
+        } else {
+          this.cssRenderer = null;
+        }
+        if (THREE.CSS3DArgonHUD) {
+          this.hud = new THREE.CSS3DArgonHUD();
+        } else {
+          this.hud = null;
+        }
+        this.renderer = new THREE.WebGLRenderer({
+            alpha: true,
+            antialias: antialias,
+            logarithmicDepthBuffer: true
+        });
+        this.renderer.setPixelRatio(window.devicePixelRatio);
+      },
+      writable: true
+    },
+
+    initializeArgon: {
+        value: function () {
+            // need to do this AFTER the DOM is initialized because 
+            // the argon div may not be created yet, which will pull these 
+            // elements out of the DOM, when they might be needed
+            this.argonApp.view.element.appendChild(this.renderer.domElement);
+            if (this.cssRenderer) {
+              this.argonApp.view.element.appendChild(this.cssRenderer.domElement);
+            }
+            if (this.hud) {
+              this.argonApp.view.element.appendChild(this.hud.domElement);
+            }
+
+            this.emit('argon-initialized', {
+                target: this.argonApp
+            });            
+        },
+        writable: true
     },
 
     /**
@@ -1624,50 +1669,6 @@ AFRAME.registerElement('ar-scene', {
           removeEventListenern();
       }
     },
-
-    initializeArgon: {
-        value: function () {
-            this.setupRenderer();
-
-            this.emit('argon-initialized', {
-                target: this.argonApp
-            });            
-        },
-        writable: true
-    },
-
-    setupRenderer: {
-      value: function () {        
-        var antialias = this.getAttribute('antialias') === 'true';
-
-        if (THREE.CSS3DArgonRenderer) {
-          this.cssRenderer = new THREE.CSS3DArgonRenderer();
-        } else {
-          this.cssRenderer = null;
-        }
-        if (THREE.CSS3DArgonHUD) {
-          this.hud = new THREE.CSS3DArgonHUD();
-        } else {
-          this.hud = null;
-        }
-        this.renderer = new THREE.WebGLRenderer({
-            alpha: true,
-            antialias: antialias,
-            logarithmicDepthBuffer: true
-        });
-        this.renderer.setPixelRatio(window.devicePixelRatio);
-
-        this.argonApp.view.element.appendChild(this.renderer.domElement);
-        if (this.cssRenderer) {
-          this.argonApp.view.element.appendChild(this.cssRenderer.domElement);
-        }
-        if (this.hud) {
-          this.argonApp.view.element.appendChild(this.hud.domElement);
-        }
-      },
-      writable: true
-    },
-
 
     /**
      * Reload the scene to the original DOM content.
