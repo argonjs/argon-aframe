@@ -131,6 +131,9 @@ AFRAME.registerComponent('trigger', {
       var laststateinthetrigger = this.laststateinthetrigger;
       var camera = this.el.sceneEl.camera;
 
+      // camera might not be set immediately
+      if (!camera) { return; }
+
       var cameraPosition = camera.position;
       //var position = this.el.getComputedAttribute('position');
       // we don't want the attribute value, we want the "real" value
