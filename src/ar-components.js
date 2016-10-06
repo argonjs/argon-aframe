@@ -44,7 +44,7 @@ AFRAME.registerComponent('trackvisibility', {
 
   init: function () {
     var self = this;
-    this.el.sceneEl.addEventListener('referenceframe-statuschanged', function(evt) {
+    this.el.addEventListener('referenceframe-statuschanged', function(evt) {
         self.updateVisibility(evt);
     });
   },

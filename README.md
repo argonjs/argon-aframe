@@ -241,7 +241,7 @@ and possibly activate it, which will trigger one or more events.
 |--------------|-------------------------------------|
 | argon-vuforia-dataset-downloaded  | Dataset was successfully downloaded. |
 | argon-vuforia-dataset-download-failed  | Dataset not downloaded, see the event.detail.error for why. |
-| argon-vuforia-dataset-loaded  | The dataset was successfully loaded into Vuforia. |
+| argon-vuforia-dataset-loaded  | The dataset was successfully loaded into Vuforia. event.detail.trackables has an object of trackables for this dataset |
 | argon-vuforia-dataset-load-failed  | Dataset not loaded, see the event.detail.error for why. |
 
 ## CSS Object

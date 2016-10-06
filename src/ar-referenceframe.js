@@ -269,7 +269,7 @@ AFRAME.registerComponent('referenceframe', {
                 }
                 if (entityPos.poseStatus & Argon.PoseStatus.FOUND) {
                     console.log("reference frame changed to FOUND");            
-                    el.sceneEl.emit('referenceframe-statuschanged', {
+                    el.emit('referenceframe-statuschanged', {
                         target: this.el,
                         found: true
                     });                            
@@ -287,7 +287,7 @@ AFRAME.registerComponent('referenceframe', {
                 this.knownFrame = false;
                 if (entityPos.poseStatus & Argon.PoseStatus.LOST) {
                     console.log("reference frame changed to LOST");            
-                    el.sceneEl.emit('referenceframe-statuschanged', {
+                    el.emit('referenceframe-statuschanged', {
                         target: this.el,
                         found: false
                     });                            

@@ -247,7 +247,7 @@ AFRAME.registerElement('ar-scene', {
             cancelAnimationFrame(this.animationFrameID);
             this.animationFrameID = null;
           }
-          removeEventListeners();
+          this.removeEventListeners();
       }
     },
 

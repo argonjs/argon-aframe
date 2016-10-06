@@ -305,7 +305,7 @@
 	            cancelAnimationFrame(this.animationFrameID);
 	            this.animationFrameID = null;
 	          }
-	          removeEventListeners();
+	          this.removeEventListeners();
 	      }
 	    },
 
@@ -1591,7 +1591,7 @@
 
 	  init: function () {
 	    var self = this;
-	    this.el.sceneEl.addEventListener('referenceframe-statuschanged', function(evt) {
+	    this.el.addEventListener('referenceframe-statuschanged', function(evt) {
 	        self.updateVisibility(evt);
 	    });
 	  },
@@ -1987,7 +1987,7 @@
 	                }
 	                if (entityPos.poseStatus & Argon.PoseStatus.FOUND) {
 	                    console.log("reference frame changed to FOUND");            
-	                    el.sceneEl.emit('referenceframe-statuschanged', {
+	                    el.emit('referenceframe-statuschanged', {
 	                        target: this.el,
 	                        found: true
 	                    });                            
@@ -2005,7 +2005,7 @@
 	                this.knownFrame = false;
 	                if (entityPos.poseStatus & Argon.PoseStatus.LOST) {
 	                    console.log("reference frame changed to LOST");            
-	                    el.sceneEl.emit('referenceframe-statuschanged', {
+	                    el.emit('referenceframe-statuschanged', {
 	                        target: this.el,
 	                        found: false
 	                    });                            
@@ -2327,9 +2327,10 @@
 	                    self.subscribeToTarget(name, key, true);
 	                });
 
-	                // tell everyone the good news
+	                // tell everyone the good news.  Include the trackables.
 	                self.sceneEl.emit('argon-vuforia-dataset-loaded', {
-	                    target: dataset.component
+	                    target: dataset.component,
+	                    trackables: dataset.trackables
 	                });               
 	                console.log("dataset " + name + " loaded, ready to go");         
 	            }).catch(function(err) {
@@ -2362,7 +2363,7 @@
 	        }
 	        
 	        // either create a new target entry and set the count, or add the count to an existing one
-	        targetItem = dataset.targets[target];
+	        var targetItem = dataset.targets[target];
 	        if (!targetItem) {
 	            dataset.targets[target] = 1;
 	        } else if (!postLoad) {
@@ -2390,7 +2391,6 @@
 	    getTargetEntity: function (name, target) {
 	        var api = this.api;
 	        var dataset = this.datasetMap[name];
-	        var tracker;
 
 	        console.log("getTargetEntity " + name + "." + target)
 
@@ -2398,8 +2398,14 @@
 	        if (!api || !dataset || !dataset.loaded) {
 	            return null;
 	        }
-	        
-	        tracker = dataset.trackables[target];
+
+	        // check if we've subscribed. If we haven't, bail out, because we need to        
+	        var targetItem = dataset.targets[target];
+	        if (!targetItem) {
+	            return null;
+	        }
+
+	        var tracker = dataset.trackables[target];
 	        console.log("everything loaded, get " + name + "." + target)
 	        if (tracker && tracker.id) {
 	            console.log("retrieved " + name + "." + target + " as " + tracker.id)
