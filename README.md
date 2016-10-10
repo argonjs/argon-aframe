@@ -122,7 +122,7 @@ may be pre-set by the system (e.g., the `ar.user` frame represents the user), de
 by a custom Argon reality, defined on-the-fly by the Vuforia tracking system (for
 each of the trackable targets) or defined by the programmer.  
 
-Reference frames are specified using [Cesium Entities](http://cesium.org), with the 
+Reference frames are specified using [Cesium Entities](http://cesiumjs.org), with the 
 addition that Argon's Entities can be specified in relation to other entities, not just
 the `FIXED` and `INERTIAL` reference frames used by Cesium.  Each reference frame
 has a name:  `FIXED, `INERTIAL` or the `name` of the Entity.  The typical use of 
