@@ -83,7 +83,7 @@
 	// want to know when the document is loaded 
 	document.DOMReady = function () {
 		return new Promise(function(resolve, reject) {
-			if (document.readyState === 'complete') {
+			if (document.readyState != 'loading') {
 				resolve(document);
 			} else {
 				document.addEventListener('DOMContentLoaded', function() {
@@ -95,6 +95,13 @@
 
 	AFRAME.registerElement('ar-scene', {
 	  prototype: Object.create(AEntity.prototype, {
+	    defaultComponents: {
+	      value: {
+	        'canvas': '',
+	        'inspector': '',
+	        'keyboard-shortcuts': ''
+	      }
+	    },
 	    
 	    createdCallback: {
 	      value: function () {
@@ -106,6 +113,8 @@
 	        this.systems = {};
 	        this.time = 0;
 	        this.argonApp = null;
+	        this.renderer = null;
+	        this.canvas = null;
 
 	        // finish initializing
 	        this.init();
@@ -133,23 +142,21 @@
 
 	        this.argonRender = this.argonRender.bind(this);
 	        this.argonUpdate = this.argonUpdate.bind(this);
-	        this.initializeArgon = this.initializeArgon.bind(this);
+	        this.initializeArgonView = this.initializeArgonView.bind(this);
 
-	        this.setupRenderer();
-
-	        // var arCameraEl = this.arCameraEl = document.createElement('a-entity');
-	        // arCameraEl.setAttribute(AR_CAMERA_ATTR, '');
-	        // arCameraEl.setAttribute('camera', {'active': true});
-	        // this.sceneEl.appendChild(arCameraEl);
-
-	        // run this whenever the document is loaded, which might be now
-	        document.DOMReady().then(this.initializeArgon);
+	        this.addEventListener('render-target-loaded', function () {
+	          this.setupRenderer();
+	          // run this whenever the document is loaded, which might be now
+	          document.DOMReady().then(this.initializeArgonView);
+	        });
 	      },
 	      writable: true 
 	    },
 
 	    setupRenderer: {
-	      value: function () {        
+	      value: function () {      
+	        var canvas = this.canvas;
+
 	        var antialias = this.getAttribute('antialias') === 'true';
 
 	        if (THREE.CSS3DArgonRenderer) {
@@ -163,6 +170,7 @@
 	          this.hud = null;
 	        }
 	        this.renderer = new THREE.WebGLRenderer({
+	            canvas: canvas,
 	            alpha: true,
 	            antialias: antialias,
 	            logarithmicDepthBuffer: true
@@ -172,7 +180,7 @@
 	      writable: true
 	    },
 
-	    initializeArgon: {
+	    initializeArgonView: {
 	        value: function () {
 	            // need to do this AFTER the DOM is initialized because 
 	            // the argon div may not be created yet, which will pull these 
@@ -404,7 +412,7 @@
 	        var hud = this.hud;
 	        var camera = this.camera;
 
-	        if (!this.renderer) {
+	        if (!this.renderer || !this.camera) {
 	          // renderer hasn't been setup yet
 	          this.animationFrameID = null;
 	          return;
@@ -592,8 +600,14 @@
 	        if (index === -1) { return; }
 	        behaviors.splice(index, 1);
 	      }
-	    }
+	    },
 
+	    resize: {
+	      value: function () {
+	        // don't need to do anything, just don't want components who call this to fail
+	      },
+	      writable: window.debug
+	    }
 	    
 	  })
 	});
