@@ -353,7 +353,7 @@ AFRAME.registerElement('ar-scene', {
         var cssRenderer = this.cssRenderer;
         var hud = this.hud;
         var camera = this.camera;
-
+        
         if (!this.renderer || !this.camera) {
           // renderer hasn't been setup yet
           this.animationFrameID = null;
@@ -365,9 +365,13 @@ AFRAME.registerElement('ar-scene', {
         // of the user.  We want to make the camera pose 
         var camEntityPos = null;
         var camEntityRot = null;
+        var camEntityInv = new THREE.Matrix4();
+
         if (camera.parent) {
-            camEntityPos = camera.parent.position.clone().negate();
-            camEntityRot = camera.parent.quaternion.clone().inverse();
+            camera.parent.updateMatrixWorld();
+            camEntityInv.getInverse(camera.parent.matrixWorld);
+       //     camEntityPos = camera.parent.position.clone().negate();
+         //   camEntityRot = camera.parent.quaternion.clone().inverse();
         }
 
         //var viewport = app.view.getViewport()
@@ -412,10 +416,13 @@ AFRAME.registerElement('ar-scene', {
             // set the position and orientation of the camera for 
             // this subview
             camera.position.copy(subview.pose.position);
-            if (camEntityPos)  { camera.position.add(camEntityPos); }
+            //if (camEntityPos)  { camera.position.add(camEntityPos); }
             camera.quaternion.copy(subview.pose.orientation);
-            if (camEntityRot)  { camera.quaternion.multiply(camEntityRot); }
-
+            //if (camEntityRot)  { camera.quaternion.multiply(camEntityRot); }
+            camera.updateMatrix();
+            camera.matrix.premultiply(camEntityInv);
+            camera.matrix.decompose(camera.position, camera.quaternion, camera.scale );
+            
             // the underlying system provide a full projection matrix
             // for the camera. 
             camera.projectionMatrix.fromArray(subview.projectionMatrix);

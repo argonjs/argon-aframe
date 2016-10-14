@@ -282,6 +282,7 @@ AFRAME.registerComponent('referenceframe', {
                     m1.getInverse(el.parentEl.object3D.matrixWorld);
                     matrix.premultiply(m1);
                     matrix.decompose(object3D.position, object3D.quaternion, object3D.scale );
+                    object3D.updateMatrixWorld();
                 } 
             } else {
                 this.knownFrame = false;
