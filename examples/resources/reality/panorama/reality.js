@@ -5,21 +5,17 @@
 var Cartesian3 = Argon.Cesium.Cartesian3;
 var Quaternion = Argon.Cesium.Quaternion;
 var CesiumMath = Argon.Cesium.CesiumMath;
-// set up Argon (unlike regular apps, we call initReality instead of init)
-// Defining a protocol allows apps to communicate with the reality in a 
+// set up Argon (unlike regular apps, we call initRealityViewer instead of init)
+// Defining a protocol allows apps to communicate with the reality in a
 // reliable way. 
-var app = Argon.initReality({
-    configuration: {
-        protocols: ['ael.gatech.panorama@v1']
-    }
+var app = Argon.initRealityViewer({
+    protocols: ['ael.gatech.panorama@v1']
 });
 // set up THREE.  Create a scene, a perspective camera and an object
 // for the user's location
 var scene = new THREE.Scene();
 var camera = new THREE.PerspectiveCamera();
-var userLocation = new THREE.Object3D;
 scene.add(camera);
-scene.add(userLocation);
 // We use the standard WebGLRenderer when we only need WebGL-based content
 var renderer = new THREE.WebGLRenderer({
     alpha: true,
@@ -41,7 +37,7 @@ app.view.element.appendChild(renderer.domElement);
 // The EUS frame cooresponds to the typical 3D computer graphics coordinate frame, so we use
 // that here.  The other option Argon supports is localOriginEastNorthUp, which is
 // more similar to what is used in the geospatial industry
-app.context.setDefaultReferenceFrame(app.context.localOriginEastUpSouth);
+app.context.defaultReferenceFrame = app.context.localOriginEastUpSouth;
 // A map to store our panoramas
 var panoramas = new Map();
 var currentPano;
@@ -53,84 +49,72 @@ panoSpheres.forEach(function (mesh) {
     var material = new THREE.MeshBasicMaterial();
     material.transparent = true;
     mesh.material = material;
-    userLocation.add(mesh);
+    scene.add(mesh);
 });
 var currentSphere = 0;
-// We need to define a projection matrix for our reality view
-var perspectiveProjection = new Argon.Cesium.PerspectiveFrustum();
-perspectiveProjection.fov = Math.PI / 2;
-// For this example, we want to control the panorama using the device orientation.
-// Since we are using geolocated panoramas, we can disable location updates
-app.device.locationUpdatesEnabled = false;
-// Create an entity to represent the eye
-var eyeEntity = new Argon.Cesium.Entity({
-    orientation: new Argon.Cesium.ConstantProperty(Quaternion.IDENTITY)
+// Create an entity to represent the virtual eye
+var virtualEye = new Argon.Cesium.Entity({
+    orientation: new Argon.Cesium.ConstantProperty(Quaternion.fromAxisAngle(Cartesian3.UNIT_X, Argon.Cesium.CesiumMath.PI_OVER_TWO))
 });
 // Creating a lot of garbage slows everything down. Not fun.
 // Let's create some recyclable objects that we can use later.
 var scratchCartesian = new Cartesian3;
 var scratchQuaternion = new Quaternion;
-var scratchArray = [];
+var scratchQuaternionDragPitch = new Quaternion;
+var scratchQuaternionDragYaw = new Quaternion;
+var frustum = new Argon.Cesium.PerspectiveFrustum();
+var aggregator = new Argon.Cesium.CameraEventAggregator(document.documentElement);
+var subviews = new Array();
 // Reality views must raise frame events at regular intervals in order to 
-// drive updates for the entire system. 
-function onFrame(time, index) {
-    // Get the current display-aligned device orientation relative to the device geolocation
-    app.device.update();
-    var deviceOrientation = Argon.getEntityOrientation(app.device.displayEntity, time, app.device.geolocationEntity, scratchQuaternion);
-    // Rotate the eye according to the device orientation
-    // (the eye should be positioned at the current panorama)
-    eyeEntity.orientation.setValue(deviceOrientation);
-    // By raising a frame state event, we are describing to the  manager when and where we
-    // are in the world, what direction we are looking, and how we are able to render. 
-    app.reality.publishFrame({
-        time: time,
-        index: index,
-        // A reality should pass an "eye" configuration to the manager. The manager will 
-        // then construct an appropriate "view" configuration using the eye properties we 
-        // send it and other factors unknown to the reality. 
-        // For example, the manager may decide to ask applications (including this reality),
-        // to render in stereo or in mono, based on wheter or not the user is using a 
-        // stereo viewer. 
-        // Technically, a reality can instead pass a view configuration to the manager, but 
-        // the best practice is to use an eye configuration. Passing a view configuration 
-        // is effectively the same thing as telling the manager:
-        //      "I am going to render this way, like it or not, don't tell me otherwise"
-        // Thus, a view configuration should only be used if absolutely necessary.
-        eye: {
-            // We must provide a pose representing where we are in world, 
-            // and what we are looking at. The viewing direction is always the
-            // -Z axis, assuming a right-handed cordinate system with Y pointing up
-            // in the camera's local coordinate system. 
-            pose: Argon.getSerializedEntityPose(eyeEntity, time),
-            // The stereo multiplier tells the manager how we wish to render stereo
-            // in relation to the user's interpupillary distance (typically around 0.063m).
-            // In this case, since we are using a single panoramic image,
-            // we can only render from the center of the panorama (a stereo view 
-            // would have the same image in the left and right eyes): thus, we may prefer to use 
-            // a stereo multiplier of 0. On the other hand, if our panorama presents a 
-            // background that can be considered "far away" or at "infinity", we may prefer to 
-            // allow stereo by passing a non-zero value as the multiplier. 
-            stereoMultiplier: 0
+// drive updates for the entire system
+app.device.frameStateEvent.addEventListener(function (frameState) {
+    var time = frameState.time;
+    Argon.SerializedSubviewList.clone(frameState.subviews, subviews);
+    // Get the physical device orientation
+    var deviceUserOrientation = Argon.getEntityOrientation(app.device.user, time, app.device.stage, scratchQuaternion);
+    if (deviceUserOrientation) {
+        // Rotate our virtual eye according to the device orientation
+        // (the eye should be positioned at the current panorama)
+        virtualEye.orientation.setValue(deviceUserOrientation);
+    }
+    if (!frameState.strict) {
+        Argon.decomposePerspectiveProjectionMatrix(subviews[0].projectionMatrix, frustum);
+        frustum.fov = app.view.subviews[0].frustum.fov;
+        if (aggregator.isMoving(Argon.Cesium.CameraEventType.WHEEL)) {
+            var wheelMovement = aggregator.getMovement(Argon.Cesium.CameraEventType.WHEEL);
+            var diff = wheelMovement.endPosition.y;
+            frustum.fov = Math.min(Math.max(frustum.fov - diff * 0.02, Math.PI / 8), Math.PI - Math.PI / 8);
         }
-    });
-    app.timer.requestFrame(onFrame);
-}
-// We can use requestAnimationFrame, or the builtin Argon.TimerService (app.timer),
-// The TimerService is more convenient as it will provide the current time 
-// as a Cesium.JulianDate object which can be used directly when raising a frame event. 
-app.timer.requestFrame(onFrame);
+        if (aggregator.isMoving(Argon.Cesium.CameraEventType.PINCH)) {
+            var pinchMovement = aggregator.getMovement(Argon.Cesium.CameraEventType.PINCH);
+            var diff = pinchMovement.distance.endPosition.y - pinchMovement.distance.startPosition.y;
+            frustum.fov = Math.min(Math.max(frustum.fov - diff * 0.02, Math.PI / 8), Math.PI - Math.PI / 8);
+        }
+        if (!deviceUserOrientation && aggregator.isMoving(Argon.Cesium.CameraEventType.LEFT_DRAG)) {
+            var dragMovement = aggregator.getMovement(Argon.Cesium.CameraEventType.LEFT_DRAG);
+            var currentOrientation = Argon.getEntityOrientationInReferenceFrame(virtualEye, time, currentPano.entity, scratchQuaternion);
+            // const dragPitch = Quaternion.fromAxisAngle(Cartesian3.UNIT_X, frustum.fov * (dragMovement.endPosition.y - dragMovement.startPosition.y) / app.viewport.current.height, scratchQuaternionDragPitch);
+            var dragYaw = Quaternion.fromAxisAngle(Cartesian3.UNIT_Y, frustum.fov * (dragMovement.endPosition.x - dragMovement.startPosition.x) / app.view.viewport.width, scratchQuaternionDragYaw);
+            // const drag = Quaternion.multiply(dragPitch, dragYaw, dragYaw);
+            var newOrientation = Quaternion.multiply(currentOrientation, dragYaw, dragYaw);
+            virtualEye.orientation.setValue(newOrientation);
+        }
+        subviews.forEach(function (s) {
+            var aspect = s.viewport.width / s.viewport.height;
+            frustum.aspectRatio = isFinite(aspect) && aspect !== 0 ? aspect : 1;
+            Argon.Cesium.Matrix4.clone(frustum.projectionMatrix, s.projectionMatrix);
+        });
+    }
+    aggregator.reset();
+    // By publishing a view state, we are describing where we
+    // are in the world, what direction we are looking, and how we are rendering 
+    var contextFrameState = app.device.createContextFrameState(time, frameState.viewport, subviews, virtualEye);
+    app.context.submitFrameState(contextFrameState);
+});
 // the updateEvent is called each time the 3D world should be
 // rendered, before the renderEvent.  The state of your application
 // should be updated here.
 app.updateEvent.addEventListener(function () {
-    // get the position and orientation (the "pose") of the user
-    // in the local coordinate frame.
-    var userPose = app.context.getEntityPose(app.context.user);
-    // assuming we know the user's pose, set the position of our 
-    // THREE user object to match it
-    if (userPose.poseStatus & Argon.PoseStatus.KNOWN) {
-        userLocation.position.copy(userPose.position);
-    }
     TWEEN.update();
 });
 // renderEvent is fired whenever argon wants the app to update its display
@@ -138,18 +122,16 @@ app.renderEvent.addEventListener(function () {
     // set the renderer to know the current size of the viewport.
     // This is the full size of the viewport, which would include
     // both views if we are in stereo viewing mode
-    var viewport = app.view.getViewport();
+    var viewport = app.view.viewport;
     renderer.setSize(viewport.width, viewport.height);
-    // there is 1 subview in monocular mode, 2 in stereo mode    
-    for (var _i = 0, _a = app.view.getSubviews(); _i < _a.length; _i++) {
+    // there is 1 subview in monocular mode, 2 in stereo mode
+    for (var _i = 0, _a = app.view.subviews; _i < _a.length; _i++) {
         var subview = _a[_i];
-        // set the position and orientation of the camera for 
-        // this subview
-        camera.position.copy(subview.pose.position);
+        // set camera orientation, ignoring the position since panoramas do not support free
+        // movement
         camera.quaternion.copy(subview.pose.orientation);
-        // the underlying system provide a full projection matrix
-        // for the camera. 
-        camera.projectionMatrix.fromArray(subview.projectionMatrix);
+        // set the projection matrix
+        camera.projectionMatrix.fromArray(subview.frustum.projectionMatrix);
         // set the viewport for this view
         var _b = subview.viewport, x = _b.x, y = _b.y, width = _b.width, height = _b.height;
         renderer.setViewport(x, y, width, height);
@@ -226,7 +208,7 @@ function showPanorama(options) {
     if (!panoIn)
         throw new Error('Unknown pano: ' + url + ' (did you forget to add the panorama first?)');
     currentPano = panoIn;
-    eyeEntity.position = new Argon.Cesium.ConstantPositionProperty(Cartesian3.ZERO, currentPano.entity);
+    virtualEye.position = new Argon.Cesium.ConstantPositionProperty(Cartesian3.ZERO, currentPano.entity);
     // get the threejs objects for rendering our panoramas
     var sphereOut = panoSpheres[currentSphere];
     currentSphere++;
@@ -258,6 +240,8 @@ function showPanorama(options) {
     outTween.to({ opacity: 0 }, transition.duration).onUpdate(function () {
         outMaterial.needsUpdate = true;
     }).easing(easing).start();
+    outMaterial.opacity = 1;
+    outMaterial.needsUpdate = true;
 }
 function resolve(path, obj, safe) {
     if (safe === void 0) { safe = true; }
