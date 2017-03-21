@@ -1,0 +1,89 @@
+<html>
+  <head>
+    <title>Hello, World! Argon + A-Frame</title>
+    <meta name="description" content="Hello, World! Argon + A-Frame">
+    <script src="https://aframe.io/releases/0.4.0/aframe.min.js"></script>
+    <script src="../resources/js/argon.min.js"></script>
+    <script src="../build.js"></script>
+    <script src="../resources/js/CSS3DArgonRenderer.js"></script>
+    <script src="../resources/js/CSS3DArgonHUD.js"></script>
+    <script src="../resources/js/aframe-look-at-component.js"></script>
+	  <link rel="stylesheet" type="text/css" href="../resources/style.css">
+  </head>
+  <body>
+    <div hidden>
+      <div id="mydiv" class="boxface">Argon<br>+<br>AFrame</div>
+      <div id="mydiv2" class="boxface">WebGL<br>+<br>CSS</div>
+    </div>
+    <div id="menu" class="menu"></div>
+    <ar-scene desiredreality="src:url(../resources/reality/panorama/index.html);" panorama__aqui="src:url(panoramas/aqui.jpg);lla:-84.3951 33.7634 206;initial:true;" panorama__cent="src:url(panoramas/cent.jpg);lla:'-84.3931 33.7608 309';" panorama__high="src:url(panoramas/high.jpg);lla:'-84.38584 33.79035 289';" panorama__pied="src: url(panoramas/pied.jpg);lla:'-84.37427 33.78577 271';">
+      <a-entity id="helloworld" position="0 -1 -8">
+        <a-sphere position="0 1.25 -1" radius="1.25" color="#EF2D5E" ></a-sphere>
+        <a-box position="-1 0.5 1" rotation="0 45 0" width="1" height="1" depth="1"  color="#4CC3D9" ></a-box>
+        <a-entity billboard position="0 3 0">
+          <a-entity rotation="0 45 0">
+                  <a-entity css-object="div: #mydiv" scale="0.01 0.01 0.01" rotation="0 0 0" position="0 0 0.5"></a-entity>
+                  <a-entity css-object="div: #mydiv2" scale="0.01 0.01 0.01" rotation="0 -90 0" position="-0.5 0 0"></a-entity>
+          </a-entity>
+        </a-entity>
+        <a-cylinder position="1 0.75 1" radius="0.5" height="1.5" color="#FFC65D"></a-cylinder>
+        <a-plane rotation="-90 0 0" width="4" height="4" color="#7BC8A4"></a-plane>
+      </a-entity>
+    </ar-scene>
+    <script>
+      var arScene = document.querySelector('ar-scene');
+      var content = document.querySelector('#helloworld');
+
+      // the ar-camera has an argon reference frame attached, so when it gets it's first value,
+      // we'll get this event 
+      arScene.addEventListener("referenceframe-statuschanged", function () {
+        var camera = document.querySelector('ar-camera');
+        var vec = camera.object3D.getWorldDirection();
+        vec.multiplyScalar(-10);
+        vec.y -= 1;
+        content.setAttribute("position", {x: vec.x, y: vec.y, z: vec.z});
+      });
+
+      var panoramas = [
+        { text: 'Georgia Aquarium', name: 'aqui' },
+        { text: 'Centennial Park', name: 'cent' },
+        { text: 'High Museum', name: 'high' },
+        { text: 'Piedmont Park', name: 'pied'}
+      ];
+
+      var currentPanorama;
+      // get the menu element
+      var menu = document.getElementById('menu');
+      // add buttons to the menu for each panorama
+      panoramas.forEach(function (p) {
+          var button = document.createElement('button');
+          button.textContent = p.text;
+          menu.appendChild(button);
+          // when a button is tapped, have the reality fade in the corresponding panorama
+          button.addEventListener('click', function () {
+              arScene.sceneEl.emit('showpanorama', { name: p.name });     
+          });
+      });
+
+      // doesn't work yet ...
+      //
+      // var button = document.createElement('button');
+      // button.textContent = "LIVE";
+      // menu.appendChild(button);
+      // // when a button is tapped, have the reality fade in the corresponding panorama
+      // button.addEventListener('click', function () {
+      //   arScene.removeAttribute("desiredreality");
+      // });
+      
+      arScene.addEventListener('argon-initialized', function(evt) {
+        arScene.sceneEl.hud.appendChild(menu);
+        arScene.sceneEl.argonApp.focusEvent.addEventListener(function () {
+            document.getElementById('menu').style.display = 'block';
+        });
+        arScene.sceneEl.argonApp.blurEvent.addEventListener(function () {
+            document.getElementById('menu').style.display = 'none';
+        });      
+      });
+    </script>
+  </body>
+</html>

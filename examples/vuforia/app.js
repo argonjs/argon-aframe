@@ -4,6 +4,7 @@ var arScene = document.querySelector('ar-scene');
 var statusMsg = document.querySelector('#status');
 var loader = document.querySelector('#loader-wrapper');
 statusMsg.innerHTML = "loading argon and aframe...";
+ var frame = document.querySelector("#frame");
 
 var hudElem = document.querySelector("#lookattarget");
 var hudElem2 = hudElem.cloneNode( true );
@@ -26,7 +27,7 @@ arScene.addEventListener('argon-vuforia-dataset-loaded', function(evt) {
 	// hudElem.style.display = 'inline-block'; // start hidden
     arScene.hud.appendChild(hudElem, hudElem2);
 
-    arScene.addEventListener('referenceframe-statuschanged', function(evt) {
+    frame.addEventListener('referenceframe-statuschanged', function(evt) {
         if (evt.detail.found) {
             hudElem.classList.add("hide");
             hudElem2.classList.add("hide");
@@ -45,7 +46,6 @@ arScene.addEventListener('argon-vuforia-dataset-load-failed', function(evt) {
 });
 
 arScene.addEventListener('argon-vuforia-not-available', function(evt) {
-    var frame = document.querySelector("#frame");
     frame.setAttribute("trackvisibilty", false);
     frame.setAttribute("visible", true);
     frame.setAttribute("position", {x: 0, y: 0, z: -0.5});

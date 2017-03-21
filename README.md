@@ -2,6 +2,10 @@
 
 A collection of components, entities and systems to integrate [A-Frame](https://aframe.io) with [argon.js](http://argonjs.io/), so augmented reality content for the Argon web browser can be created with A-Frame.
 
+# A note about using https for development
+
+More and more, modern web browsers demand that you use https:// instead of http://.  You cannot, for example, use the web location APIs, or access video via WebRTC, over http connections on many browsers. If you want to do development using https and node.js use the _devssl_ target (used by doing `npm run devssl`).
+
 # Entities
 
 ## AR Scene
@@ -118,7 +122,7 @@ may be pre-set by the system (e.g., the `ar.user` frame represents the user), de
 by a custom Argon reality, defined on-the-fly by the Vuforia tracking system (for
 each of the trackable targets) or defined by the programmer.  
 
-Reference frames are specified using [Cesium Entities](http://cesium.org), with the 
+Reference frames are specified using [Cesium Entities](http://cesiumjs.org), with the 
 addition that Argon's Entities can be specified in relation to other entities, not just
 the `FIXED` and `INERTIAL` reference frames used by Cesium.  Each reference frame
 has a name:  `FIXED, `INERTIAL` or the `name` of the Entity.  The typical use of 
@@ -197,8 +201,8 @@ is successfully initialized with the key provided above).
 
 Multiple components can be specified with the multiple component syntax 
 (`vuforiadataset__` plus a name).  The name extension (after the `__`) becomes the identity
-of that dataset, and is used to create the names of the vuforia targets.  For example, in 
-this example:
+of that dataset, and is used to create the names of the vuforia targets.  The name extension 
+must be lower case. For example, in this example:  
 
 ```html
 <ar-scene vuforiakey="#vuforiakey"
@@ -237,7 +241,7 @@ and possibly activate it, which will trigger one or more events.
 |--------------|-------------------------------------|
 | argon-vuforia-dataset-downloaded  | Dataset was successfully downloaded. |
 | argon-vuforia-dataset-download-failed  | Dataset not downloaded, see the event.detail.error for why. |
-| argon-vuforia-dataset-loaded  | The dataset was successfully loaded into Vuforia. |
+| argon-vuforia-dataset-loaded  | The dataset was successfully loaded into Vuforia. event.detail.trackables has an object of trackables for this dataset |
 | argon-vuforia-dataset-load-failed  | Dataset not loaded, see the event.detail.error for why. |
 
 ## CSS Object
@@ -301,12 +305,79 @@ cost (higher resolution elements yield higher resolution textures and are slower
 | div  | The HTML element reference for the div. | must be specified |
 | div2 | The optional element element reference for the right stereo div. | null |
 
-## Fixed Size Element
+# Custom Realities
+
+The `desiredreality` component is added to the `<ar-scene>` entity to specify that a custom
+reality should be used. Argon will attempt to immediately install the custom reality.
+
+The properties of the component specify a name for the reality (that will appear in Argon4's 
+reality chooser) and a URL for reality HTML file.  
+
+```html
+<ar-scene desiredreality="src:url(../resources/reality/panorama/index.html);">
+</ar-scene>
+```
+
+Removing the attribute reverts to the default reality for the browser (NOTE: a known bug in argon.js prevents this from working,
+it will be fixed soon.)
+
+### Properties
+
+The `desiredreality` component takes two properties.
+
+| Property   | Description                                                                                                                     | Default Value |
+|------------|---------------------------------------------------------------------------------------------------------------------------------|---------------|
+| src  | The URL of the reality. | must be specified |
+| name | A human readable name for this reality. | "default" |
+
+## Panorama Reality
+
+The `panorama` component is added to the `<ar-scene>` entity to specify a geopositioned panoramic image for the custom
+panorama reality (the panorama reality implements the "ael.gatech.panorama" reality protocol). 
+
+Multiple components can be specified with the multiple component syntax 
+(`panorama__` plus a name).  The name extension (after the `__`) becomes the identity
+of that panorama, and is used to show the panorama by emitting a "showpanorama" event on 
+the `<ar-scene>`.  For example, in this example:
+
+```html
+<ar-scene desiredreality="src:url(../resources/reality/panorama/index.html);"
+      panorama__aqui="src:url(/panorama/panoramas/aqui.jpg);lla:-84.3951 33.7634 206;initial:true;">
+</ar-scene>
+```
+the panorama has the identity `aqui`, and so it can be shown in the panoramic reality by emiting an event:
+```
+var arScene = document.querySelector('ar-scene');
+var menu = document.getElementById('menu');
+
+var button = document.createElement('button');
+button.textContent = "Aquarium";
+menu.appendChild(button);
+// when a button is tapped, have the reality fade in the corresponding panorama
+button.addEventListener('click', function () {
+    arScene.sceneEl.emit('showpanorama', { name: "aqui" });     
+});
+```
+
+If the `initial` property is true, argon.js will attempt to load the panorama when the 
+panorama reality is activated.
+
+### Properties
+
+| Property   | Description                                                                                                                     | Default Value |
+|------------|---------------------------------------------------------------------------------------------------------------------------------|---------------|
+| src  | The URL of the panoramic image. | must be specified |
+| initial | Is this panorama shown as the first panorama. | false |
+| lla        | The logitude, latitude and (optional) altitude of the entity. | required |
+| offsetdegrees | The yaw orientation offset, to align the panorama with north | 0 |
+| easing | Tween.js easing function for transitioning to this panorama | "Quadratic.InOut" |
+| duration | duration of the transition in milliseconds | 500 |
+
+## Fixed Size 
 
 A common need in geospatial AR is to size elements (such as labels) a constant size no
 matter where in 3D they appear.  The `fixedsize` component does that.  It takes one 
-property, representing the scale value that would be applied to the object if it were 
-1 meter from the viewer.  The object is then scaled to that size each frame taking the distance
+property, representing how big 1m in the entity should be in CSS pixels on the screen.  The object is then scaled to that size each frame taking the distance
 from the camera into account.
 
 ```html
@@ -315,7 +386,7 @@ from the camera into account.
         <img id="buzzpin" src="../resources/textures/buzz-pin.png">
       </a-assets>
       <ar-geopose id="GT" lla=" -84.398881 33.778463" userotation="false"> 
-         <a-entity billboard fixedsize="0.05">
+         <a-entity billboard fixedsize="20">
            <a-plane rotation="0 90 0" width="2.9" height="4" src="#buzzpin" transparent="true"></a-plane>
            <a-entity css-object="div: #mydiv" scale="0.02 0.02 0.02" position="0 4 0"></a-entity>
         </a-entity>
@@ -323,11 +394,48 @@ from the camera into account.
     </ar-scene>
 ```
 
+In this example, the `#buzzpin` plane would be approximately 80 pixels tall on the screen.
+
 ### Properties
 
 | Description                                                                                                                     | Default Value |
 |---------------------------------------------------------------------------------------------------------------------------------|---------------|
 | The scale applied to the element if it was 1 meter from the camera. | 1 |
+
+
+## Distance Trigger
+
+A common need in AR and VR is to know when the viewer is within a certain distance of some location in the world. The `trigger` component can be attached to an entity, and when the camera is within a certain distance (specified by the `radius` attribute) the component will emit an event (specified by the `event` attribute).
+
+```html
+    <ar-scene>
+      <ar-geopose id="GT" lla=" -84.398881 33.778463" userotation="false" trigger="radius:100;event:nearGT"> 
+         <a-entity billboard fixedsize="20">
+           <a-plane rotation="0 90 0" width="2.9" height="4" src="#buzzpin" transparent="true"></a-plane>
+           <a-entity css-object="div: #mydiv" scale="0.02 0.02 0.02" position="0 4 0"></a-entity>
+        </a-entity>
+      </ar-geopose>
+    </ar-scene>
+```
+
+In this example, when the user (camera) is within 100 meters of the specified LLA, the event will be emitted.  Similarly, when the user (camera) moves further than 100 meters away, the event will be emitted again.  The event detail can be used to decide if it was an enter or exit event.
+
+Multiple triggers can be attached to an entity.  If `trigger__name` is attached, the event emitted will name `name` in the event detail `name` property.
+
+### Properties
+
+| Property | Description                                                                                                                     | Default Value |
+|-----------|----------------------------------------------------------------------------------------------------------------------|---------------|
+|raduis|The distance of the trigger point from the entity to the camera. | 1 |
+|event| The name of the event to emit.| "trigger" |
+
+### Events
+
+When a trigger is fired, it will emit the following event.
+
+| Name         | Description                         |
+|--------------|-------------------------------------|
+| `eventname`  | A trigger event containing event detail {name: string, inside: boolean, distanceSquared: number} | 
 
 ## Visibility Tracking
 

@@ -22,7 +22,6 @@ var degToRad = THREE.Math.degToRad;
  * ar.device.orientation, ar.device.geolocation, ar.device.display
  */
 AFRAME.registerComponent('referenceframe', {
- 
     schema: { 
         lla: { type: 'vec3'},
         parent: { default: "FIXED" },
@@ -39,29 +38,49 @@ AFRAME.registerComponent('referenceframe', {
 
         this.update = this.update.bind(this);
 
+        if (!el.sceneEl) {
+            console.warn('referenceFrame initialized but no sceneEl');
+            this.finishedInit = false;
+        } else {
+            this.finishedInit = true;
+        }
+
         // this component only works with an Argon Scene
-        if (!el.sceneEl.isArgon) {
-            throw new Error('referenceframe must be used on a child of a <ar-scene>.');
+        // (sometimes, el.sceneEl is undefined when we get here.  weird)
+        if (el.sceneEl && !el.sceneEl.isArgon) {
+            console.warn('referenceframe must be used on a child of a <ar-scene>.');
         }
 	   this.localRotationEuler = new THREE.Euler(0,0,0,'XYZ');
        this.localPosition = { x: 0, y: 0, z: 0 };
        this.localScale = { x: 1, y: 1, z: 1 };
        this.knownFrame = false;
         el.addEventListener('componentchanged', this.updateLocalTransform.bind(this));
-        el.sceneEl.addEventListener('argon-initialized', function() {
-              self.update(self.data);
-        });            
+
+        if (el.sceneEl) {
+            el.sceneEl.addEventListener('argon-initialized', function() {
+                self.update(self.data);
+            });            
+        }
+    },
+
+    checkFinished: function () {
+        if (!this.finishedInit) {
+            this.finishedInit = true;
+            this.update(this.data);
+        }
     },
 
     /** 
      * Update 
      */
     update: function (oldData) {
+        if (!this.el.sceneEl) { return; }
+
         var el = this.el;
         var argonApp = this.el.sceneEl.argonApp;
         var data = this.data;
 
-        var lp = el.getComputedAttribute('position');
+        var lp = el.getAttribute('position');
         if (lp) {
             this.localPosition.x = lp.x;
             this.localPosition.y = lp.y;
@@ -72,7 +91,7 @@ AFRAME.registerComponent('referenceframe', {
             this.localPosition.z = 0;
         }
 
-        var lo = el.getComputedAttribute('rotation');
+        var lo = el.getAttribute('rotation');
         if (lo) {
             this.localRotationEuler.x = degToRad(lo.x);
             this.localRotationEuler.y = degToRad(lo.y);
@@ -83,7 +102,7 @@ AFRAME.registerComponent('referenceframe', {
             this.localRotationEuler.z = 0;
         }
 
-        var ls = el.getComputedAttribute('scale');
+        var ls = el.getAttribute('scale');
         if (ls) {
             this.localScale.x = ls.x;
             this.localScale.y = ls.y;
@@ -218,10 +237,12 @@ AFRAME.registerComponent('referenceframe', {
   /**
    * update each time step.
    */
-  tick: function () {
+  tick: function () {      
       var m1 = new THREE.Matrix4();
 
       return function(t) {
+        this.checkFinished();
+
         var data = this.data;               // parameters
         var el = this.el;                   // entity
         var object3D = el.object3D;
@@ -248,7 +269,7 @@ AFRAME.registerComponent('referenceframe', {
                 }
                 if (entityPos.poseStatus & Argon.PoseStatus.FOUND) {
                     console.log("reference frame changed to FOUND");            
-                    el.sceneEl.emit('referenceframe-statuschanged', {
+                    el.emit('referenceframe-statuschanged', {
                         target: this.el,
                         found: true
                     });                            
@@ -261,12 +282,13 @@ AFRAME.registerComponent('referenceframe', {
                     m1.getInverse(el.parentEl.object3D.matrixWorld);
                     matrix.premultiply(m1);
                     matrix.decompose(object3D.position, object3D.quaternion, object3D.scale );
+                    object3D.updateMatrixWorld();
                 } 
             } else {
                 this.knownFrame = false;
                 if (entityPos.poseStatus & Argon.PoseStatus.LOST) {
                     console.log("reference frame changed to LOST");            
-                    el.sceneEl.emit('referenceframe-statuschanged', {
+                    el.emit('referenceframe-statuschanged', {
                         target: this.el,
                         found: false
                     });                            

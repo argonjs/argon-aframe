@@ -25,7 +25,7 @@ sheet.insertRule('\n' +
 // want to know when the document is loaded 
 document.DOMReady = function () {
 	return new Promise(function(resolve, reject) {
-		if (document.readyState === 'complete') {
+		if (document.readyState != 'loading') {
 			resolve(document);
 		} else {
 			document.addEventListener('DOMContentLoaded', function() {
@@ -37,6 +37,13 @@ document.DOMReady = function () {
 
 AFRAME.registerElement('ar-scene', {
   prototype: Object.create(AEntity.prototype, {
+    defaultComponents: {
+      value: {
+        'canvas': '',
+        'inspector': '',
+        'keyboard-shortcuts': ''
+      }
+    },
     
     createdCallback: {
       value: function () {
@@ -48,6 +55,8 @@ AFRAME.registerElement('ar-scene', {
         this.systems = {};
         this.time = 0;
         this.argonApp = null;
+        this.renderer = null;
+        this.canvas = null;
 
         // finish initializing
         this.init();
@@ -62,26 +71,75 @@ AFRAME.registerElement('ar-scene', {
         this.originalHTML = this.innerHTML;
 
         // let's initialize argon immediately, but wait till the document is
-        // loaded to set up the DOM parts
-        this.argonApp = Argon.init();
+        // loaded to set up the DOM parts.
+        //
+        // Check if Argon is already initialized, don't call init() again if so
+        if (!Argon.ArgonSystem.instance) { 
+            this.argonApp = Argon.init();
+        } else {
+            this.argonApp = Argon.ArgonSystem.instance;
+        }
+
         this.argonApp.context.setDefaultReferenceFrame(this.argonApp.context.localOriginEastUpSouth);
 
         this.argonRender = this.argonRender.bind(this);
         this.argonUpdate = this.argonUpdate.bind(this);
-        this.initializeArgon = this.initializeArgon.bind(this);
-        this.setupRenderer = this.setupRenderer.bind(this);
-     //   this.rAFRenderFunc = this.rAFRenderFunc.bind(this);
+        this.initializeArgonView = this.initializeArgonView.bind(this);
 
-        // var arCameraEl = this.arCameraEl = document.createElement('a-entity');
-        // arCameraEl.setAttribute(AR_CAMERA_ATTR, '');
-        // arCameraEl.setAttribute('camera', {'active': true});
-        // this.sceneEl.appendChild(arCameraEl);
-
-        // run this whenever the document is loaded, which might be now
-        document.DOMReady().then(this.initializeArgon);
-        //this.initializeArgon();
+        this.addEventListener('render-target-loaded', function () {
+          this.setupRenderer();
+          // run this whenever the document is loaded, which might be now
+          document.DOMReady().then(this.initializeArgonView);
+        });
       },
       writable: true 
+    },
+
+    setupRenderer: {
+      value: function () {      
+        var canvas = this.canvas;
+
+        var antialias = this.getAttribute('antialias') === 'true';
+
+        if (THREE.CSS3DArgonRenderer) {
+          this.cssRenderer = new THREE.CSS3DArgonRenderer();
+        } else {
+          this.cssRenderer = null;
+        }
+        if (THREE.CSS3DArgonHUD) {
+          this.hud = new THREE.CSS3DArgonHUD();
+        } else {
+          this.hud = null;
+        }
+        this.renderer = new THREE.WebGLRenderer({
+            canvas: canvas,
+            alpha: true,
+            antialias: antialias,
+            logarithmicDepthBuffer: true
+        });
+        this.renderer.setPixelRatio(window.devicePixelRatio);
+      },
+      writable: true
+    },
+
+    initializeArgonView: {
+        value: function () {
+            // need to do this AFTER the DOM is initialized because 
+            // the argon div may not be created yet, which will pull these 
+            // elements out of the DOM, when they might be needed
+            this.argonApp.view.element.appendChild(this.renderer.domElement);
+            if (this.cssRenderer) {
+              this.argonApp.view.element.appendChild(this.cssRenderer.domElement);
+            }
+            if (this.hud) {
+              this.argonApp.view.element.appendChild(this.hud.domElement);
+            }
+
+            this.emit('argon-initialized', {
+                target: this.argonApp
+            });            
+        },
+        writable: true
     },
 
     /**
@@ -90,7 +148,7 @@ AFRAME.registerElement('ar-scene', {
      */
     attachedCallback: {
       value: function () {        
-        this.setupSystems();
+        this.initSystems();
         this.play();
       },
       writable: window.debug
@@ -124,20 +182,31 @@ AFRAME.registerElement('ar-scene', {
         this.addEventListener('loaded', function () {
           if (this.renderStarted) { return; }
 
-
-          // if there are any cameras aside from the AR-CAMERA loaded, 
-          // make them inactive.
-          this.addEventListener('camera-set-active', function () {
+          var fixCamera = function () {
             var arCameraEl = null;
-            var cameraEls = this.querySelectorAll('[camera]');
+            var cameraEls = self.querySelectorAll('[camera]');
             for (i = 0; i < cameraEls.length; i++) {
                 cameraEl = cameraEls[i];
                 if (cameraEl.tagName === "AR-CAMERA") { 
                   arCameraEl = cameraEl;
                   continue; 
                 }
-                cameraEl.setAttribute('camera', 'active', false);
-                cameraEl.pause();
+
+                // work around the issue where if this entity was added during 
+                // this sequence of loaded listeners, it will not yet have had
+                // it's attachedCallback called, which means sceneEl won't yet
+                // have been added in a-node.js.  When it's eventually added,
+                // a-node will fire nodeready.  
+                if (cameraEl.sceneEl) {
+                  cameraEl.setAttribute('camera', 'active', false);
+                  cameraEl.pause();
+                } else {
+                  var cameraToDeactivate = cameraEl;
+                  cameraEl.addEventListener('nodeready', function() {
+                    cameraToDeactivate.setAttribute('camera', 'active', false);
+                    cameraToDeactivate.pause();
+                  });
+                }
             }
 
             if (arCameraEl == null) {
@@ -146,9 +215,12 @@ AFRAME.registerElement('ar-scene', {
                 defaultCameraEl.setAttribute(constants.AFRAME_INJECTED, '');
                 self.appendChild(defaultCameraEl);
             }
-          });
-
-
+          }
+          // if there are any cameras aside from the AR-CAMERA loaded, 
+          // make them inactive.
+          this.addEventListener('camera-set-active', fixCamera);
+          fixCamera();
+          
           if (this.argonApp) {
               self.addEventListeners();
           } else {
@@ -183,53 +255,9 @@ AFRAME.registerElement('ar-scene', {
             cancelAnimationFrame(this.animationFrameID);
             this.animationFrameID = null;
           }
-          removeEventListenern();
+          this.removeEventListeners();
       }
     },
-
-    initializeArgon: {
-        value: function () {
-            this.setupRenderer();
-
-            this.emit('argon-initialized', {
-                target: this.argonApp
-            });            
-        },
-        writable: true
-    },
-
-    setupRenderer: {
-      value: function () {        
-        var antialias = this.getAttribute('antialias') === 'true';
-
-        if (THREE.CSS3DArgonRenderer) {
-          this.cssRenderer = new THREE.CSS3DArgonRenderer();
-        } else {
-          this.cssRenderer = null;
-        }
-        if (THREE.CSS3DArgonHUD) {
-          this.hud = new THREE.CSS3DArgonHUD();
-        } else {
-          this.hud = null;
-        }
-        this.renderer = new THREE.WebGLRenderer({
-            alpha: true,
-            antialias: antialias,
-            logarithmicDepthBuffer: true
-        });
-        this.renderer.setPixelRatio(window.devicePixelRatio);
-
-        this.argonApp.view.element.appendChild(this.renderer.domElement);
-        if (this.cssRenderer) {
-          this.argonApp.view.element.appendChild(this.cssRenderer.domElement);
-        }
-        if (this.hud) {
-          this.argonApp.view.element.appendChild(this.hud.domElement);
-        }
-      },
-      writable: true
-    },
-
 
     /**
      * Reload the scene to the original DOM content.
@@ -325,8 +353,8 @@ AFRAME.registerElement('ar-scene', {
         var cssRenderer = this.cssRenderer;
         var hud = this.hud;
         var camera = this.camera;
-
-        if (!this.renderer) {
+        
+        if (!this.renderer || !this.camera) {
           // renderer hasn't been setup yet
           this.animationFrameID = null;
           return;
@@ -337,9 +365,13 @@ AFRAME.registerElement('ar-scene', {
         // of the user.  We want to make the camera pose 
         var camEntityPos = null;
         var camEntityRot = null;
+        var camEntityInv = new THREE.Matrix4();
+
         if (camera.parent) {
-            camEntityPos = camera.parent.position.clone().negate();
-            camEntityRot = camera.parent.quaternion.clone().inverse();
+            camera.parent.updateMatrixWorld();
+            camEntityInv.getInverse(camera.parent.matrixWorld);
+       //     camEntityPos = camera.parent.position.clone().negate();
+         //   camEntityRot = camera.parent.quaternion.clone().inverse();
         }
 
         //var viewport = app.view.getViewport()
@@ -384,10 +416,13 @@ AFRAME.registerElement('ar-scene', {
             // set the position and orientation of the camera for 
             // this subview
             camera.position.copy(subview.pose.position);
-            if (camEntityPos)  { camera.position.add(camEntityPos); }
+            //if (camEntityPos)  { camera.position.add(camEntityPos); }
             camera.quaternion.copy(subview.pose.orientation);
-            if (camEntityRot)  { camera.quaternion.multiply(camEntityRot); }
-
+            //if (camEntityRot)  { camera.quaternion.multiply(camEntityRot); }
+            camera.updateMatrix();
+            camera.matrix.premultiply(camEntityInv);
+            camera.matrix.decompose(camera.position, camera.quaternion, camera.scale );
+            
             // the underlying system provide a full projection matrix
             // for the camera. 
             camera.projectionMatrix.fromArray(subview.projectionMatrix);
@@ -425,7 +460,7 @@ AFRAME.registerElement('ar-scene', {
     /**
      * Some mundane functions below here
      */
-    setupSystems: {
+    initSystems: {
       value: function () {
         var systemsKeys = Object.keys(AFRAME.systems);
         systemsKeys.forEach(this.initSystem.bind(this));
@@ -466,14 +501,25 @@ AFRAME.registerElement('ar-scene', {
     },
 
     /**
-     * Wraps Entity.getComputedAttribute to take into account for systems.
-     * If system exists, then return system data rather than possible component data.
+     * `getAttribute` used to be `getDOMAttribute` and `getComputedAttribute` used to be
+     * what `getAttribute` is now. Now legacy code.
      */
     getComputedAttribute: {
       value: function (attr) {
+        warn('`getComputedAttribute` is deprecated. Use `getAttribute` instead.');
+        this.getAttribute(attr);
+      }
+    },
+
+    /**
+     * Wraps Entity.getDOMAttribute to take into account for systems.
+     * If system exists, then return system data rather than possible component data.
+     */
+    getDOMAttribute: {
+      value: function (attr) {
         var system = this.systems[attr];
         if (system) { return system.data; }
-        return AEntity.prototype.getComputedAttribute.call(this, attr);
+        return AEntity.prototype.getDOMAttribute.call(this, attr);
       }
     },
 
@@ -503,6 +549,13 @@ AFRAME.registerElement('ar-scene', {
         if (index === -1) { return; }
         behaviors.splice(index, 1);
       }
+    },
+
+    resize: {
+      value: function () {
+        // don't need to do anything, just don't want components who call this to fail
+      },
+      writable: window.debug
     }
     
   })
