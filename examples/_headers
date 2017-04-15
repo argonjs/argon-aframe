@@ -1,0 +1,2 @@
+/panorama/panoramas/*
+    Access-Control-Allow-Origin: "*"

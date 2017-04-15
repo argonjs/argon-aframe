@@ -1,4 +1,3 @@
-
 require('../src/ar-scene.js');
 require('../src/ar-components.js');
 require('../src/ar-referenceframe.js');

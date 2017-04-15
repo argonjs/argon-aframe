@@ -40,8 +40,8 @@
   },
   "homepage": "https://github.com/argonjs/argon-aframe#readme",
   "dependencies": {
-    "aframe": "file:../aframe",
-    "argon": "file:../argon"
+    "aframe": "^0.5.0",
+    "@argonjs/argon": "^1.1.12"
   },
   "devDependencies": {
     "browserify": "^12.0.1",
