@@ -1,6 +1,6 @@
 {
   "name": "argon-aframe",
-  "version": "1.1.0",
+  "version": "1.0.0",
   "description": "A-Frame integration with Argon.",
   "main": "src/index.js",
   "scripts": {
