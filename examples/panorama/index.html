@@ -9,27 +9,81 @@
     <script src="https://rawgit.com/argonjs/samples/develop/code/resources/lib/CSS3DArgonHUD.js"></script>
     <script src="../resources/js/aframe-look-at-component.js"></script>
 	  <link rel="stylesheet" type="text/css" href="../resources/style.css">
+    <style>
+h1 {
+  text-align: center;
+}
+
+body {
+  box-sizing: border-box;
+  margin: 20px auto;
+  width: 100%;
+  max-width: 600px;
+  padding: 10px;  
+  font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+}
+
+.argon-immersive body {
+  visibility: hidden;
+}
+
+#my-view-container {
+  position: relative;
+  max-width: 600px;
+  height: 400px;
+  margin: auto;
+}
+
+#my-pano-argon-app {
+  width: 100%;
+  height: 100%;
+}
+</style>
   </head>
   <body>
     <div hidden>
       <div id="mydiv" class="boxface">Argon<br>+<br>AFrame</div>
       <div id="mydiv2" class="boxface">WebGL<br>+<br>CSS</div>
     </div>
-    <div id="menu" class="menu"></div>
-    <ar-scene desiredreality="src:url(../resources/reality/panorama/index.html);" panorama__aqui="src:url(panoramas/aqui.jpg);lla:-84.3951 33.7634 206;initial:true;" panorama__cent="src:url(panoramas/cent.jpg);lla:'-84.3931 33.7608 309';" panorama__high="src:url(panoramas/high.jpg);lla:'-84.38584 33.79035 289';" panorama__pied="src: url(panoramas/pied.jpg);lla:'-84.37427 33.78577 271';">
-      <a-entity id="helloworld" position="0 -1 -8">
-        <a-sphere position="0 1.25 -1" radius="1.25" color="#EF2D5E" ></a-sphere>
-        <a-box position="-1 0.5 1" rotation="0 45 0" width="1" height="1" depth="1"  color="#4CC3D9" ></a-box>
-        <a-entity billboard position="0 3 0">
-          <a-entity rotation="0 45 0">
-                  <a-entity css-object="div: #mydiv" scale="0.01 0.01 0.01" rotation="0 0 0" position="0 0 0.5"></a-entity>
-                  <a-entity css-object="div: #mydiv2" scale="0.01 0.01 0.01" rotation="0 -90 0" position="-0.5 0 0"></a-entity>
+
+    <h1>My Travel Blog</h1>
+    <div id="my-view-container">
+      <div id="my-pano-argon-app">
+        <div id="menu" class="menu"></div>
+        <ar-scene desiredreality="src:url(https://rawgit.com/argonjs/samples/develop/code/panorama-reality/index.html);" panorama__aqui="src:url(panoramas/aqui.jpg);lla:-84.3951 33.7634 206;initial:true;" panorama__cent="src:url(panoramas/cent.jpg);lla:'-84.3931 33.7608 309';" panorama__high="src:url(panoramas/high.jpg);lla:'-84.38584 33.79035 289';" panorama__pied="src: url(panoramas/pied.jpg);lla:'-84.37427 33.78577 271';">
+          <a-entity id="helloworld" position="0 -1 -8">
+            <a-sphere position="0 1.25 -1" radius="1.25" color="#EF2D5E" ></a-sphere>
+            <a-box position="-1 0.5 1" rotation="0 45 0" width="1" height="1" depth="1"  color="#4CC3D9" ></a-box>
+            <a-entity billboard position="0 3 0">
+              <a-entity rotation="0 45 0">
+                      <a-entity css-object="div: #mydiv" scale="0.01 0.01 0.01" rotation="0 0 0" position="0 0 0.5"></a-entity>
+                      <a-entity css-object="div: #mydiv2" scale="0.01 0.01 0.01" rotation="0 -90 0" position="-0.5 0 0"></a-entity>
+              </a-entity>
+            </a-entity>
+            <a-cylinder position="1 0.75 1" radius="0.5" height="1.5" color="#FFC65D"></a-cylinder>
+            <a-plane rotation="-90 0 0" width="4" height="4" color="#7BC8A4"></a-plane>
           </a-entity>
-        </a-entity>
-        <a-cylinder position="1 0.75 1" radius="0.5" height="1.5" color="#FFC65D"></a-cylinder>
-        <a-plane rotation="-90 0 0" width="4" height="4" color="#7BC8A4"></a-plane>
-      </a-entity>
-    </ar-scene>
+        </ar-scene>
+      </div>
+    </div>
+    <article>
+      <p>
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam venenatis volutpat diam, sodales lobortis leo lacinia quis. Donec laoreet purus placerat tristique auctor. In faucibus ullamcorper dolor, eu scelerisque lectus interdum quis. Nulla magna mi, gravida vel tellus sollicitudin, finibus pretium erat. Aliquam dignissim lorem sed blandit pretium. Pellentesque sollicitudin lacinia aliquet. Pellentesque pharetra nunc id mollis laoreet. Maecenas laoreet diam nec sapien iaculis, id viverra dui luctus.
+      </p>
+      <p>
+      Nullam risus magna, condimentum scelerisque elementum vel, porttitor non diam. Nullam quis arcu eu velit facilisis rutrum nec ac neque. Fusce sollicitudin ullamcorper dapibus. Quisque volutpat leo eget imperdiet luctus. Aliquam pharetra sapien nibh, in luctus elit accumsan a. Praesent lacinia tincidunt pretium. Curabitur quis nulla ut arcu tincidunt commodo. Donec nec fermentum neque, sit amet pulvinar tortor. Sed in quam ante. Nam malesuada nisl nec velit tristique, sed sagittis massa cursus. Mauris sit amet egestas lectus. Cras a nulla enim. Curabitur leo libero, porttitor at justo vel, sagittis euismod lorem. Praesent ullamcorper sed ante vel congue. Proin eget augue in erat euismod aliquet.
+      </p>
+      <p>
+      In quis erat non nunc euismod efficitur. Maecenas vitae dolor et ligula interdum aliquet sit amet in nibh. Pellentesque sit amet justo et leo elementum malesuada at ac nisi. Sed bibendum dui a dignissim ultricies. Suspendisse eget eleifend metus, quis viverra mauris. Nullam pulvinar lacinia sodales. Aliquam commodo faucibus ante sed congue. Donec faucibus risus sit amet viverra ultrices. Proin tellus orci, tincidunt eu egestas et, vulputate quis nisi. Sed vitae varius eros.
+      </p>
+      <p>
+      Praesent pulvinar lorem sed tellus auctor consequat. Interdum et malesuada fames ac ante ipsum primis in faucibus. Lorem ipsum dolor sit amet, consectetur adipiscing elit. In efficitur, risus sit amet scelerisque imperdiet, ante mauris molestie dolor, at finibus ex arcu a ex. Donec ligula nulla, ornare in lectus maximus, blandit sollicitudin sapien. Vivamus vel luctus orci, pellentesque volutpat metus. Quisque ultrices lacinia vestibulum. Donec nec tristique turpis.
+      </p>
+      <p>
+      Duis gravida, enim quis ornare blandit, tortor metus dignissim ex, dapibus tincidunt erat urna vel enim. Donec mattis luctus neque et aliquet. Fusce at velit quam. Praesent vitae ligula tristique, tristique libero nec, viverra elit. Nulla hendrerit fringilla varius. Integer libero justo, tincidunt ac feugiat vitae, vehicula sed quam. Nam nibh ipsum, viverra ut pretium sed, pretium sed dolor. Integer semper tellus tincidunt, vestibulum lectus nec, vulputate purus.      
+      </p>
+    </article>
+    
     <script>
       var arScene = document.querySelector('ar-scene');
       var content = document.querySelector('#helloworld');

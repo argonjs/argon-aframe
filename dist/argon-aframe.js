@@ -133,7 +133,7 @@
 	        //
 	        // Check if Argon is already initialized, don't call init() again if so
 	        if (!Argon.ArgonSystem.instance) { 
-	            this.argonApp = Argon.init();
+	            this.argonApp = Argon.init(this);
 	        } else {
 	            this.argonApp = Argon.ArgonSystem.instance;
 	        }
@@ -375,6 +375,54 @@
 	      }
 	    },
 
+			enterVR: {
+				value: function (event) {
+					var self = this;
+
+					// Don't enter VR if already in VR.
+					if (this.is('vr-mode')) { return Promise.resolve('Already in VR.'); }
+
+					return argonApp.device.requestEnterHMD(enterVRSuccess, enterVRFailure);
+
+					function enterVRSuccess () {
+						self.addState('vr-mode');
+						self.emit('enter-vr', event);
+					}
+
+					function enterVRFailure (err) {
+						if (err && err.message) {
+							throw new Error('Failed to enter VR mode (`argonApp.device.requestEnterHMD`): ' + err.message);
+						} else {
+							throw new Error('Failed to enter VR mode (`argonApp.device.requestEnterHMD`).');
+						}
+					}
+				}
+			},
+
+			exitVR: {
+				value: function () {
+					var self = this;
+
+					// Don't exit VR if not in VR.
+					if (!this.is('vr-mode')) { return Promise.resolve('Not in VR.'); }
+
+					return argonApp.device.requestEnterHMD(exitVRSuccess, exitVRFailure);
+
+					function exitVRSuccess () {
+						self.removeState('vr-mode');
+						self.emit('exit-vr', {target: self});
+					}
+
+					function exitVRFailure (err) {
+						if (err && err.message) {
+							throw new Error('Failed to exit VR mode (`exitPresent`): ' + err.message);
+						} else {
+							throw new Error('Failed to exit VR mode (`exitPresent`).');
+						}
+					}
+				}
+			},
+			
 	    /**
 	     * The render loop.
 	     *
@@ -411,7 +459,7 @@
 	        var cssRenderer = this.cssRenderer;
 	        var hud = this.hud;
 	        var camera = this.camera;
-
+	        
 	        if (!this.renderer || !this.camera) {
 	          // renderer hasn't been setup yet
 	          this.animationFrameID = null;
@@ -421,11 +469,15 @@
 	        // the camera object is created from a camera property on an entity. This should be
 	        // an ar-camera, which will have the entity position and orientation set to the pose
 	        // of the user.  We want to make the camera pose 
-	        var camEntityPos = null;
-	        var camEntityRot = null;
+	        //var camEntityPos = null;
+	        //var camEntityRot = null;
+	        var camEntityInv = new THREE.Matrix4();
+
 	        if (camera.parent) {
-	            camEntityPos = camera.parent.position.clone().negate();
-	            camEntityRot = camera.parent.quaternion.clone().inverse();
+	            camera.parent.updateMatrixWorld();
+	            camEntityInv.getInverse(camera.parent.matrixWorld);
+	       //     camEntityPos = camera.parent.position.clone().negate();
+	         //   camEntityRot = camera.parent.quaternion.clone().inverse();
 	        }
 
 	        //var viewport = app.view.getViewport()
@@ -443,12 +495,12 @@
 	        //var _a = app.view.getSubviews();
 	        var _a = this.rAFsubViews;
 	        if (this.is('vr-mode')) {
-	          if (_a.length == 1) {
+	          if (_a.length == 1 && this.is('vr-mode')) {
 	            this.removeState('vr-mode');
 	            this.emit('exit-vr', {target: this});
 	          } 
 	        } else {
-	          if (_a.length > 1) {
+	          if (_a.length > 1 && !this.is('vr-mode')) {
 	            this.addState('vr-mode');
 	            this.emit('enter-vr', {target: this});
 	          }
@@ -470,10 +522,13 @@
 	            // set the position and orientation of the camera for 
 	            // this subview
 	            camera.position.copy(subview.pose.position);
-	            if (camEntityPos)  { camera.position.add(camEntityPos); }
+	            //if (camEntityPos)  { camera.position.add(camEntityPos); }
 	            camera.quaternion.copy(subview.pose.orientation);
-	            if (camEntityRot)  { camera.quaternion.multiply(camEntityRot); }
-
+	            //if (camEntityRot)  { camera.quaternion.multiply(camEntityRot); }
+	            camera.updateMatrix();
+	            camera.matrix.premultiply(camEntityInv);
+	            camera.matrix.decompose(camera.position, camera.quaternion, camera.scale );
+	            
 	            // the underlying system provide a full projection matrix
 	            // for the camera. 
 	            camera.projectionMatrix.fromArray(subview.projectionMatrix);
@@ -626,6 +681,7 @@
 
 	module.exports = {
 	  AFRAME_INJECTED: 'aframe-injected',
+	  DEFAULT_CAMERA_HEIGHT: 1.6,
 	  animation: __webpack_require__(3),
 	  keyboardevent: __webpack_require__(5)
 	};
@@ -1859,6 +1915,11 @@
 	            cesiumPosition = Cartesian3.ZERO;
 	        }
 
+	        if (data.parent == "FIXED") {
+	            // this app uses geoposed content, so subscribe to geolocation updates
+	            argonApp.context.subscribeGeolocation();
+	        }
+
 	        // parentEntity is either FIXED or another Entity or ReferenceEntity 
 	        var parentEntity = this.getParentEntity(data.parent);
 
@@ -2014,6 +2075,7 @@
 	                    m1.getInverse(el.parentEl.object3D.matrixWorld);
 	                    matrix.premultiply(m1);
 	                    matrix.decompose(object3D.position, object3D.quaternion, object3D.scale );
+	                    object3D.updateMatrixWorld();
 	                } 
 	            } else {
 	                this.knownFrame = false;

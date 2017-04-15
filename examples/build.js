@@ -112,6 +112,7 @@ module.exports.repeats = REPEATS;
 },{"tween.js":5}],3:[function(require,module,exports){
 module.exports = {
   AFRAME_INJECTED: 'aframe-injected',
+  DEFAULT_CAMERA_HEIGHT: 1.6,
   animation: require('./animation'),
   keyboardevent: require('./keyboardevent')
 };
@@ -1221,6 +1222,11 @@ AFRAME.registerComponent('referenceframe', {
             cesiumPosition = Cartesian3.ZERO;
         }
 
+        if (parent == FIXED) {
+            // this app uses geoposed content, so subscribe to geolocation updates
+            argonApp.context.subscribeGeolocation();
+        }
+
         // parentEntity is either FIXED or another Entity or ReferenceEntity 
         var parentEntity = this.getParentEntity(data.parent);
 
@@ -1737,6 +1743,54 @@ AFRAME.registerElement('ar-scene', {
       }
     },
 
+		enterVR: {
+			value: function (event) {
+				var self = this;
+
+				// Don't enter VR if already in VR.
+				if (this.is('vr-mode')) { return Promise.resolve('Already in VR.'); }
+
+				return argonApp.device.requestEnterHMD(enterVRSuccess, enterVRFailure);
+
+				function enterVRSuccess () {
+					self.addState('vr-mode');
+					self.emit('enter-vr', event);
+				}
+
+				function enterVRFailure (err) {
+					if (err && err.message) {
+						throw new Error('Failed to enter VR mode (`argonApp.device.requestEnterHMD`): ' + err.message);
+					} else {
+						throw new Error('Failed to enter VR mode (`argonApp.device.requestEnterHMD`).');
+					}
+				}
+			}
+		},
+
+		exitVR: {
+			value: function () {
+				var self = this;
+
+				// Don't exit VR if not in VR.
+				if (!this.is('vr-mode')) { return Promise.resolve('Not in VR.'); }
+
+				return argonApp.device.requestEnterHMD(enterVRSuccess, enterVRFailure);
+
+				function exitVRSuccess () {
+					self.removeState('vr-mode');
+					self.emit('exit-vr', {target: self});
+				}
+
+				function exitVRFailure (err) {
+					if (err && err.message) {
+						throw new Error('Failed to exit VR mode (`exitPresent`): ' + err.message);
+					} else {
+						throw new Error('Failed to exit VR mode (`exitPresent`).');
+					}
+				}
+			}
+		},
+		
     /**
      * The render loop.
      *
@@ -1809,12 +1863,12 @@ AFRAME.registerElement('ar-scene', {
         //var _a = app.view.getSubviews();
         var _a = this.rAFsubViews;
         if (this.is('vr-mode')) {
-          if (_a.length == 1) {
+          if (_a.length == 1 && this.is('vr-mode')) {
             this.removeState('vr-mode');
             this.emit('exit-vr', {target: this});
           } 
         } else {
-          if (_a.length > 1) {
+          if (_a.length > 1 && !this.is('vr-mode')) {
             this.addState('vr-mode');
             this.emit('enter-vr', {target: this});
           }

@@ -127,6 +127,11 @@ AFRAME.registerComponent('referenceframe', {
             cesiumPosition = Cartesian3.ZERO;
         }
 
+        if (data.parent == "FIXED") {
+            // this app uses geoposed content, so subscribe to geolocation updates
+            argonApp.context.subscribeGeolocation();
+        }
+
         // parentEntity is either FIXED or another Entity or ReferenceEntity 
         var parentEntity = this.getParentEntity(data.parent);
 

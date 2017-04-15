@@ -75,7 +75,7 @@ AFRAME.registerElement('ar-scene', {
         //
         // Check if Argon is already initialized, don't call init() again if so
         if (!Argon.ArgonSystem.instance) { 
-            this.argonApp = Argon.init();
+            this.argonApp = Argon.init(this);
         } else {
             this.argonApp = Argon.ArgonSystem.instance;
         }
@@ -317,6 +317,54 @@ AFRAME.registerElement('ar-scene', {
       }
     },
 
+		enterVR: {
+			value: function (event) {
+				var self = this;
+
+				// Don't enter VR if already in VR.
+				if (this.is('vr-mode')) { return Promise.resolve('Already in VR.'); }
+
+				return argonApp.device.requestEnterHMD(enterVRSuccess, enterVRFailure);
+
+				function enterVRSuccess () {
+					self.addState('vr-mode');
+					self.emit('enter-vr', event);
+				}
+
+				function enterVRFailure (err) {
+					if (err && err.message) {
+						throw new Error('Failed to enter VR mode (`argonApp.device.requestEnterHMD`): ' + err.message);
+					} else {
+						throw new Error('Failed to enter VR mode (`argonApp.device.requestEnterHMD`).');
+					}
+				}
+			}
+		},
+
+		exitVR: {
+			value: function () {
+				var self = this;
+
+				// Don't exit VR if not in VR.
+				if (!this.is('vr-mode')) { return Promise.resolve('Not in VR.'); }
+
+				return argonApp.device.requestEnterHMD(exitVRSuccess, exitVRFailure);
+
+				function exitVRSuccess () {
+					self.removeState('vr-mode');
+					self.emit('exit-vr', {target: self});
+				}
+
+				function exitVRFailure (err) {
+					if (err && err.message) {
+						throw new Error('Failed to exit VR mode (`exitPresent`): ' + err.message);
+					} else {
+						throw new Error('Failed to exit VR mode (`exitPresent`).');
+					}
+				}
+			}
+		},
+		
     /**
      * The render loop.
      *
@@ -363,8 +411,8 @@ AFRAME.registerElement('ar-scene', {
         // the camera object is created from a camera property on an entity. This should be
         // an ar-camera, which will have the entity position and orientation set to the pose
         // of the user.  We want to make the camera pose 
-        var camEntityPos = null;
-        var camEntityRot = null;
+        //var camEntityPos = null;
+        //var camEntityRot = null;
         var camEntityInv = new THREE.Matrix4();
 
         if (camera.parent) {
@@ -389,12 +437,12 @@ AFRAME.registerElement('ar-scene', {
         //var _a = app.view.getSubviews();
         var _a = this.rAFsubViews;
         if (this.is('vr-mode')) {
-          if (_a.length == 1) {
+          if (_a.length == 1 && this.is('vr-mode')) {
             this.removeState('vr-mode');
             this.emit('exit-vr', {target: this});
           } 
         } else {
-          if (_a.length > 1) {
+          if (_a.length > 1 && !this.is('vr-mode')) {
             this.addState('vr-mode');
             this.emit('enter-vr', {target: this});
           }

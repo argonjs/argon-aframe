@@ -9,6 +9,33 @@
     <script src="https://rawgit.com/argonjs/samples/develop/code/resources/lib/CSS3DArgonHUD.js"></script>
     <script src="../resources/js/aframe-look-at-component.js"></script>
 	  <link rel="stylesheet" type="text/css" href="../resources/style.css">
+    <script>
+
+      function getRandColor () {
+          var letters = '0123456789ABCDEF'.split('');
+          var color = '#';
+          for (var i = 0; i < 6; i++) {
+              color += letters[Math.floor(Math.random() * 16)];
+          }
+          return color;
+      }
+
+      // Component to change to random color on click.
+      AFRAME.registerComponent('cursor-listener', {
+        init: function () {
+          this.el.addEventListener('click', function (evt) {
+            this.setAttribute('material', 'color', getRandColor());
+            console.log('I was clicked at: ', evt.detail.intersection.point);
+          });
+          this.el.addEventListener('mouseenter', function (evt) {
+            this.setAttribute('material', 'opacity', 0.5);
+          });
+          this.el.addEventListener('mouseleave', function (evt) {
+            this.setAttribute('material', 'opacity', 1.0);
+          });
+        }
+      });
+    </script>
   </head>
   <body>
     <div hidden>
@@ -38,32 +65,6 @@
       </ar-camera>
     </ar-scene>
     <script>
-
-      function getRandColor () {
-          var letters = '0123456789ABCDEF'.split('');
-          var color = '#';
-          for (var i = 0; i < 6; i++) {
-              color += letters[Math.floor(Math.random() * 16)];
-          }
-          return color;
-      }
-
-      // Component to change to random color on click.
-      AFRAME.registerComponent('cursor-listener', {
-        init: function () {
-          this.el.addEventListener('click', function (evt) {
-            this.setAttribute('material', 'color', getRandColor());
-            console.log('I was clicked at: ', evt.detail.intersection.point);
-          });
-          this.el.addEventListener('mouseenter', function (evt) {
-            this.setAttribute('material', 'opacity', 0.5);
-          });
-          this.el.addEventListener('mouseleave', function (evt) {
-            this.setAttribute('material', 'opacity', 1.0);
-          });
-        }
-      });
-
 
       var arScene = document.querySelector('ar-scene');
       var content = document.querySelector('#helloworld');
