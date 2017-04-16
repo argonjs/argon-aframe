@@ -1,22 +1,15 @@
+---
+---
 <html>
   <head>
-    <title>Hello, World! Argon + A-Frame</title>
-    <meta name="description" content="Hello, World! Argon + A-Frame">
-    <script src="https://aframe.io/releases/0.5.0/aframe.min.js"></script>
-    <script src="https://unpkg.com/@argonjs/argon@1.1/dist/argon.js"></script>
-
-    <!-- 
-      We build a local copy of argon-aframe.js with browserify into build.js for local testing.
-      Do not use this build.js in your own projects, instead copy the argon-aframe.js or 
-      argon-aframe.min.js from the dist/ directory in the github repository.
-
-      Or use a rawgit url such as (this one gets the current master)
-      <script src="https://rawgit.com/argonjs/argon-aframe/master/dist/argon-aframe.js"></script>
-    -->
-    <script src="../build.js"></script>
-
-    <script src="https://rawgit.com/argonjs/samples/develop/code/resources/lib/CSS3DArgonRenderer.js"></script>
-    <script src="https://rawgit.com/argonjs/samples/develop/code/resources/lib/CSS3DArgonHUD.js"></script>
+    <title>Panorama Reality with Argon + A-Frame</title>
+  	<meta name="keywords" content="{{ site.keywords }}, panoramic ar, custom reality">
+    <meta name="description" content="Panorama Reality with Argon + A-Frame">
+    <script src="{{ site.aframejs }}"></script>    
+    <script src="{{ site.argonjs }}/dist/argon.js"></script>
+    <script src="{{ site.argonaframejs }}"></script>
+    <script src="{{ site.resourcesjs }}/CSS3DArgonRenderer.js"></script>
+    <script src="{{ site.resourcesjs }}/CSS3DArgonHUD.js"></script>
     <script src="../resources/js/aframe-look-at-component.js"></script>
 	  <link rel="stylesheet" type="text/css" href="../resources/style.css">
     <style>
