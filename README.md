@@ -8,7 +8,7 @@ More and more, modern web browsers demand that you use https:// instead of http:
 
 ## Documentation
 
-To see documentation of the collection of Entities and Components that link Argon and AFrame, see the [API Documentation](API).
+To see documentation of the collection of Entities and Components that link Argon and AFrame, see the [API Documentation](API.md).
 
 ## Builds
 
