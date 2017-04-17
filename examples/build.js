@@ -1805,7 +1805,13 @@ AFRAME.registerElement('ar-scene', {
 
           this.rAFviewport = app.view.getViewport();
           this.rAFsubViews = app.view.getSubviews();
-          this.animationFrameID = requestAnimationFrame(this.rAFRenderFunc.bind(this));
+          // we used to do this to manage degraded performance under load with the DOM 
+          // renderer, but it breaks WebVR
+          // 
+          //     this.animationFrameID = requestAnimationFrame(this.rAFRenderFunc.bind(this));
+          //
+          // so just call the function directly.
+          this.rAFRenderFunc();
         }
       },
       writable: true 
