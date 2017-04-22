@@ -11,6 +11,7 @@ document.head.insertBefore(style, document.head.firstChild);
 var sheet = style.sheet;
 sheet.insertRule('ar-scene {\n' + 
 '  display: block;\n' +
+'  overflow: hidden;\n' +
 '  position: relative;\n' +
 '  height: 100%;\n' +
 '  width: 100%;\n' +
@@ -114,7 +115,7 @@ AFRAME.registerElement('ar-scene', {
         this.renderer = new THREE.WebGLRenderer({
             canvas: canvas,
             alpha: true,
-            antialias: antialias,
+            antialias: antialias || window.hasNativeWebVRImplementation,
             logarithmicDepthBuffer: true
         });
         this.renderer.setPixelRatio(window.devicePixelRatio);
