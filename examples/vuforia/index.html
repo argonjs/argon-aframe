@@ -18,19 +18,19 @@
     <div hidden>
       <div id="lookattarget" class="bottomScreen">Look at the "stones" target ...</div>
     </div>  
-    <div id="loader-wrapper">
-      <div class="splashtext">
-        <h1>AFrame + Argon + Vuforia</h1>
-        <h2 id="status">loading scripts...</h2>
-      </div>
-
-      <div id="loader"></div>
-      <div class="loader-section section-left"></div>
-      <div class="loader-section section-right"></div>
-    </div>
 
     <ar-scene vuforiakey="#vuforiakey"
               vuforiadataset__stonesandchips="src:url(../resources/datasets/StonesAndChips.xml);">
+      <div id="loader-wrapper">
+        <div class="splashtext">
+          <h1>AFrame + Argon + Vuforia</h1>
+          <h2 id="status">loading scripts...</h2>
+        </div>
+
+        <div id="loader"></div>
+        <div class="loader-section section-left"></div>
+        <div class="loader-section section-right"></div>
+      </div>
       <a-assets>
         <a-asset-item id="vuforiakey" src="key.txt"></a-asset-item>
         <a-mixin id="light" geometry="primitive: sphere; radius: 1.5"
