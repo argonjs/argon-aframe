@@ -1,8 +1,9 @@
 {
-  "name": "argon-aframe",
-  "version": "1.1.0",
+  "name": "@argonjs/aframe-extensions",
+  "version": "1.1.1",
   "description": "A-Frame integration with Argon.",
   "main": "src/index.js",
+  "homepage": "https://aframe.argonjs.io/",
   "scripts": {
     "build": "browserify examples/main.js -o examples/build.js",
     "devsite": "npm run build && jekyll build --config _config-develop.yml",
@@ -33,11 +34,10 @@
     "ar"
   ],
   "author": "Blair MacIntyre <blair@cc.gatech.e>",
-  "license": "MIT",
+  "license": "Apache 2.0",
   "bugs": {
     "url": "https://github.com/argonjs/argon-aframe/issues"
   },
-  "homepage": "https://github.com/argonjs/argon-aframe#readme",
   "dependencies": {
     "aframe": "^0.5.0",
     "@argonjs/argon": "^1.1.12"
