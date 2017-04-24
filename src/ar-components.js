@@ -25,7 +25,7 @@ AFRAME.registerComponent('fixedsize', {
     var distance = thisPos.distanceTo(cameraPos);
 
     // base the factor on the viewport height
-    var viewport = this.el.sceneEl.argonApp.view.getViewport();
+    var viewport = this.el.sceneEl.argonApp.view.viewport;
     this.factor = 2 * (this.scale / viewport.height); 
 
     // let's get the fov scale factor from the camera
