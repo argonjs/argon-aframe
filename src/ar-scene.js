@@ -128,18 +128,16 @@ AFRAME.registerElement('ar-scene', {
             // need to do this AFTER the DOM is initialized because 
             // the argon div may not be created yet, which will pull these 
             // elements out of the DOM, when they might be needed
-            this.renderer.domElement.style.position = 'absolute';
-            this.renderer.domElement.style.bottom = '0';
-            this.renderer.domElement.style.left = '0';
-            this.renderer.domElement.style.width = '100%';
-            this.renderer.domElement.style.height = '100%';        
-            this.argonApp.view.element.appendChild(this.renderer.domElement);
+            var layers = [ { source: this.renderer.domElement }];
             if (this.cssRenderer) {
-              this.argonApp.view.element.appendChild(this.cssRenderer.domElement);
+              layers.appendChild( { source: this.cssRenderer.domElement })
             }
             if (this.hud) {
-              this.argonApp.view.element.appendChild(this.hud.domElement);
+              layers.appendChild( { source: this.hud.domElement })
             }
+            
+            // set the layers of our view
+            this.argonApp.view.setLayers(layers);
 
             this.emit('argon-initialized', {
                 target: this.argonApp
