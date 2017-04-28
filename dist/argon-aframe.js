@@ -68,6 +68,7 @@
 	var sheet = style.sheet;
 	sheet.insertRule('ar-scene {\n' + 
 	'  display: block;\n' +
+	'  overflow: hidden;\n' +
 	'  position: relative;\n' +
 	'  height: 100%;\n' +
 	'  width: 100%;\n' +
@@ -137,7 +138,7 @@
 	            this.argonApp = Argon.ArgonSystem.instance;
 	        }
 
-	        this.argonApp.context.setDefaultReferenceFrame(this.argonApp.context.localOriginEastUpSouth);
+	        this.argonApp.context.defaultReferenceFrame = this.argonApp.context.localOriginEastUpSouth;
 
 	        this.argonRender = this.argonRender.bind(this);
 	        this.argonUpdate = this.argonUpdate.bind(this);
@@ -171,7 +172,7 @@
 	        this.renderer = new THREE.WebGLRenderer({
 	            canvas: canvas,
 	            alpha: true,
-	            antialias: antialias,
+	            antialias: antialias || window.hasNativeWebVRImplementation,
 	            logarithmicDepthBuffer: true
 	        });
 	        this.renderer.setPixelRatio(window.devicePixelRatio);
@@ -184,13 +185,16 @@
 	            // need to do this AFTER the DOM is initialized because 
 	            // the argon div may not be created yet, which will pull these 
 	            // elements out of the DOM, when they might be needed
-	            this.argonApp.view.element.appendChild(this.renderer.domElement);
+	            var layers = [ { source: this.renderer.domElement }];
 	            if (this.cssRenderer) {
-	              this.argonApp.view.element.appendChild(this.cssRenderer.domElement);
+	              layers.appendChild( { source: this.cssRenderer.domElement })
 	            }
 	            if (this.hud) {
-	              this.argonApp.view.element.appendChild(this.hud.domElement);
+	              layers.appendChild( { source: this.hud.domElement })
 	            }
+	            
+	            // set the layers of our view
+	            this.argonApp.view.setLayers(layers);
 
 	            this.emit('argon-initialized', {
 	                target: this.argonApp
@@ -342,7 +346,7 @@
 	     */
 	    argonUpdate: {
 	        value: function (frame) {
-	            var time = frame.systemTime;
+	            var time = frame.timestamp;
 	            var timeDelta = frame.deltaTime;
 
 	            if (this.isPlaying) {
@@ -431,46 +435,20 @@
 	     */
 	    argonRender: {
 	       value: function (frame) {
-	        if (!this.animationFrameID) {
-	          var app = this.argonApp;
 
-	          this.rAFviewport = app.view.getViewport();
-	          this.rAFsubViews = app.view.getSubviews();
-	          // we used to do this to manage degraded performance under load with the DOM 
-	          // renderer, but it breaks WebVR
-	          // 
-	          //     this.animationFrameID = requestAnimationFrame(this.rAFRenderFunc.bind(this));
-	          //
-	          // so just call the function directly.
-	          this.rAFRenderFunc();
-	        }
-	      },
-	      writable: true 
-	    },
-
-	    rAFviewport: {
-	      value: null,
-	      writable: true
-	    },
-	    rAFsubViews: {
-	      value: null,
-	      writable: true
-	    },
-
-	    rAFRenderFunc: {
-	      value: function () {
-	        var scene = this.object3D;
-	        var renderer = this.renderer;
-	        var cssRenderer = this.cssRenderer;
-	        var hud = this.hud;
 	        var camera = this.camera;
-	        
-	        if (!this.renderer || !this.camera) {
+	        var renderer = this.renderer;
+	        if (!renderer || !camera) {
 	          // renderer hasn't been setup yet
 	          this.animationFrameID = null;
 	          return;
 	        }
 
+	        var app = this.argonApp;
+	        var scene = this.object3D;
+	        var cssRenderer = this.cssRenderer;
+	        var hud = this.hud;
+	        
 	        // the camera object is created from a camera property on an entity. This should be
 	        // an ar-camera, which will have the entity position and orientation set to the pose
 	        // of the user.  We want to make the camera pose 
@@ -481,13 +459,14 @@
 	        if (camera.parent) {
 	            camera.parent.updateMatrixWorld();
 	            camEntityInv.getInverse(camera.parent.matrixWorld);
-	       //     camEntityPos = camera.parent.position.clone().negate();
-	         //   camEntityRot = camera.parent.quaternion.clone().inverse();
+	            //     camEntityPos = camera.parent.position.clone().negate();
+	            //     camEntityRot = camera.parent.quaternion.clone().inverse();
 	        }
 
-	        //var viewport = app.view.getViewport()
-	        var viewport = this.rAFviewport;
-	        renderer.setSize(viewport.width, viewport.height);
+	        const view = app.view;
+	        renderer.setSize(view.renderWidth, view.renderHeight, false);    
+
+	        var viewport = view.viewport;
 	        if (this.cssRenderer) {
 	          cssRenderer.setSize(viewport.width, viewport.height);
 	        }
@@ -498,7 +477,7 @@
 	        // leverage vr-mode.  Question: perhaps we shouldn't, perhaps we should use ar-mode?
 	        // unclear right now how much of the components that use vr-mode are re-purposable
 	        //var _a = app.view.getSubviews();
-	        var _a = this.rAFsubViews;
+	        var _a = app.view.subviews;
 	        if (this.is('vr-mode')) {
 	          if (_a.length == 1 && this.is('vr-mode')) {
 	            this.removeState('vr-mode');
@@ -519,6 +498,15 @@
 	        camera.far = _a[0].frustum.far;
 	        camera.aspect = _a[0].frustum.aspect;
 	        
+	        // if the viewport width and the renderwidth are different
+	        // we assume we are rendering on a different surface than
+	        // the main display, so we reset the pixel ratio to 1
+	        if (viewport.width != view.renderWidth) {
+	            renderer.setPixelRatio(1);
+	        } else {
+	            renderer.setPixelRatio(window.devicePixelRatio);
+	        }
+
 	        // there is 1 subview in monocular mode, 2 in stereo mode    
 	        for (var _i = 0; _i < _a.length; _i++) {
 	            var subview = _a[_i];
@@ -549,17 +537,19 @@
 	              cssRenderer.render(scene, camera, subview.index);
 	            }
 
-	            // set the webGL rendering parameters and render this view
-	            renderer.setViewport(x, y, width, height);
-	            renderer.setScissor(x, y, width, height);
-	            renderer.setScissorTest(true);
-	            renderer.render(scene, camera);
-
 	            if (this.hud) {
 	              // adjust the hud
 	              hud.setViewport(x, y, width, height, subview.index);
 	              hud.render(subview.index);
 	            }
+
+	            // set the webGL rendering parameters and render this view
+	            // set the viewport for this view
+	            var _c = subview.renderViewport, x = _c.x, y = _c.y, width = _c.width, height = _c.height;
+	            renderer.setViewport(x, y, width, height);
+	            renderer.setScissor(x, y, width, height);
+	            renderer.setScissorTest(true);
+	            renderer.render(scene, camera);
 	        }
 
 	        this.animationFrameID = null;
@@ -1647,7 +1637,7 @@
 	    var distance = thisPos.distanceTo(cameraPos);
 
 	    // base the factor on the viewport height
-	    var viewport = this.el.sceneEl.argonApp.view.getViewport();
+	    var viewport = this.el.sceneEl.argonApp.view.viewport;
 	    this.factor = 2 * (this.scale / viewport.height); 
 
 	    // let's get the fov scale factor from the camera
