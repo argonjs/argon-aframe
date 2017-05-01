@@ -130,10 +130,10 @@ AFRAME.registerElement('ar-scene', {
             // elements out of the DOM, when they might be needed
             var layers = [ { source: this.renderer.domElement }];
             if (this.cssRenderer) {
-              layers.appendChild( { source: this.cssRenderer.domElement })
+              layers.push( { source: this.cssRenderer.domElement })
             }
             if (this.hud) {
-              layers.appendChild( { source: this.hud.domElement })
+              layers.push( { source: this.hud.domElement })
             }
             
             // set the layers of our view
