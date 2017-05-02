@@ -85,6 +85,9 @@ AFRAME.registerElement('ar-scene', {
 
         this.argonRender = this.argonRender.bind(this);
         this.argonUpdate = this.argonUpdate.bind(this);
+        this.argonPresentChange = this.argonPresentChange.bind(this);
+        this.argonChangeReality = this.argonChangeReality.bind(this);
+
         this.initializeArgonView = this.initializeArgonView.bind(this);
 
         this.addEventListener('render-target-loaded', function () {
@@ -162,14 +165,82 @@ AFRAME.registerElement('ar-scene', {
         value: function () {
             this.argonApp.renderEvent.addEventListener(this.argonRender);
             this.argonApp.updateEvent.addEventListener(this.argonUpdate);
+
+            this.argonApp.device.presentHMDChangeEvent.addEventListener(this.argonPresentChange);
+            this.argonApp.reality.changeEvent.addEventListener(this.argonChangeReality);
         },
         writable: true
+    },
+
+    argonChangeReality: {
+      value: function () {
+        // for now, we just revisit the presentation setup
+        this.argonPresentChange();
+      },
+      writable: true
+    },
+
+    argonPresentChange: {
+      value: function () {
+        var device = this.argonApp.device;
+        var reality = this.argonApp.reality;
+        var visible = false;
+
+        // AFrame already uses "vr-mode" to mean "isPresenting()" in WebVR, which means either
+        // presenting on an HMD in WebVR, or on mobile w/ cardboard and the WebVR Polyfill
+        //
+        // While this isn't exactly what we want, we'll assume that this means "presenting in an HMD"
+        // We'll add "AR" to signify that there is a version of Reality showing behind the content.
+        // Again, while not precisely correct, it is ok. 
+        if (device.isPresentingHMD) {
+          if (!this.is('vr-mode')) {
+            this.addState('vr-mode');
+            this.emit('enter-vr', {target: this});
+          }
+
+          // if we're in HMD mode, we determine AR mode from isPresentingRealityHMD
+          if (device.isPresentingRealityHMD) {
+            if (!this.is('ar-mode')) {
+              this.addState('ar-mode');
+              this.emit('enter-ar', {target: this});
+            }
+          } else {
+            if (this.is('ar-mode')) {
+              this.removeState('ar-mode');
+              this.emit('exit-ar', {target: this});
+            }
+          }
+        } else {
+          if (this.is('vr-mode')) {
+            this.removeState('vr-mode');
+            this.emit('exit-vr', {target: this});
+          }
+
+          // if we're not in HMD mode, we determine AR mode based on the current reality.
+          // the "empty" reality is not considered AR, which is the default reality on a 
+          // browser than isn't see-through or can't display live video
+          if (reality.current != Argon.RealityViewer.EMPTY) {
+            if (!this.is('ar-mode')) {
+              this.addState('ar-mode');
+              this.emit('enter-ar', {target: this});
+            }
+          } else {
+            if (this.is('ar-mode')) {
+              this.removeState('ar-mode');
+              this.emit('exit-ar', {target: this});
+            }
+          }
+        }
+      },
+      writable: true
     },
 
     removeEventListeners: {
         value: function () {
             this.argonApp.updateEvent.removeEventListener(this.argonUpdate);
             this.argonApp.renderEvent.removeEventListener(this.argonRender);
+            this.argonApp.device.presentChangeEvent.removeEventListener(this.argonPresentChange);
+            this.argonApp.reality.changeEvent.removeEventListener(this.argonChangeReality);
         },
         writable: true
     },
@@ -185,6 +256,9 @@ AFRAME.registerElement('ar-scene', {
 
         this.addEventListener('loaded', function () {
           if (this.renderStarted) { return; }
+
+          // only do this once!
+          this.renderStarted = true;
 
           var fixCamera = function () {
             var arCameraEl = null;
@@ -239,7 +313,6 @@ AFRAME.registerElement('ar-scene', {
               window.performance.mark('render-started');
           }
 
-          this.renderStarted = true;
           this.emit('renderstart');
         });
 
@@ -421,17 +494,17 @@ AFRAME.registerElement('ar-scene', {
         // unclear right now how much of the components that use vr-mode are re-purposable
         //var _a = app.view.getSubviews();
         var _a = app.view.subviews;
-        if (this.is('vr-mode')) {
-          if (_a.length == 1 && this.is('vr-mode')) {
-            this.removeState('vr-mode');
-            this.emit('exit-vr', {target: this});
-          } 
-        } else {
-          if (_a.length > 1 && !this.is('vr-mode')) {
-            this.addState('vr-mode');
-            this.emit('enter-vr', {target: this});
-          }
-        }
+        // if (this.is('vr-mode')) {
+        //   if (_a.length == 1 && this.is('vr-mode')) {
+        //     this.removeState('vr-mode');
+        //     this.emit('exit-vr', {target: this});
+        //   } 
+        // } else {
+        //   if (_a.length > 1 && !this.is('vr-mode')) {
+        //     this.addState('vr-mode');
+        //     this.emit('enter-vr', {target: this});
+        //   }
+        // }
 
         // set the camera properties to the values of the 1st subview.
         // While this is arbitrary, it's likely many of these will be the same
