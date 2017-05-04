@@ -1574,6 +1574,9 @@ AFRAME.registerElement('ar-scene', {
 
         this.argonRender = this.argonRender.bind(this);
         this.argonUpdate = this.argonUpdate.bind(this);
+        this.argonPresentChange = this.argonPresentChange.bind(this);
+        this.argonChangeReality = this.argonChangeReality.bind(this);
+
         this.initializeArgonView = this.initializeArgonView.bind(this);
 
         this.addEventListener('render-target-loaded', function () {
@@ -1651,16 +1654,25 @@ AFRAME.registerElement('ar-scene', {
         value: function () {
             this.argonApp.renderEvent.addEventListener(this.argonRender);
             this.argonApp.updateEvent.addEventListener(this.argonUpdate);
-            this.argonApp.device.presentChangeEvent.addEventListener(this.argonUpdate);
+
+            this.argonApp.device.presentHMDChangeEvent.addEventListener(this.argonPresentChange);
+            this.argonApp.reality.changeEvent.addEventListener(this.argonChangeReality);
         },
         writable: true
     },
 
+    argonChangeReality: {
+      value: function () {
+        // for now, we just revisit the presentation setup
+        this.argonPresentChange();
+      },
+      writable: true
+    },
+
     argonPresentChange: {
       value: function () {
-        var device = this.el.sceneEl.argonApp.device;
-        var reality = this.el.sceneEl.argonApp.reality;
-        var data = this.data;
+        var device = this.argonApp.device;
+        var reality = this.argonApp.reality;
         var visible = false;
 
         // AFrame already uses "vr-mode" to mean "isPresenting()" in WebVR, which means either
@@ -1716,7 +1728,8 @@ AFRAME.registerElement('ar-scene', {
         value: function () {
             this.argonApp.updateEvent.removeEventListener(this.argonUpdate);
             this.argonApp.renderEvent.removeEventListener(this.argonRender);
-            this.argonApp.device.presentChangeEvent.removeEventListener(this.argonUpdate);
+            this.argonApp.device.presentChangeEvent.removeEventListener(this.argonPresentChange);
+            this.argonApp.reality.changeEvent.removeEventListener(this.argonChangeReality);
         },
         writable: true
     },
@@ -1732,6 +1745,9 @@ AFRAME.registerElement('ar-scene', {
 
         this.addEventListener('loaded', function () {
           if (this.renderStarted) { return; }
+
+          // only do this once!
+          this.renderStarted = true;
 
           var fixCamera = function () {
             var arCameraEl = null;
@@ -1786,7 +1802,6 @@ AFRAME.registerElement('ar-scene', {
               window.performance.mark('render-started');
           }
 
-          this.renderStarted = true;
           this.emit('renderstart');
         });
 
@@ -1967,7 +1982,7 @@ AFRAME.registerElement('ar-scene', {
         // leverage vr-mode.  Question: perhaps we shouldn't, perhaps we should use ar-mode?
         // unclear right now how much of the components that use vr-mode are re-purposable
         //var _a = app.view.getSubviews();
-        // var _a = app.view.subviews;
+        var _a = app.view.subviews;
         // if (this.is('vr-mode')) {
         //   if (_a.length == 1 && this.is('vr-mode')) {
         //     this.removeState('vr-mode');
@@ -1979,6 +1994,15 @@ AFRAME.registerElement('ar-scene', {
         //     this.emit('enter-vr', {target: this});
         //   }
         // }
+        if (this.is('vr-mode')) {
+          if (_a.length == 1) {
+            this.argonPresentChange();
+          } 
+        } else {
+          if (_a.length > 1) {
+            this.argonPresentChange();
+          }
+        }
 
         // set the camera properties to the values of the 1st subview.
         // While this is arbitrary, it's likely many of these will be the same

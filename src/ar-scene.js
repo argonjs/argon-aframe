@@ -505,6 +505,15 @@ AFRAME.registerElement('ar-scene', {
         //     this.emit('enter-vr', {target: this});
         //   }
         // }
+        if (this.is('vr-mode')) {
+          if (_a.length == 1) {
+            this.argonPresentChange();
+          } 
+        } else {
+          if (_a.length > 1) {
+            this.argonPresentChange();
+          }
+        }
 
         // set the camera properties to the values of the 1st subview.
         // While this is arbitrary, it's likely many of these will be the same
