@@ -1801,13 +1801,10 @@
 	    this.el.sceneEl.addEventListener('exit-vr', function (evt) { self.updateVisibility(evt); });
 	    this.el.sceneEl.addEventListener('enter-ar', function (evt) { self.updateVisibility(evt); });
 	    this.el.sceneEl.addEventListener('exit-ar', function (evt) { self.updateVisibility(evt); });
+	    self.updateVisibility();
 	  },
 
-	  updateVisibility: function (evt) {
-	    if (evt.detail.target != this.el) {
-	      return;
-	    }
-
+	  updateVisibility: function () {
 	    var armode = this.is('ar-mode');
 	    var hmdmode = this.is('vr-mode');
 

@@ -1026,13 +1026,10 @@ AFRAME.registerComponent('show-in', {
     this.el.sceneEl.addEventListener('exit-vr', function (evt) { self.updateVisibility(evt); });
     this.el.sceneEl.addEventListener('enter-ar', function (evt) { self.updateVisibility(evt); });
     this.el.sceneEl.addEventListener('exit-ar', function (evt) { self.updateVisibility(evt); });
+    self.updateVisibility();
   },
 
-  updateVisibility: function (evt) {
-    if (evt.detail.target != this.el) {
-      return;
-    }
-
+  updateVisibility: function () {
     var armode = this.is('ar-mode');
     var hmdmode = this.is('vr-mode');
 
@@ -1681,6 +1678,7 @@ AFRAME.registerElement('ar-scene', {
         // While this isn't exactly what we want, we'll assume that this means "presenting in an HMD"
         // We'll add "AR" to signify that there is a version of Reality showing behind the content.
         // Again, while not precisely correct, it is ok. 
+        console.log("-- checking presentation mode: " + (this.is('vr-mode')? "vr": "-") + (this.is('ar-mode')? " ar": " "))
         if (device.isPresentingHMD) {
           if (!this.is('vr-mode')) {
             this.addState('vr-mode');
@@ -2002,10 +2000,12 @@ AFRAME.registerElement('ar-scene', {
         // }
         if (this.is('vr-mode')) {
           if (_a.length == 1) {
+            console.log("calling presentChange from render, because vr-mode is set and view is mono");
             this.argonPresentChange();
           } 
         } else {
           if (_a.length > 1) {
+            console.log("calling presentChange from render, because vr-mode not set and view is stereo");
             this.argonPresentChange();
           }
         }
