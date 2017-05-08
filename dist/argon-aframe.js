@@ -147,6 +147,8 @@
 
 	        this.initializeArgonView = this.initializeArgonView.bind(this);
 
+	        this.argonPresentChange();
+
 	        this.addEventListener('render-target-loaded', function () {
 	          this.setupRenderer();
 	          // run this whenever the document is loaded, which might be now
@@ -198,6 +200,8 @@
 	            
 	            // set the layers of our view
 	            this.argonApp.view.setLayers(layers);
+
+	            this.argonPresentChange();
 
 	            this.emit('argon-initialized', {
 	                target: this.argonApp
