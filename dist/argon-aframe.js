@@ -249,9 +249,11 @@
 	        // While this isn't exactly what we want, we'll assume that this means "presenting in an HMD"
 	        // We'll add "AR" to signify that there is a version of Reality showing behind the content.
 	        // Again, while not precisely correct, it is ok. 
+	        console.log("-- checking presentation mode: " + (this.is('vr-mode')? "vr": "-") + (this.is('ar-mode')? " ar": " "))
 	        if (device.isPresentingHMD) {
 	          if (!this.is('vr-mode')) {
 	            this.addState('vr-mode');
+	            console.log('>> enter vr-mode');
 	            this.emit('enter-vr', {target: this});
 	          }
 
@@ -259,17 +261,20 @@
 	          if (device.isPresentingRealityHMD) {
 	            if (!this.is('ar-mode')) {
 	              this.addState('ar-mode');
+	              console.log('>> enter ar-mode');
 	              this.emit('enter-ar', {target: this});
 	            }
 	          } else {
 	            if (this.is('ar-mode')) {
 	              this.removeState('ar-mode');
+	              console.log('<< exit ar-mode');
 	              this.emit('exit-ar', {target: this});
 	            }
 	          }
 	        } else {
 	          if (this.is('vr-mode')) {
 	            this.removeState('vr-mode');
+	            console.log('<< exit vr-mode');
 	            this.emit('exit-vr', {target: this});
 	          }
 
@@ -279,11 +284,13 @@
 	          if (reality.current != Argon.RealityViewer.EMPTY) {
 	            if (!this.is('ar-mode')) {
 	              this.addState('ar-mode');
+	              console.log('>> enter ar-mode');
 	              this.emit('enter-ar', {target: this});
 	            }
 	          } else {
 	            if (this.is('ar-mode')) {
 	              this.removeState('ar-mode');
+	              console.log('<< exit ar-mode');
 	              this.emit('exit-ar', {target: this});
 	            }
 	          }
@@ -564,10 +571,12 @@
 	        // }
 	        if (this.is('vr-mode')) {
 	          if (_a.length == 1) {
+	            console.log("calling presentChange from render, because vr-mode is set and view is mono");
 	            this.argonPresentChange();
 	          } 
 	        } else {
 	          if (_a.length > 1) {
+	            console.log("calling presentChange from render, because vr-mode not set and view is stereo");
 	            this.argonPresentChange();
 	          }
 	        }
