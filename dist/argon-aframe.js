@@ -1805,8 +1805,10 @@
 	  },
 
 	  updateVisibility: function () {
-	    var armode = this.is('ar-mode');
-	    var hmdmode = this.is('vr-mode');
+	    var sceneEl = this.el.sceneEl;
+
+	    var armode = sceneEl.is('ar-mode');
+	    var hmdmode = sceneEl.is('vr-mode');
 
 	    var data = this.data;
 	    var visible = false;
