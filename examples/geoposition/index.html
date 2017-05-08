@@ -32,7 +32,7 @@
         },
 
         tick: function (t) {
-          var object3D = this.el.object3D;
+          var object3D = this.el.parentEl.parentEl.object3D;
           var camera = this.el.sceneEl.camera;
           if (!camera) {return;}
 
