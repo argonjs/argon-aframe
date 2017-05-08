@@ -424,6 +424,7 @@ Multiple triggers can be attached to an entity.  If `trigger__name` is attached,
 |-----------|----------------------------------------------------------------------------------------------------------------------|---------------|
 |raduis|The distance of the trigger point from the entity to the camera. | 1 |
 |event| The name of the event to emit.| "trigger" |
+|initial|Emit an event at the start based on the initial distance|false|
 
 ### Events
 

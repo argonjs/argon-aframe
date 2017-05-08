@@ -12,6 +12,7 @@
     <script src="{{ site.argonaframejs }}"></script>
     <script src="{{ site.samples }}/resources/lib/CSS3DArgonRenderer.js"></script>
     <script src="{{ site.samples }}/resources/lib/CSS3DArgonHUD.js"></script>
+    <script src="{{ site.samples }}/resources/lib/ArgonSunMoon.js"></script>
     <script src="../resources/js/aframe-look-at-component.js"></script>
 	  <link rel="stylesheet" type="text/css" href="../resources/style.css">
 
@@ -48,7 +49,7 @@
       <div id="mydiv" class="boxface">Argon<br>+<br>AFrame</div>
       <div id="mydiv2" class="boxface">WebGL<br>+<br>CSS</div>
     </div>
-    <ar-scene>
+    <ar-scene stats sunmoon light="defaultLightsEnabled: false">
       <a-entity id="helloworld" position="0 -1 -8">
         <a-sphere position="0 1.25 -1" cursor-listener radius="1.25" color="#EF2D5E" ></a-sphere>
         <a-box position="-1 0.5 1" cursor-listener rotation="0 45 0" width="1" height="1" depth="1"  color="#4CC3D9" ></a-box>
@@ -62,6 +63,7 @@
         <a-plane rotation="-90 0 0" cursor-listener width="4" height="4" color="#7BC8A4"></a-plane>
       </a-entity>
 
+      <a-entity light="type: ambient; color: #444"></a-entity>
       <ar-camera>
         <a-entity id="myCursor" cursor="fuse:true; fuse-timeout: 1000"
                     position="0 0 -0.1"

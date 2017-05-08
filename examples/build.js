@@ -1084,6 +1084,56 @@ AFRAME.registerComponent('desiredreality', {
     }
 });
 
+/*
+ * create some lights based on the sun and moon
+ */
+AFRAME.registerComponent('sunmoon', {
+    schema: {
+        default: true
+    },
+    
+    init: function () {
+        var el = this.el;
+
+        if (!el.isArgon) {
+            console.warn('vuforiadataset should be attached to an <ar-scene>.');
+        }
+        // requires that you've included 
+        if (THREE.SunMoonLights) {
+            this.sunMoonLights = new THREE.SunMoonLights();
+            window.CESIUM_BASE_URL='https://samples-develop.argonjs.io/resources/cesium/';
+        }
+    },
+
+    remove: function () {
+        var el = this.el;
+        if (el.isArgon && this.sunMoonLights) {
+            this.sunMoonLights = null;
+            this.el.removeObject3D('sunmoon');
+        }
+    },
+
+    update: function () {
+        var el = this.el;
+        var data = this.data;
+
+        if (el.isArgon) {
+          if (data) {
+            this.el.setObject3D('sunmoon', this.sunMoonLights.lights);
+          } else {
+            this.el.removeObject3D('sunmoon');
+          }
+        }
+    },
+
+    tick: function () {
+      if (this.data && this.sunMoonLights) {
+        var context = this.el.argonApp.context;
+      	this.sunMoonLights.update(context.time,context.defaultReferenceFrame);
+      }
+    }
+});
+
 /**
  * based on https://github.com/Utopiah/aframe-triggerbox-component
  * 
@@ -1100,7 +1150,8 @@ AFRAME.registerComponent('trigger', {
   multiple: true,
   schema: {
       radius: {default: 1},
-      event: {default: 'trigger'}
+      event: {default: 'trigger'},
+      initial: {default: false}
   },
   init: function() {
       // we don't know yet where we are
@@ -1131,20 +1182,15 @@ AFRAME.registerComponent('trigger', {
 
       if (distanceSquared <= thisradiusSquared) {
       	// we are in
-        if (laststateset){
-	        // we were not before
-          if (!laststateinthetrigger) {
-            this.el.emit(triggereventname, {name: this.name, inside: true, distanceSquared: distanceSquared});
-          }
+        if ((!laststateset && data.initial) || (laststateset && !laststateinthetrigger)){
+          this.el.emit(triggereventname, {name: this.name, inside: true, initial: !laststateset, distanceSquared: distanceSquared});
         }
         this.laststateinthetrigger = true;
       } else {
       	// we are out
-        if (laststateset){
-          if (laststateinthetrigger) {
-	          // we were not before
-            this.el.emit(triggereventname, {name: this.name, inside: false, distanceSquared: distanceSquared});
-          }
+        if ((!laststateset && data.initial) || (laststateset && laststateinthetrigger)){
+          // we were not before
+          this.el.emit(triggereventname, {name: this.name, inside: false, initial: !laststateset, distanceSquared: distanceSquared});
         }
         this.laststateinthetrigger = false;
       }
@@ -1294,12 +1340,13 @@ AFRAME.registerComponent('referenceframe', {
             //cesiumPosition = Cartesian3.fromDegrees(data.lla.x, data.lla.y, data.lla.z);
             if (data.lla.z === _ALTITUDE_UNSET) {
                 cesiumPosition = Cartographic.fromDegrees(data.lla.x, data.lla.y);
-                Argon.updateHeightFromTerrain(cesiumPosition).then(() => {
+                var self = this;
+                Argon.updateHeightFromTerrain(cesiumPosition).then(function() {
                     console.log("found height for " + data.lla.x + ", " + data.lla.y + " => " + cesiumPosition.height);
                     if (cesiumPosition.height) {
-                        this.data.lla.z = cesiumPosition.height;
+                        self.data.lla.z = cesiumPosition.height;
                     }
-                    this.update(this.data);
+                    self.update(self.data);
                 });                
                 console.log("initial height for " + data.lla.x + ", " + data.lla.y + " => " + cesiumPosition.height);                
             } else {

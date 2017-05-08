@@ -137,12 +137,13 @@ AFRAME.registerComponent('referenceframe', {
             //cesiumPosition = Cartesian3.fromDegrees(data.lla.x, data.lla.y, data.lla.z);
             if (data.lla.z === _ALTITUDE_UNSET) {
                 cesiumPosition = Cartographic.fromDegrees(data.lla.x, data.lla.y);
-                Argon.updateHeightFromTerrain(cesiumPosition).then(() => {
+                var self = this;
+                Argon.updateHeightFromTerrain(cesiumPosition).then(function() {
                     console.log("found height for " + data.lla.x + ", " + data.lla.y + " => " + cesiumPosition.height);
                     if (cesiumPosition.height) {
-                        this.data.lla.z = cesiumPosition.height;
+                        self.data.lla.z = cesiumPosition.height;
                     }
-                    this.update(this.data);
+                    self.update(self.data);
                 });                
                 console.log("initial height for " + data.lla.x + ", " + data.lla.y + " => " + cesiumPosition.height);                
             } else {
