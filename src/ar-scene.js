@@ -81,8 +81,7 @@ AFRAME.registerElement('ar-scene', {
             this.argonApp = Argon.ArgonSystem.instance;
         }
 
-        // no longer needed, or wanted
-        // this.argonApp.context.defaultReferenceFrame = this.argonApp.context.localOriginEastUpSouth;
+        this.argonApp.context.defaultReferenceFrame = this.argonApp.context.localOriginEastUpSouth;
 
         this.argonRender = this.argonRender.bind(this);
         this.argonUpdate = this.argonUpdate.bind(this);
