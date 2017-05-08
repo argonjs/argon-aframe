@@ -42,7 +42,7 @@
 /************************************************************************/
 /******/ ([
 /* 0 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	__webpack_require__(1);
 	__webpack_require__(6);
@@ -51,9 +51,9 @@
 	__webpack_require__(9);
 	__webpack_require__(10);
 
-/***/ },
+/***/ }),
 /* 1 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	var AEntity = AFRAME.AEntity;
 	var ANode = AFRAME.ANode;
@@ -765,9 +765,9 @@
 	});
 
 
-/***/ },
+/***/ }),
 /* 2 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	module.exports = {
 	  AFRAME_INJECTED: 'aframe-injected',
@@ -777,9 +777,9 @@
 	};
 
 
-/***/ },
+/***/ }),
 /* 3 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	/**
 	 * Animation configuration options for TWEEN.js animations.
@@ -885,9 +885,9 @@
 	module.exports.repeats = REPEATS;
 
 
-/***/ },
+/***/ }),
 /* 4 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/**
 	 * Tween.js - Licensed under the MIT license
@@ -1682,9 +1682,9 @@
 	} )( this );
 
 
-/***/ },
+/***/ }),
 /* 5 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	module.exports = {
 	  // Tiny KeyboardEvent.code polyfill.
@@ -1701,9 +1701,9 @@
 	};
 
 
-/***/ },
+/***/ }),
 /* 6 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	var zeroScale = 0.00001;
 
@@ -1879,6 +1879,9 @@
 	        }
 	        // requires that you've included 
 	        if (THREE.SunMoonLights) {
+	            // this needs geoposed content, so subscribe to geolocation updates
+	            this.el.argonApp.context.subscribeGeolocation();
+	          
 	            this.sunMoonLights = new THREE.SunMoonLights();
 	            window.CESIUM_BASE_URL='https://samples-develop.argonjs.io/resources/cesium/';
 	        }
@@ -1980,9 +1983,9 @@
 
 
 
-/***/ },
+/***/ }),
 /* 7 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	var Cesium = Argon.Cesium;
 	var Cartesian3 = Cesium.Cartesian3;
@@ -2350,9 +2353,9 @@
 	});
 
 
-/***/ },
+/***/ }),
 /* 8 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	AFRAME.registerComponent('css-object', {
 	  schema: {
@@ -2394,9 +2397,9 @@
 	});
 
 
-/***/ },
+/***/ }),
 /* 9 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	AFRAME.registerSystem('vuforia', {
 	    init: function () {
@@ -2810,9 +2813,9 @@
 	});
 
 
-/***/ },
+/***/ }),
 /* 10 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	AFRAME.registerComponent('panorama', {
 	    multiple: true,
@@ -2912,5 +2915,5 @@
 	});
 
 
-/***/ }
+/***/ })
 /******/ ]);

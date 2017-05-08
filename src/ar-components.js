@@ -172,6 +172,9 @@ AFRAME.registerComponent('sunmoon', {
         }
         // requires that you've included 
         if (THREE.SunMoonLights) {
+            // this needs geoposed content, so subscribe to geolocation updates
+            this.el.argonApp.context.subscribeGeolocation();
+          
             this.sunMoonLights = new THREE.SunMoonLights();
             window.CESIUM_BASE_URL='https://samples-develop.argonjs.io/resources/cesium/';
         }
