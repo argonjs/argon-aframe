@@ -1684,6 +1684,7 @@ AFRAME.registerElement('ar-scene', {
         if (device.isPresentingHMD) {
           if (!this.is('vr-mode')) {
             this.addState('vr-mode');
+            console.log('>> enter vr-mode');
             this.emit('enter-vr', {target: this});
           }
 
@@ -1691,17 +1692,20 @@ AFRAME.registerElement('ar-scene', {
           if (device.isPresentingRealityHMD) {
             if (!this.is('ar-mode')) {
               this.addState('ar-mode');
+              console.log('>> enter ar-mode');
               this.emit('enter-ar', {target: this});
             }
           } else {
             if (this.is('ar-mode')) {
               this.removeState('ar-mode');
+              console.log('<< exit ar-mode');
               this.emit('exit-ar', {target: this});
             }
           }
         } else {
           if (this.is('vr-mode')) {
             this.removeState('vr-mode');
+            console.log('<< exit vr-mode');
             this.emit('exit-vr', {target: this});
           }
 
@@ -1711,11 +1715,13 @@ AFRAME.registerElement('ar-scene', {
           if (reality.current != Argon.RealityViewer.EMPTY) {
             if (!this.is('ar-mode')) {
               this.addState('ar-mode');
+              console.log('>> enter ar-mode');
               this.emit('enter-ar', {target: this});
             }
           } else {
             if (this.is('ar-mode')) {
               this.removeState('ar-mode');
+              console.log('<< exit ar-mode');
               this.emit('exit-ar', {target: this});
             }
           }
