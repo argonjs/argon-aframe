@@ -138,6 +138,8 @@
 	            this.argonApp = Argon.ArgonSystem.instance;
 	        }
 
+	        this.enableHighAccuracy = false;
+
 	        this.argonApp.context.defaultReferenceFrame = this.argonApp.context.localOriginEastUpSouth;
 
 	        this.argonRender = this.argonRender.bind(this);
@@ -210,6 +212,12 @@
 	        writable: true
 	    },
 
+	    subscribeGeolocation: {
+	      value: function () {
+	        this.argonApp.context.subscribeGeolocation({enableHighAccuracy: this.enableHighAccuracy});
+	      }
+	    },
+	    
 	    /**
 	     * Handler attached to elements to help scene know when to kick off.
 	     * Scene waits for all entities to load.
@@ -1863,6 +1871,35 @@
 	    }
 	});
 
+	AFRAME.registerComponent('enablehighaccuracy', {
+	    schema: {
+	      default: true
+	    },
+	    
+	    init: function () {
+	        var el = this.el;
+
+	        if (!el.isArgon) {
+	            console.warn('enablehighaccuracy should be attached to an <ar-scene>.');
+	        }
+	    },
+
+	    update: function () {
+	        var el = this.el;
+	        var data = this.data;
+
+	        // do nothing if it's not an argon scene entity
+	        if (el.isArgon) {
+	          // remember our current desired accuracy
+	          el.enableHighAccuracy = data;
+
+	          // re-request geolocation, so it uses the new accuracy
+	          el.subscribeGeolocation();
+	        }
+	    }
+	});
+
+
 	/*
 	 * create some lights based on the sun and moon
 	 */
@@ -1875,13 +1912,14 @@
 	        var el = this.el;
 
 	        if (!el.isArgon) {
-	            console.warn('vuforiadataset should be attached to an <ar-scene>.');
+	            console.warn('sunmoon should be attached to an <ar-scene>.');
 	        }
 	        // requires that you've included 
 	        if (THREE.SunMoonLights) {
 	            // this needs geoposed content, so subscribe to geolocation updates
-	            this.el.argonApp.context.subscribeGeolocation();
-	          
+	            if (el.isArgon) {
+	              this.el.subscribeGeolocation();
+	            }        
 	            this.sunMoonLights = new THREE.SunMoonLights();
 	            window.CESIUM_BASE_URL='https://samples-develop.argonjs.io/resources/cesium/';
 	        }
@@ -2070,7 +2108,8 @@
 	        if (!this.el.sceneEl) { return; }
 
 	        var el = this.el;
-	        var argonApp = this.el.sceneEl.argonApp;
+	        var sceneEl = el.sceneEl;
+	        var argonApp = sceneEl.argonApp;
 	        var data = this.data;
 
 	        var lp = el.getAttribute('position');
@@ -2111,7 +2150,7 @@
 
 	        if (data.parent == "FIXED") {
 	            // this app uses geoposed content, so subscribe to geolocation updates
-	            argonApp.context.subscribeGeolocation();
+	            sceneEl.subscribeGeolocation();
 	        }
 
 	        // parentEntity is either FIXED or another Entity or ReferenceEntity 

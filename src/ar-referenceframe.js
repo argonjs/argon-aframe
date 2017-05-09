@@ -81,7 +81,8 @@ AFRAME.registerComponent('referenceframe', {
         if (!this.el.sceneEl) { return; }
 
         var el = this.el;
-        var argonApp = this.el.sceneEl.argonApp;
+        var sceneEl = el.sceneEl;
+        var argonApp = sceneEl.argonApp;
         var data = this.data;
 
         var lp = el.getAttribute('position');
@@ -122,7 +123,7 @@ AFRAME.registerComponent('referenceframe', {
 
         if (data.parent == "FIXED") {
             // this app uses geoposed content, so subscribe to geolocation updates
-            argonApp.context.subscribeGeolocation();
+            sceneEl.subscribeGeolocation();
         }
 
         // parentEntity is either FIXED or another Entity or ReferenceEntity 

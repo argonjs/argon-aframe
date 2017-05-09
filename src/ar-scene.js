@@ -81,6 +81,8 @@ AFRAME.registerElement('ar-scene', {
             this.argonApp = Argon.ArgonSystem.instance;
         }
 
+        this.enableHighAccuracy = false;
+
         this.argonApp.context.defaultReferenceFrame = this.argonApp.context.localOriginEastUpSouth;
 
         this.argonRender = this.argonRender.bind(this);
@@ -153,6 +155,12 @@ AFRAME.registerElement('ar-scene', {
         writable: true
     },
 
+    subscribeGeolocation: {
+      value: function () {
+        this.argonApp.context.subscribeGeolocation({enableHighAccuracy: this.enableHighAccuracy});
+      }
+    },
+    
     /**
      * Handler attached to elements to help scene know when to kick off.
      * Scene waits for all entities to load.
