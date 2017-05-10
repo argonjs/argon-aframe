@@ -1710,7 +1710,10 @@ AFRAME.registerElement('ar-scene', {
       value: function () {      
         var canvas = this.canvas;
 
+        // Set at startup. To enable/disable antialias and logarithmicdepthbuffer
+        // at runttime we would have to recreate the whole context
         var antialias = this.getAttribute('antialias') === 'true';
+        var logarithmicDepthBuffer = this.getAttribute('logarithmicdepth') === 'true';
 
         if (THREE.CSS3DArgonRenderer) {
           this.cssRenderer = new THREE.CSS3DArgonRenderer();
@@ -1726,7 +1729,7 @@ AFRAME.registerElement('ar-scene', {
             canvas: canvas,
             alpha: true,
             antialias: antialias || window.hasNativeWebVRImplementation,
-            logarithmicDepthBuffer: true
+            logarithmicDepthBuffer: logarithmicDepthBuffer
         });
         this.renderer.setPixelRatio(window.devicePixelRatio);
       },
