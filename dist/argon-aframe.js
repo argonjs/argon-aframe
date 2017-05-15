@@ -229,6 +229,9 @@
 	      value: function () {        
 	        this.initSystems();
 	        this.play();
+
+	        // Add to scene index.
+	        AFRAME.scenes.push(this);
 	      },
 	      writable: window.debug
 	    },
@@ -407,11 +410,16 @@
 	     */
 	    detachedCallback: {
 	      value: function () {
-	          if (this.animationFrameID) {
-	            cancelAnimationFrame(this.animationFrameID);
-	            this.animationFrameID = null;
-	          }
-	          this.removeEventListeners();
+	        var sceneIndex;
+	        if (this.animationFrameID) {
+	          cancelAnimationFrame(this.animationFrameID);
+	          this.animationFrameID = null;
+	        }
+	        this.removeEventListeners();
+
+	        // Remove from scene index.
+	        sceneIndex = scenes.indexOf(this);
+	        scenes.splice(sceneIndex, 1);
 	      }
 	    },
 
@@ -480,8 +488,10 @@
 					// Don't enter VR if already in VR.
 					if (this.is('vr-mode')) { return Promise.resolve('Already in VR.'); }
 
-					return argonApp.device.requestEnterHMD(enterVRSuccess, enterVRFailure);
-
+	        // why would this get called before init?  Dunno, but there was an instance
+	        if (this.argonApp) {
+	  				return this.argonApp.device.requestEnterHMD(enterVRSuccess, enterVRFailure);
+	        }
 					function enterVRSuccess () {
 						self.addState('vr-mode');
 						self.emit('enter-vr', event);
@@ -504,8 +514,10 @@
 					// Don't exit VR if not in VR.
 					if (!this.is('vr-mode')) { return Promise.resolve('Not in VR.'); }
 
-					return argonApp.device.requestEnterHMD(exitVRSuccess, exitVRFailure);
-
+	        // why would this get called before init?  Dunno, but there was an instance
+	        if (this.argonApp) {
+	  				return this.argonApp.device.requestEnterHMD(exitVRSuccess, exitVRFailure);
+	        }
 					function exitVRSuccess () {
 						self.removeState('vr-mode');
 						self.emit('exit-vr', {target: self});
