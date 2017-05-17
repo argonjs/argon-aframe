@@ -1003,10 +1003,10 @@ AFRAME.registerComponent('physical', {
   // we won't be notified.  Bummer
   tick: function () {
     if (this.data) {
-      var mesh = this.el.getObject("mesh");
+      var mesh = this.el.getOrCreateObject3D("mesh");
       if (mesh) {
       	mesh.material.colorWrite = false; // only update the depth
-	      mesh.renderOrder = -1;   // before everything else
+	      mesh.renderOrder = -10;   // before everything else
       }  
     }
   }
