@@ -1801,9 +1801,8 @@
 	  init: function () {
 	  },
 
-	  // have to use tick and do this every frame since "mesh" could change and 
-	  // we won't be notified.  Bummer
-	  tick: function () {
+	  // "mesh" could change and we won't be notified.  Bummer
+	  update: function (oldData) {
 	      var mesh = this.el.getOrCreateObject3D("mesh");
 	      if (mesh) {
 	      	mesh.material.colorWrite = !this.data; // only update the depth
