@@ -1804,13 +1804,11 @@
 	  // have to use tick and do this every frame since "mesh" could change and 
 	  // we won't be notified.  Bummer
 	  tick: function () {
-	    if (this.data) {
 	      var mesh = this.el.getOrCreateObject3D("mesh");
 	      if (mesh) {
-	      	mesh.material.colorWrite = false; // only update the depth
-		      mesh.renderOrder = -10;   // before everything else
+	      	mesh.material.colorWrite = !this.data; // only update the depth
+		      mesh.renderOrder = this.data ? -2 : 0;   // before everything else
 	      }  
-	    }
 	  }
 	}); 
 
