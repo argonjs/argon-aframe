@@ -7,6 +7,7 @@
   "scripts": {
     "build": "browserify examples/main.js -o examples/build.js",
     "devsite": "npm run build && jekyll build --config _config-develop.yml",
+    "testsite": "npm run build && jekyll build --config _config-test.yml",
     "dev": "budo _site/main.js:build.js --dir _site --port 8001 --live --open",
     "devssl": "budo _site/main.js:build.js --dir _site --port 8001 --live --open --ssl ",
     "dist": "webpack src/index.js dist/argon-aframe.js && webpack -p src/index.js dist/argon-aframe.min.js",
