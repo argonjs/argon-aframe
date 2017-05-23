@@ -139,12 +139,15 @@ AFRAME.registerComponent('referenceframe', {
             if (data.lla.z === _ALTITUDE_UNSET) {
                 cesiumPosition = Cartographic.fromDegrees(data.lla.x, data.lla.y);
                 var self = this;
-                Argon.updateHeightFromTerrain(cesiumPosition).then(function() {
+                Argon.updateHeightFromTerrain(cesiumPosition).then(function(result) {
+                    console.log(result);
                     console.log("found height for " + data.lla.x + ", " + data.lla.y + " => " + cesiumPosition.height);
                     if (cesiumPosition.height) {
                         self.data.lla.z = cesiumPosition.height;
                     }
                     self.update(self.data);
+                }).catch(function (er) {
+                    console.error('Inside Catch', er);
                 });                
                 console.log("initial height for " + data.lla.x + ", " + data.lla.y + " => " + cesiumPosition.height);                
             } else {
