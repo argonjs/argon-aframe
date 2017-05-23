@@ -2193,11 +2193,11 @@
 	                    }
 	                    self.update(self.data);
 	                }).catch(function (er) {
-	                    console.error('Inside Catch', er);
+	                    console.log('Inside Catch', er);
 	                });                
 	                console.log("initial height for " + data.lla.x + ", " + data.lla.y + " => " + cesiumPosition.height);                
 	                } catch (e) {
-	                    console.error(e);
+	                    console.log(e);
 	                }
 	 
 	            } else {
