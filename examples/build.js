@@ -1387,6 +1387,7 @@ AFRAME.registerComponent('referenceframe', {
                     console.log(e);
                 }
             } else {
+                console.log("had a valid altitude: " + data.lla.z)
                 cesiumPosition = Cartographic.fromDegrees(data.lla.x, data.lla.y, data.lla.z);
             }
 
