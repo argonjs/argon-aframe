@@ -2182,6 +2182,8 @@
 	            }
 	            //cesiumPosition = Cartesian3.fromDegrees(data.lla.x, data.lla.y, data.lla.z);
 	            if (data.lla.z === _ALTITUDE_UNSET) {
+	                try {
+
 	                cesiumPosition = Cartographic.fromDegrees(data.lla.x, data.lla.y);
 	                var self = this;
 	                Argon.updateHeightFromTerrain(cesiumPosition).then(function() {
@@ -2194,6 +2196,10 @@
 	                    console.error('Inside Catch', er);
 	                });                
 	                console.log("initial height for " + data.lla.x + ", " + data.lla.y + " => " + cesiumPosition.height);                
+	                } catch (e) {
+	                    console.error(e);
+	                }
+	 
 	            } else {
 	                cesiumPosition = Cartographic.fromDegrees(data.lla.x, data.lla.y, data.lla.z);
 	            }
