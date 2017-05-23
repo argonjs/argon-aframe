@@ -12,7 +12,7 @@
     <script src="{{ site.aframejs }}"></script>    
     <script src="{{ site.argonjs }}"></script>
     <script src="{{ site.argonaframejs }}"></script>
-    <script src="{{ site.samples }}/resources/lib/CSS3DArgonRenderer.js"></script>
+    <!--script src="{{ site.samples }}/resources/lib/CSS3DArgonRenderer.js"></script-->
     <script src="{{ site.samples }}/resources/lib/CSS3DArgonHUD.js"></script>
     <script src="../resources/js/aframe-look-at-component.js"></script>
   </head>
@@ -45,22 +45,25 @@
 
       <!-- attach to stones target. x/y in the plane, z up -->
       <ar-frame id="frame" trackvisibility="true" visible="false" parent="vuforia.stonesandchips.stones" position="0 0 0" rotation="0 0 0">
-       <a-entity scale="0.003 0.003 0.003">
-        <a-entity id="stuff"></a-entity>
+       <a-entity id="content">
+        <a-entity scale="0.003 0.003 0.003">
+          <a-entity id="stuff">
+          </a-entity>
 
-        <!-- Lights. -->
-        <a-entity position="0 0 25">
-          <a-animation attribute="rotation" to="0 0 360"
-                      repeat="indefinite" easing="linear" dur="4096">
-          </a-animation>
-          <a-entity mixin="light" position="15 0 0"></a-entity>
-        </a-entity>
+          <!-- Lights. -->
+          <a-entity position="0 0 25">
+            <a-animation attribute="rotation" to="0 0 360"
+                        repeat="indefinite" easing="linear" dur="4096">
+            </a-animation>
+            <a-entity mixin="light" position="15 0 0"></a-entity>
+          </a-entity>
 
-        <a-entity position="0 0 25">
-          <a-animation attribute="rotation" to="360 0 0"
-                      repeat="indefinite" easing="linear" dur="4096">
-          </a-animation>
-          <a-entity mixin="light" position="0 0 25"></a-entity>
+          <a-entity position="0 0 25">
+            <a-animation attribute="rotation" to="360 0 0"
+                        repeat="indefinite" easing="linear" dur="4096">
+            </a-animation>
+            <a-entity mixin="light" position="0 0 25"></a-entity>
+          </a-entity>
         </a-entity>
        </a-entity>
       </ar-frame>      
