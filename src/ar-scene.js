@@ -36,6 +36,8 @@ document.DOMReady = function () {
 	});
 };
 
+var camEntityInv = new THREE.Matrix4();
+
 AFRAME.registerElement('ar-scene', {
   prototype: Object.create(AEntity.prototype, {
     defaultComponents: {
@@ -304,11 +306,15 @@ AFRAME.registerElement('ar-scene', {
                   cameraEl.setAttribute('camera', 'active', false);
                   cameraEl.pause();
                 } else {
-                  var cameraToDeactivate = cameraEl;
-                  cameraEl.addEventListener('nodeready', function() {
-                    cameraToDeactivate.setAttribute('camera', 'active', false);
-                    cameraToDeactivate.pause();
-                  });
+                  // wrap cameraToDeactivate so it's a separate variable each time
+                  // through this loop
+                  var listener = (function () {
+                    var cameraToDeactivate = cameraEl;
+                    return function() {
+                      cameraToDeactivate.setAttribute('camera', 'active', false);
+                      cameraToDeactivate.pause();
+                  }})();
+                  cameraEl.addEventListener('nodeready', listener);
                 }
             }
 
@@ -504,7 +510,7 @@ AFRAME.registerElement('ar-scene', {
         // of the user.  We want to make the camera pose 
         //var camEntityPos = null;
         //var camEntityRot = null;
-        var camEntityInv = new THREE.Matrix4();
+        //var camEntityInv = new THREE.Matrix4();
 
         if (camera.parent) {
             camera.parent.updateMatrixWorld();

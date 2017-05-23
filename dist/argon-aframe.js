@@ -42,7 +42,7 @@
 /************************************************************************/
 /******/ ([
 /* 0 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	__webpack_require__(1);
 	__webpack_require__(6);
@@ -51,9 +51,9 @@
 	__webpack_require__(9);
 	__webpack_require__(10);
 
-/***/ },
+/***/ }),
 /* 1 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	var AEntity = AFRAME.AEntity;
 	var ANode = AFRAME.ANode;
@@ -92,6 +92,8 @@
 			}
 		});
 	};
+
+	var camEntityInv = new THREE.Matrix4();
 
 	AFRAME.registerElement('ar-scene', {
 	  prototype: Object.create(AEntity.prototype, {
@@ -361,11 +363,15 @@
 	                  cameraEl.setAttribute('camera', 'active', false);
 	                  cameraEl.pause();
 	                } else {
-	                  var cameraToDeactivate = cameraEl;
-	                  cameraEl.addEventListener('nodeready', function() {
-	                    cameraToDeactivate.setAttribute('camera', 'active', false);
-	                    cameraToDeactivate.pause();
-	                  });
+	                  // wrap cameraToDeactivate so it's a separate variable each time
+	                  // through this loop
+	                  var listener = (function () {
+	                    var cameraToDeactivate = cameraEl;
+	                    return function() {
+	                      cameraToDeactivate.setAttribute('camera', 'active', false);
+	                      cameraToDeactivate.pause();
+	                  }})();
+	                  cameraEl.addEventListener('nodeready', listener);
 	                }
 	            }
 
@@ -561,7 +567,7 @@
 	        // of the user.  We want to make the camera pose 
 	        //var camEntityPos = null;
 	        //var camEntityRot = null;
-	        var camEntityInv = new THREE.Matrix4();
+	        //var camEntityInv = new THREE.Matrix4();
 
 	        if (camera.parent) {
 	            camera.parent.updateMatrixWorld();
@@ -788,9 +794,9 @@
 	});
 
 
-/***/ },
+/***/ }),
 /* 2 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	module.exports = {
 	  AFRAME_INJECTED: 'aframe-injected',
@@ -800,9 +806,9 @@
 	};
 
 
-/***/ },
+/***/ }),
 /* 3 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	/**
 	 * Animation configuration options for TWEEN.js animations.
@@ -908,9 +914,9 @@
 	module.exports.repeats = REPEATS;
 
 
-/***/ },
+/***/ }),
 /* 4 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/**
 	 * Tween.js - Licensed under the MIT license
@@ -1705,9 +1711,9 @@
 	} )( this );
 
 
-/***/ },
+/***/ }),
 /* 5 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	module.exports = {
 	  // Tiny KeyboardEvent.code polyfill.
@@ -1724,9 +1730,9 @@
 	};
 
 
-/***/ },
+/***/ }),
 /* 6 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	var zeroScale = 0.00001;
 
@@ -2033,9 +2039,9 @@
 
 
 
-/***/ },
+/***/ }),
 /* 7 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	var Cesium = Argon.Cesium;
 	var Cartesian3 = Cesium.Cartesian3;
@@ -2404,9 +2410,9 @@
 	});
 
 
-/***/ },
+/***/ }),
 /* 8 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	AFRAME.registerComponent('css-object', {
 	  schema: {
@@ -2448,9 +2454,9 @@
 	});
 
 
-/***/ },
+/***/ }),
 /* 9 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	AFRAME.registerSystem('vuforia', {
 	    init: function () {
@@ -2864,9 +2870,9 @@
 	});
 
 
-/***/ },
+/***/ }),
 /* 10 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	AFRAME.registerComponent('panorama', {
 	    multiple: true,
@@ -2966,5 +2972,5 @@
 	});
 
 
-/***/ }
+/***/ })
 /******/ ]);
