@@ -1386,8 +1386,6 @@ AFRAME.registerComponent('referenceframe', {
                 } catch (e) {
                     console.log(e);
                 }
-
- 
             } else {
                 cesiumPosition = Cartographic.fromDegrees(data.lla.x, data.lla.y, data.lla.z);
             }
