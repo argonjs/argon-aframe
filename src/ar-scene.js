@@ -91,8 +91,11 @@ AFRAME.registerElement('ar-scene', {
         this.argonRender = this.argonRender.bind(this);
         this.argonUpdate = this.argonUpdate.bind(this);
         this.argonPresentChange = this.argonPresentChange.bind(this);
+
         this.argonChangeReality = this.argonChangeReality.bind(this);
         this.argonSessionChange = this.argonSessionChange.bind(this);
+        this.argonApp.reality.changeEvent.addEventListener(this.argonChangeReality);
+        this.argonApp.reality.connectEvent.addEventListener(this.argonSessionChange);
 
         this.initializeArgonView = this.initializeArgonView.bind(this);
 
@@ -189,8 +192,6 @@ AFRAME.registerElement('ar-scene', {
             this.argonApp.updateEvent.addEventListener(this.argonUpdate);
 
             this.argonApp.device.presentHMDChangeEvent.addEventListener(this.argonPresentChange);
-            this.argonApp.reality.changeEvent.addEventListener(this.argonChangeReality);
-            this.argonApp.reality.connectEvent.addEventListener(this.argonSessionChange);
         },
         writable: true
     },
@@ -298,7 +299,6 @@ AFRAME.registerElement('ar-scene', {
             this.argonApp.updateEvent.removeEventListener(this.argonUpdate);
             this.argonApp.renderEvent.removeEventListener(this.argonRender);
             this.argonApp.device.presentChangeEvent.removeEventListener(this.argonPresentChange);
-            this.argonApp.reality.changeEvent.removeEventListener(this.argonChangeReality);
         },
         writable: true
     },
@@ -395,6 +395,8 @@ AFRAME.registerElement('ar-scene', {
           cancelAnimationFrame(this.animationFrameID);
           this.animationFrameID = null;
         }
+        this.argonApp.reality.changeEvent.removeEventListener(this.argonChangeReality);
+        this.argonApp.reality.connectEvent.removeEventListener(this.argonSessionChange);
         this.removeEventListeners();
 
         // Remove from scene index.
