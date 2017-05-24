@@ -156,7 +156,7 @@ AFRAME.registerComponent('referenceframe', {
                 cesiumPosition = Cartographic.fromDegrees(data.lla.x, data.lla.y, data.lla.z);
             }
 
-            var newEntity = argonApp.context.createGeoEntity(cesiumPosition, Argon.eastUpSouthToFixedFrame);
+            var newEntity = argonApp.entity.createFixed(cesiumPosition, Argon.eastUpSouthToFixedFrame);
             if (el.id !== '') {
                 newEntity._id = el.id;
             }

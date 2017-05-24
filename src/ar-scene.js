@@ -86,7 +86,7 @@ AFRAME.registerElement('ar-scene', {
 
         this.enableHighAccuracy = false;
 
-        this.argonApp.context.defaultReferenceFrame = this.argonApp.context.localOriginEastUpSouth;
+        //this.argonApp.context.defaultReferenceFrame = this.argonApp.context.localOriginEastUpSouth;
 
         this.argonRender = this.argonRender.bind(this);
         this.argonUpdate = this.argonUpdate.bind(this);

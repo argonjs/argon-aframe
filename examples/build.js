@@ -1389,7 +1389,7 @@ AFRAME.registerComponent('referenceframe', {
                 cesiumPosition = Cartographic.fromDegrees(data.lla.x, data.lla.y, data.lla.z);
             }
 
-            var newEntity = argonApp.context.createGeoEntity(cesiumPosition, Argon.eastUpSouthToFixedFrame);
+            var newEntity = argonApp.entity.createFixed(cesiumPosition, Argon.eastUpSouthToFixedFrame);
             if (el.id !== '') {
                 newEntity._id = el.id;
             }
@@ -1691,7 +1691,7 @@ AFRAME.registerElement('ar-scene', {
 
         this.enableHighAccuracy = false;
 
-        this.argonApp.context.defaultReferenceFrame = this.argonApp.context.localOriginEastUpSouth;
+        //this.argonApp.context.defaultReferenceFrame = this.argonApp.context.localOriginEastUpSouth;
 
         this.argonRender = this.argonRender.bind(this);
         this.argonUpdate = this.argonUpdate.bind(this);
