@@ -140,16 +140,22 @@ AFRAME.registerComponent('referenceframe', {
 
                 cesiumPosition = Cartographic.fromDegrees(data.lla.x, data.lla.y);
                 var self = this;
-                Argon.updateHeightFromTerrain(cesiumPosition).then(function() {
-                    console.log("found height for " + data.lla.x + ", " + data.lla.y + " => " + cesiumPosition.height);
-                    if (cesiumPosition.height) {
-                        self.data.lla.z = cesiumPosition.height;
-                    }
-                    self.update(self.data);
+                var promise = Argon.updateHeightFromTerrain(cesiumPosition);
+                
+                if (!promise) {
+                    console.log("failed to get height!");
+                } else {
+                    Cesium.when(promise, function() {
+                       console.log("found height for " + data.lla.x + ", " + data.lla.y + " => " + cesiumPosition.height);
+                        if (cesiumPosition.height) {
+                            self.data.lla.z = cesiumPosition.height;
+                        }
+                        self.update(self.data);
 
-                }).catch(function(e) {
-                    console.log(e);
-                });                
+                    }, function(e) {
+                        console.log(e);
+                    });   
+                }             
                 console.log("initial height for " + data.lla.x + ", " + data.lla.y + " => " + cesiumPosition.height);                
             } else {
                 console.log("had a valid altitude: " + data.lla.z)
