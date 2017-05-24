@@ -117,6 +117,7 @@
 	        this.argonApp = null;
 	        this.renderer = null;
 	        this.canvas = null;
+	        this.session = null; 
 
 	        // finish initializing
 	        this.init();
@@ -148,6 +149,7 @@
 	        this.argonUpdate = this.argonUpdate.bind(this);
 	        this.argonPresentChange = this.argonPresentChange.bind(this);
 	        this.argonChangeReality = this.argonChangeReality.bind(this);
+	        this.argonSessionChange = this.argonSessionChange.bind(this);
 
 	        this.initializeArgonView = this.initializeArgonView.bind(this);
 
@@ -245,9 +247,38 @@
 
 	            this.argonApp.device.presentHMDChangeEvent.addEventListener(this.argonPresentChange);
 	            this.argonApp.reality.changeEvent.addEventListener(this.argonChangeReality);
+	            this.argonApp.reality.connectEvent.addEventListener(this.argonSessionChange);
 	        },
 	        writable: true
 	    },
+
+	    argonSessionChange: {
+	      value: function (session) {
+	        this.session = session;
+	      },
+	      writable: true
+	    },
+
+	    setStageGeolocation: { 
+	      value: function(place) {
+	        if (this.session) {
+	          return this.argonApp.reality.setStageGeolocation(this.session, place);
+	        }
+	        return undefined;
+	      },
+	      writable: true
+	    },
+
+	    resetStageGeolocation: { 
+	      value: function() {
+	        if (this.session) {
+	          return this.argonApp.reality.resetStageGeolocation(this.session);
+	        }
+	        return undefined;
+	      },
+	      writable: true
+	    },
+
 
 	    argonChangeReality: {
 	      value: function () {
@@ -2182,7 +2213,6 @@
 	            }
 	            //cesiumPosition = Cartesian3.fromDegrees(data.lla.x, data.lla.y, data.lla.z);
 	            if (data.lla.z === _ALTITUDE_UNSET) {
-	                try {
 
 	                cesiumPosition = Cartographic.fromDegrees(data.lla.x, data.lla.y);
 	                var self = this;
@@ -2193,11 +2223,10 @@
 	                    }
 	                    self.update(self.data);
 
+	                }).catch(function(e) {
+	                    console.log(e);
 	                });                
 	                console.log("initial height for " + data.lla.x + ", " + data.lla.y + " => " + cesiumPosition.height);                
-	                } catch (e) {
-	                    console.log(e);
-	                }
 	            } else {
 	                console.log("had a valid altitude: " + data.lla.z)
 	                cesiumPosition = Cartographic.fromDegrees(data.lla.x, data.lla.y, data.lla.z);

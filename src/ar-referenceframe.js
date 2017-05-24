@@ -137,7 +137,6 @@ AFRAME.registerComponent('referenceframe', {
             }
             //cesiumPosition = Cartesian3.fromDegrees(data.lla.x, data.lla.y, data.lla.z);
             if (data.lla.z === _ALTITUDE_UNSET) {
-                try {
 
                 cesiumPosition = Cartographic.fromDegrees(data.lla.x, data.lla.y);
                 var self = this;
@@ -148,11 +147,10 @@ AFRAME.registerComponent('referenceframe', {
                     }
                     self.update(self.data);
 
+                }).catch(function(e) {
+                    console.log(e);
                 });                
                 console.log("initial height for " + data.lla.x + ", " + data.lla.y + " => " + cesiumPosition.height);                
-                } catch (e) {
-                    console.log(e);
-                }
             } else {
                 console.log("had a valid altitude: " + data.lla.z)
                 cesiumPosition = Cartographic.fromDegrees(data.lla.x, data.lla.y, data.lla.z);
