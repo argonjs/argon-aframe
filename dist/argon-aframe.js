@@ -117,6 +117,7 @@
 	        this.argonApp = null;
 	        this.renderer = null;
 	        this.canvas = null;
+	        this.session = null; 
 
 	        // finish initializing
 	        this.init();
@@ -142,12 +143,16 @@
 
 	        this.enableHighAccuracy = false;
 
-	        this.argonApp.context.defaultReferenceFrame = this.argonApp.context.localOriginEastUpSouth;
+	        //this.argonApp.context.defaultReferenceFrame = this.argonApp.context.localOriginEastUpSouth;
 
 	        this.argonRender = this.argonRender.bind(this);
 	        this.argonUpdate = this.argonUpdate.bind(this);
 	        this.argonPresentChange = this.argonPresentChange.bind(this);
+
 	        this.argonChangeReality = this.argonChangeReality.bind(this);
+	        this.argonSessionChange = this.argonSessionChange.bind(this);
+	        this.argonApp.reality.changeEvent.addEventListener(this.argonChangeReality);
+	        this.argonApp.reality.connectEvent.addEventListener(this.argonSessionChange);
 
 	        this.initializeArgonView = this.initializeArgonView.bind(this);
 
@@ -244,10 +249,37 @@
 	            this.argonApp.updateEvent.addEventListener(this.argonUpdate);
 
 	            this.argonApp.device.presentHMDChangeEvent.addEventListener(this.argonPresentChange);
-	            this.argonApp.reality.changeEvent.addEventListener(this.argonChangeReality);
 	        },
 	        writable: true
 	    },
+
+	    argonSessionChange: {
+	      value: function (session) {
+	        this.session = session;
+	      },
+	      writable: true
+	    },
+
+	    setStageGeolocation: { 
+	      value: function(place) {
+	        if (this.session) {
+	          return this.argonApp.reality.setStageGeolocation(this.session, place);
+	        }
+	        return undefined;
+	      },
+	      writable: true
+	    },
+
+	    resetStageGeolocation: { 
+	      value: function() {
+	        if (this.session) {
+	          return this.argonApp.reality.resetStageGeolocation(this.session);
+	        }
+	        return undefined;
+	      },
+	      writable: true
+	    },
+
 
 	    argonChangeReality: {
 	      value: function () {
@@ -324,7 +356,6 @@
 	            this.argonApp.updateEvent.removeEventListener(this.argonUpdate);
 	            this.argonApp.renderEvent.removeEventListener(this.argonRender);
 	            this.argonApp.device.presentChangeEvent.removeEventListener(this.argonPresentChange);
-	            this.argonApp.reality.changeEvent.removeEventListener(this.argonChangeReality);
 	        },
 	        writable: true
 	    },
@@ -421,6 +452,8 @@
 	          cancelAnimationFrame(this.animationFrameID);
 	          this.animationFrameID = null;
 	        }
+	        this.argonApp.reality.changeEvent.removeEventListener(this.argonChangeReality);
+	        this.argonApp.reality.connectEvent.removeEventListener(this.argonSessionChange);
 	        this.removeEventListeners();
 
 	        // Remove from scene index.
@@ -2182,21 +2215,32 @@
 	            }
 	            //cesiumPosition = Cartesian3.fromDegrees(data.lla.x, data.lla.y, data.lla.z);
 	            if (data.lla.z === _ALTITUDE_UNSET) {
+
 	                cesiumPosition = Cartographic.fromDegrees(data.lla.x, data.lla.y);
 	                var self = this;
-	                Argon.updateHeightFromTerrain(cesiumPosition).then(function() {
-	                    console.log("found height for " + data.lla.x + ", " + data.lla.y + " => " + cesiumPosition.height);
-	                    if (cesiumPosition.height) {
-	                        self.data.lla.z = cesiumPosition.height;
-	                    }
-	                    self.update(self.data);
-	                });                
+
+	                var promise = Argon.updateHeightFromTerrain(cesiumPosition);
+	                
+	                if (!promise) {
+	                    console.log("failed to get height! ");
+	                } else {
+	                    promise.then(function() {
+	                       console.log("found height for " + data.lla.x + ", " + data.lla.y + " => " + cesiumPosition.height);
+	                        if (cesiumPosition.height) {
+	                            self.data.lla.z = cesiumPosition.height;
+	                        }
+	                        self.update(self.data);
+	                    }).catch(function(e) {
+	                        console.log(e);
+	                    });   
+	                }             
 	                console.log("initial height for " + data.lla.x + ", " + data.lla.y + " => " + cesiumPosition.height);                
 	            } else {
+	                console.log("had a valid altitude: " + data.lla.z)
 	                cesiumPosition = Cartographic.fromDegrees(data.lla.x, data.lla.y, data.lla.z);
 	            }
 
-	            var newEntity = argonApp.context.createGeoEntity(cesiumPosition, Argon.eastUpSouthToFixedFrame);
+	            var newEntity = argonApp.entity.createFixed(cesiumPosition, Argon.eastUpSouthToFixedFrame);
 	            if (el.id !== '') {
 	                newEntity._id = el.id;
 	            }

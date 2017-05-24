@@ -60,6 +60,7 @@ AFRAME.registerElement('ar-scene', {
         this.argonApp = null;
         this.renderer = null;
         this.canvas = null;
+        this.session = null; 
 
         // finish initializing
         this.init();
@@ -85,12 +86,16 @@ AFRAME.registerElement('ar-scene', {
 
         this.enableHighAccuracy = false;
 
-        this.argonApp.context.defaultReferenceFrame = this.argonApp.context.localOriginEastUpSouth;
+        //this.argonApp.context.defaultReferenceFrame = this.argonApp.context.localOriginEastUpSouth;
 
         this.argonRender = this.argonRender.bind(this);
         this.argonUpdate = this.argonUpdate.bind(this);
         this.argonPresentChange = this.argonPresentChange.bind(this);
+
         this.argonChangeReality = this.argonChangeReality.bind(this);
+        this.argonSessionChange = this.argonSessionChange.bind(this);
+        this.argonApp.reality.changeEvent.addEventListener(this.argonChangeReality);
+        this.argonApp.reality.connectEvent.addEventListener(this.argonSessionChange);
 
         this.initializeArgonView = this.initializeArgonView.bind(this);
 
@@ -187,10 +192,37 @@ AFRAME.registerElement('ar-scene', {
             this.argonApp.updateEvent.addEventListener(this.argonUpdate);
 
             this.argonApp.device.presentHMDChangeEvent.addEventListener(this.argonPresentChange);
-            this.argonApp.reality.changeEvent.addEventListener(this.argonChangeReality);
         },
         writable: true
     },
+
+    argonSessionChange: {
+      value: function (session) {
+        this.session = session;
+      },
+      writable: true
+    },
+
+    setStageGeolocation: { 
+      value: function(place) {
+        if (this.session) {
+          return this.argonApp.reality.setStageGeolocation(this.session, place);
+        }
+        return undefined;
+      },
+      writable: true
+    },
+
+    resetStageGeolocation: { 
+      value: function() {
+        if (this.session) {
+          return this.argonApp.reality.resetStageGeolocation(this.session);
+        }
+        return undefined;
+      },
+      writable: true
+    },
+
 
     argonChangeReality: {
       value: function () {
@@ -267,7 +299,6 @@ AFRAME.registerElement('ar-scene', {
             this.argonApp.updateEvent.removeEventListener(this.argonUpdate);
             this.argonApp.renderEvent.removeEventListener(this.argonRender);
             this.argonApp.device.presentChangeEvent.removeEventListener(this.argonPresentChange);
-            this.argonApp.reality.changeEvent.removeEventListener(this.argonChangeReality);
         },
         writable: true
     },
@@ -364,6 +395,8 @@ AFRAME.registerElement('ar-scene', {
           cancelAnimationFrame(this.animationFrameID);
           this.animationFrameID = null;
         }
+        this.argonApp.reality.changeEvent.removeEventListener(this.argonChangeReality);
+        this.argonApp.reality.connectEvent.removeEventListener(this.argonSessionChange);
         this.removeEventListeners();
 
         // Remove from scene index.
