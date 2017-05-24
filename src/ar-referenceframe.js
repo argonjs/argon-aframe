@@ -146,14 +146,13 @@ AFRAME.registerComponent('referenceframe', {
                 if (!promise) {
                     console.log("failed to get height! ");
                 } else {
-                    Argon.Cesium.when(promise, function() {
+                    promise.then(function() {
                        console.log("found height for " + data.lla.x + ", " + data.lla.y + " => " + cesiumPosition.height);
                         if (cesiumPosition.height) {
                             self.data.lla.z = cesiumPosition.height;
                         }
                         self.update(self.data);
-
-                    }, function(e) {
+                    }).catch(function(e) {
                         console.log(e);
                     });   
                 }             
