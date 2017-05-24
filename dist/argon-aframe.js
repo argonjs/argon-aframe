@@ -2218,12 +2218,13 @@
 
 	                cesiumPosition = Cartographic.fromDegrees(data.lla.x, data.lla.y);
 	                var self = this;
+
 	                var promise = Argon.updateHeightFromTerrain(cesiumPosition);
 	                
 	                if (!promise) {
 	                    console.log("failed to get height!");
 	                } else {
-	                    Cesium.when(promise, function() {
+	                    Argon.Cesium.when(promise, function() {
 	                       console.log("found height for " + data.lla.x + ", " + data.lla.y + " => " + cesiumPosition.height);
 	                        if (cesiumPosition.height) {
 	                            self.data.lla.z = cesiumPosition.height;
