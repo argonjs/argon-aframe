@@ -2222,7 +2222,7 @@
 	                var promise = Argon.updateHeightFromTerrain(cesiumPosition);
 	                
 	                if (!promise) {
-	                    console.log("failed to get height!");
+	                    console.log("failed to get height! ");
 	                } else {
 	                    Argon.Cesium.when(promise, function() {
 	                       console.log("found height for " + data.lla.x + ", " + data.lla.y + " => " + cesiumPosition.height);
