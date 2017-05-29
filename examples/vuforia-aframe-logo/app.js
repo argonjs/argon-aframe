@@ -5,6 +5,7 @@ var statusMsg = document.querySelector('#status');
 var loader = document.querySelector('#loader-wrapper');
 statusMsg.innerHTML = "loading argon and aframe...";
 var frame = document.querySelector("#frame");
+var content = document.querySelector("#content");
 
 var hudElem = document.querySelector("#lookattarget");
 var hudElem2 = hudElem.cloneNode( true );
@@ -62,13 +63,16 @@ arScene.addEventListener('argon-vuforia-dataset-load-failed', function(evt) {
 arScene.addEventListener('argon-vuforia-not-available', function(evt) {
     frame.setAttribute("trackvisibilty", false);
     frame.setAttribute("visible", true);
-    frame.setAttribute("position", {x: 0, y: 0, z: -0.5});
+    frame.setAttribute("parent", "ar.stage");
+//    content.setAttribute("rotation", {x: -90, y: 0, z: 0});
+    content.setAttribute("position", {x: 0, y: 0, z: -5});
+    content.setAttribute("scale", {x: 20, y: 20, z: 20});
 
     contentRoot.setAttribute("rotation", { x: 0, y: -90, z:0 });
 
     hudElem.innerHTML = "No Vuforia. Showing scene that would be on the target."
-    hudElem.style.display = 'inline-block'; // show when target lost
-    arScene.hud.appendChild(hudElem);
+    hudElem2.innerHTML = "No Vuforia. Showing scene that would be on the target."
+    arScene.hud.appendChild(hudElem, hudElem2);
 
     statusMsg.innerHTML = "done";
     loader.classList.add('loaded');

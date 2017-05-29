@@ -1,9 +1,13 @@
 var Cesium = Argon.Cesium;
 var Cartesian3 = Cesium.Cartesian3;
+var Cartographic = Cesium.Cartographic;
 var ConstantPositionProperty = Cesium.ConstantPositionProperty;
 var ReferenceFrame = Cesium.ReferenceFrame;
 var ReferenceEntity = Cesium.ReferenceEntity;
 var degToRad = THREE.Math.degToRad;
+
+// radius of earth is ~6200000, so this means "unset"
+var _ALTITUDE_UNSET = -7000000;
 
 /**
  * referenceframe component for A-Frame.
@@ -23,7 +27,7 @@ var degToRad = THREE.Math.degToRad;
  */
 AFRAME.registerComponent('referenceframe', {
     schema: { 
-        lla: { type: 'vec3'},
+        lla: { type: 'vec3', default: {x: 0, y: 0, z: _ALTITUDE_UNSET}},  
         parent: { default: "FIXED" },
         userotation: { default: true},
         useposition: { default: true}
@@ -77,7 +81,8 @@ AFRAME.registerComponent('referenceframe', {
         if (!this.el.sceneEl) { return; }
 
         var el = this.el;
-        var argonApp = this.el.sceneEl.argonApp;
+        var sceneEl = el.sceneEl;
+        var argonApp = sceneEl.argonApp;
         var data = this.data;
 
         var lp = el.getAttribute('position');
@@ -116,40 +121,82 @@ AFRAME.registerComponent('referenceframe', {
             return;
         }
 
+        if (data.parent == "FIXED") {
+            // this app uses geoposed content, so subscribe to geolocation updates
+            sceneEl.subscribeGeolocation();
+        }
+
+        // parentEntity is either FIXED or another Entity or ReferenceEntity 
+        var parentEntity = this.getParentEntity(data.parent);
+
         var cesiumPosition = null;
         if (this.attrValue.hasOwnProperty('lla'))  {
             if (data.parent !== 'FIXED') {
                 console.warn("Using 'lla' with a 'parent' other than 'FIXED' is invalid. Ignoring parent value.");
                 data.parent = 'FIXED';
             }
-            cesiumPosition = Cartesian3.fromDegrees(data.lla.x, data.lla.y, data.lla.z);
-        } else {
-            cesiumPosition = Cartesian3.ZERO;
-        }
+            //cesiumPosition = Cartesian3.fromDegrees(data.lla.x, data.lla.y, data.lla.z);
+            if (data.lla.z === _ALTITUDE_UNSET) {
 
-        if (data.parent == "FIXED") {
-            // this app uses geoposed content, so subscribe to geolocation updates
-            argonApp.context.subscribeGeolocation();
-        }
+                cesiumPosition = Cartographic.fromDegrees(data.lla.x, data.lla.y);
+                var self = this;
 
-        // parentEntity is either FIXED or another Entity or ReferenceEntity 
-        var parentEntity = this.getParentEntity(data.parent);
-
-        // The first time here, we'll create a cesium Entity.  If the id has changed,
-        // we'll recreate a new entity with the new id.
-        // Otherwise, we just update the entity's position.
-        if (this.cesiumEntity == null || (el.id !== "" && el.id !== this.cesiumEntity.id)) {
-            var options = {
-                position: new ConstantPositionProperty(cesiumPosition, parentEntity),
-                orientation: Cesium.Quaternion.IDENTITY
+                var promise = Argon.updateHeightFromTerrain(cesiumPosition);
+                
+                if (!promise) {
+                    console.log("failed to get height! ");
+                } else {
+                    promise.then(function() {
+                       console.log("found height for " + data.lla.x + ", " + data.lla.y + " => " + cesiumPosition.height);
+                        if (cesiumPosition.height) {
+                            self.data.lla.z = cesiumPosition.height;
+                        }
+                        self.update(self.data);
+                    }).catch(function(e) {
+                        console.log(e);
+                    });   
+                }             
+                console.log("initial height for " + data.lla.x + ", " + data.lla.y + " => " + cesiumPosition.height);                
+            } else {
+                console.log("had a valid altitude: " + data.lla.z)
+                cesiumPosition = Cartographic.fromDegrees(data.lla.x, data.lla.y, data.lla.z);
             }
+
+            var newEntity = argonApp.entity.createFixed(cesiumPosition, Argon.eastUpSouthToFixedFrame);
             if (el.id !== '') {
-                options.id = el.id;
+                newEntity._id = el.id;
             }
-            this.cesiumEntity = new Cesium.Entity(options);
+
+            // The first time here, we'll use the new cesium Entity.  
+            // If the id has changed, we'll also use the new entity with the new id.
+            // Otherwise, we just update the entity's position.
+            if (this.cesiumEntity == null || (el.id !== "" && el.id !== this.cesiumEntity.id)) {
+                this.cesiumEntity = newEntity;
+            } else {
+                this.cesiumEntity.position = newEntity.position;
+                this.cesiumEntity.orientation = newEntity.orientation;
+            }        
+
         } else {
-            this.cesiumEntity.position.setValue(cesiumPosition, parentEntity);
-        }        
+            // The first time here, we'll create a cesium Entity.  If the id has changed,
+            // we'll recreate a new entity with the new id.
+            // Otherwise, we just update the entity's position.
+            if (this.cesiumEntity == null || (el.id !== "" && el.id !== this.cesiumEntity.id)) {
+                var options = {
+                    position: new ConstantPositionProperty(Cartesian3.ZERO, parentEntity),
+                    orientation: Cesium.Quaternion.IDENTITY
+                }
+                if (el.id !== '') {
+                    options.id = el.id;
+                }
+                this.cesiumEntity = new Cesium.Entity(options);
+            } else {
+                // reset both, in case it was an LLA previously (weird, but valid)
+                this.cesiumEntity.position.setValue(Cartesian3.ZERO, parentEntity);
+                this.cesiumEntity.orientation.setValue(Cesium.Quaternion.IDENTITY);
+            }        
+        }
+
     },
 
     getParentEntity: function (parent) {

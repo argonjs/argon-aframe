@@ -11,6 +11,7 @@ document.head.insertBefore(style, document.head.firstChild);
 var sheet = style.sheet;
 sheet.insertRule('ar-scene {\n' + 
 '  display: block;\n' +
+'  overflow: hidden;\n' +
 '  position: relative;\n' +
 '  height: 100%;\n' +
 '  width: 100%;\n' +
@@ -35,6 +36,8 @@ document.DOMReady = function () {
 	});
 };
 
+var camEntityInv = new THREE.Matrix4();
+
 AFRAME.registerElement('ar-scene', {
   prototype: Object.create(AEntity.prototype, {
     defaultComponents: {
@@ -57,6 +60,7 @@ AFRAME.registerElement('ar-scene', {
         this.argonApp = null;
         this.renderer = null;
         this.canvas = null;
+        this.session = null; 
 
         // finish initializing
         this.init();
@@ -80,11 +84,22 @@ AFRAME.registerElement('ar-scene', {
             this.argonApp = Argon.ArgonSystem.instance;
         }
 
-        this.argonApp.context.setDefaultReferenceFrame(this.argonApp.context.localOriginEastUpSouth);
+        this.enableHighAccuracy = false;
+
+        //this.argonApp.context.defaultReferenceFrame = this.argonApp.context.localOriginEastUpSouth;
 
         this.argonRender = this.argonRender.bind(this);
         this.argonUpdate = this.argonUpdate.bind(this);
+        this.argonPresentChange = this.argonPresentChange.bind(this);
+
+        this.argonChangeReality = this.argonChangeReality.bind(this);
+        this.argonSessionChange = this.argonSessionChange.bind(this);
+        this.argonApp.reality.changeEvent.addEventListener(this.argonChangeReality);
+        this.argonApp.reality.connectEvent.addEventListener(this.argonSessionChange);
+
         this.initializeArgonView = this.initializeArgonView.bind(this);
+
+        this.argonPresentChange();
 
         this.addEventListener('render-target-loaded', function () {
           this.setupRenderer();
@@ -99,7 +114,10 @@ AFRAME.registerElement('ar-scene', {
       value: function () {      
         var canvas = this.canvas;
 
+        // Set at startup. To enable/disable antialias and logarithmicdepthbuffer
+        // at runttime we would have to recreate the whole context
         var antialias = this.getAttribute('antialias') === 'true';
+        var logarithmicDepthBuffer = this.getAttribute('logarithmicdepth') === 'true';
 
         if (THREE.CSS3DArgonRenderer) {
           this.cssRenderer = new THREE.CSS3DArgonRenderer();
@@ -114,8 +132,8 @@ AFRAME.registerElement('ar-scene', {
         this.renderer = new THREE.WebGLRenderer({
             canvas: canvas,
             alpha: true,
-            antialias: antialias,
-            logarithmicDepthBuffer: true
+            antialias: antialias || window.hasNativeWebVRImplementation,
+            logarithmicDepthBuffer: logarithmicDepthBuffer
         });
         this.renderer.setPixelRatio(window.devicePixelRatio);
       },
@@ -127,13 +145,18 @@ AFRAME.registerElement('ar-scene', {
             // need to do this AFTER the DOM is initialized because 
             // the argon div may not be created yet, which will pull these 
             // elements out of the DOM, when they might be needed
-            this.argonApp.view.element.appendChild(this.renderer.domElement);
+            var layers = [ { source: this.renderer.domElement }];
             if (this.cssRenderer) {
-              this.argonApp.view.element.appendChild(this.cssRenderer.domElement);
+              layers.push( { source: this.cssRenderer.domElement })
             }
             if (this.hud) {
-              this.argonApp.view.element.appendChild(this.hud.domElement);
+              layers.push( { source: this.hud.domElement })
             }
+            
+            // set the layers of our view
+            this.argonApp.view.setLayers(layers);
+
+            this.argonPresentChange();
 
             this.emit('argon-initialized', {
                 target: this.argonApp
@@ -142,6 +165,12 @@ AFRAME.registerElement('ar-scene', {
         writable: true
     },
 
+    subscribeGeolocation: {
+      value: function () {
+        this.argonApp.context.subscribeGeolocation({enableHighAccuracy: this.enableHighAccuracy});
+      }
+    },
+    
     /**
      * Handler attached to elements to help scene know when to kick off.
      * Scene waits for all entities to load.
@@ -150,6 +179,9 @@ AFRAME.registerElement('ar-scene', {
       value: function () {        
         this.initSystems();
         this.play();
+
+        // Add to scene index.
+        AFRAME.scenes.push(this);
       },
       writable: window.debug
     },
@@ -158,14 +190,115 @@ AFRAME.registerElement('ar-scene', {
         value: function () {
             this.argonApp.renderEvent.addEventListener(this.argonRender);
             this.argonApp.updateEvent.addEventListener(this.argonUpdate);
+
+            this.argonApp.device.presentHMDChangeEvent.addEventListener(this.argonPresentChange);
         },
         writable: true
+    },
+
+    argonSessionChange: {
+      value: function (session) {
+        this.session = session;
+      },
+      writable: true
+    },
+
+    setStageGeolocation: { 
+      value: function(place) {
+        if (this.session) {
+          return this.argonApp.reality.setStageGeolocation(this.session, place);
+        }
+        return undefined;
+      },
+      writable: true
+    },
+
+    resetStageGeolocation: { 
+      value: function() {
+        if (this.session) {
+          return this.argonApp.reality.resetStageGeolocation(this.session);
+        }
+        return undefined;
+      },
+      writable: true
+    },
+
+
+    argonChangeReality: {
+      value: function () {
+        // for now, we just revisit the presentation setup
+        this.argonPresentChange();
+      },
+      writable: true
+    },
+
+    argonPresentChange: {
+      value: function () {
+        var device = this.argonApp.device;
+        var reality = this.argonApp.reality;
+        var visible = false;
+
+        // AFrame already uses "vr-mode" to mean "isPresenting()" in WebVR, which means either
+        // presenting on an HMD in WebVR, or on mobile w/ cardboard and the WebVR Polyfill
+        //
+        // While this isn't exactly what we want, we'll assume that this means "presenting in an HMD"
+        // We'll add "AR" to signify that there is a version of Reality showing behind the content.
+        // Again, while not precisely correct, it is ok. 
+        console.log("-- checking presentation mode: " + (this.is('vr-mode')? "vr": "-") + (this.is('ar-mode')? " ar": " "))
+        if (device.isPresentingHMD) {
+          if (!this.is('vr-mode')) {
+            this.addState('vr-mode');
+            console.log('>> enter vr-mode');
+            this.emit('enter-vr', {target: this});
+          }
+
+          // if we're in HMD mode, we determine AR mode from isPresentingRealityHMD
+          if (device.isPresentingRealityHMD) {
+            if (!this.is('ar-mode')) {
+              this.addState('ar-mode');
+              console.log('>> enter ar-mode');
+              this.emit('enter-ar', {target: this});
+            }
+          } else {
+            if (this.is('ar-mode')) {
+              this.removeState('ar-mode');
+              console.log('<< exit ar-mode');
+              this.emit('exit-ar', {target: this});
+            }
+          }
+        } else {
+          if (this.is('vr-mode')) {
+            this.removeState('vr-mode');
+            console.log('<< exit vr-mode');
+            this.emit('exit-vr', {target: this});
+          }
+
+          // if we're not in HMD mode, we determine AR mode based on the current reality.
+          // the "empty" reality is not considered AR, which is the default reality on a 
+          // browser than isn't see-through or can't display live video
+          if (reality.current != Argon.RealityViewer.EMPTY) {
+            if (!this.is('ar-mode')) {
+              this.addState('ar-mode');
+              console.log('>> enter ar-mode');
+              this.emit('enter-ar', {target: this});
+            }
+          } else {
+            if (this.is('ar-mode')) {
+              this.removeState('ar-mode');
+              console.log('<< exit ar-mode');
+              this.emit('exit-ar', {target: this});
+            }
+          }
+        }
+      },
+      writable: true
     },
 
     removeEventListeners: {
         value: function () {
             this.argonApp.updateEvent.removeEventListener(this.argonUpdate);
             this.argonApp.renderEvent.removeEventListener(this.argonRender);
+            this.argonApp.device.presentChangeEvent.removeEventListener(this.argonPresentChange);
         },
         writable: true
     },
@@ -181,6 +314,9 @@ AFRAME.registerElement('ar-scene', {
 
         this.addEventListener('loaded', function () {
           if (this.renderStarted) { return; }
+
+          // only do this once!
+          this.renderStarted = true;
 
           var fixCamera = function () {
             var arCameraEl = null;
@@ -201,11 +337,15 @@ AFRAME.registerElement('ar-scene', {
                   cameraEl.setAttribute('camera', 'active', false);
                   cameraEl.pause();
                 } else {
-                  var cameraToDeactivate = cameraEl;
-                  cameraEl.addEventListener('nodeready', function() {
-                    cameraToDeactivate.setAttribute('camera', 'active', false);
-                    cameraToDeactivate.pause();
-                  });
+                  // wrap cameraToDeactivate so it's a separate variable each time
+                  // through this loop
+                  var listener = (function () {
+                    var cameraToDeactivate = cameraEl;
+                    return function() {
+                      cameraToDeactivate.setAttribute('camera', 'active', false);
+                      cameraToDeactivate.pause();
+                  }})();
+                  cameraEl.addEventListener('nodeready', listener);
                 }
             }
 
@@ -235,7 +375,6 @@ AFRAME.registerElement('ar-scene', {
               window.performance.mark('render-started');
           }
 
-          this.renderStarted = true;
           this.emit('renderstart');
         });
 
@@ -251,11 +390,18 @@ AFRAME.registerElement('ar-scene', {
      */
     detachedCallback: {
       value: function () {
-          if (this.animationFrameID) {
-            cancelAnimationFrame(this.animationFrameID);
-            this.animationFrameID = null;
-          }
-          this.removeEventListeners();
+        var sceneIndex;
+        if (this.animationFrameID) {
+          cancelAnimationFrame(this.animationFrameID);
+          this.animationFrameID = null;
+        }
+        this.argonApp.reality.changeEvent.removeEventListener(this.argonChangeReality);
+        this.argonApp.reality.connectEvent.removeEventListener(this.argonSessionChange);
+        this.removeEventListeners();
+
+        // Remove from scene index.
+        sceneIndex = scenes.indexOf(this);
+        scenes.splice(sceneIndex, 1);
       }
     },
 
@@ -285,7 +431,7 @@ AFRAME.registerElement('ar-scene', {
      */
     argonUpdate: {
         value: function (frame) {
-            var time = frame.systemTime;
+            var time = frame.timestamp;
             var timeDelta = frame.deltaTime;
 
             if (this.isPlaying) {
@@ -324,8 +470,10 @@ AFRAME.registerElement('ar-scene', {
 				// Don't enter VR if already in VR.
 				if (this.is('vr-mode')) { return Promise.resolve('Already in VR.'); }
 
-				return argonApp.device.requestEnterHMD(enterVRSuccess, enterVRFailure);
-
+        // why would this get called before init?  Dunno, but there was an instance
+        if (this.argonApp) {
+  				return this.argonApp.device.requestEnterHMD(enterVRSuccess, enterVRFailure);
+        }
 				function enterVRSuccess () {
 					self.addState('vr-mode');
 					self.emit('enter-vr', event);
@@ -348,8 +496,10 @@ AFRAME.registerElement('ar-scene', {
 				// Don't exit VR if not in VR.
 				if (!this.is('vr-mode')) { return Promise.resolve('Not in VR.'); }
 
-				return argonApp.device.requestEnterHMD(exitVRSuccess, exitVRFailure);
-
+        // why would this get called before init?  Dunno, but there was an instance
+        if (this.argonApp) {
+  				return this.argonApp.device.requestEnterHMD(exitVRSuccess, exitVRFailure);
+        }
 				function exitVRSuccess () {
 					self.removeState('vr-mode');
 					self.emit('exit-vr', {target: self});
@@ -374,63 +524,38 @@ AFRAME.registerElement('ar-scene', {
      */
     argonRender: {
        value: function (frame) {
-        if (!this.animationFrameID) {
-          var app = this.argonApp;
 
-          this.rAFviewport = app.view.getViewport();
-          this.rAFsubViews = app.view.getSubviews();
-          // we used to do this to manage degraded performance under load with the DOM 
-          // renderer, but it breaks WebVR
-          // 
-          //     this.animationFrameID = requestAnimationFrame(this.rAFRenderFunc.bind(this));
-          //
-          // so just call the function directly.
-          this.rAFRenderFunc();
-        }
-      },
-      writable: true 
-    },
-
-    rAFviewport: {
-      value: null,
-      writable: true
-    },
-    rAFsubViews: {
-      value: null,
-      writable: true
-    },
-
-    rAFRenderFunc: {
-      value: function () {
-        var scene = this.object3D;
-        var renderer = this.renderer;
-        var cssRenderer = this.cssRenderer;
-        var hud = this.hud;
         var camera = this.camera;
-        
-        if (!this.renderer || !this.camera) {
+        var renderer = this.renderer;
+        if (!renderer || !camera) {
           // renderer hasn't been setup yet
           this.animationFrameID = null;
           return;
         }
 
+        var app = this.argonApp;
+        var scene = this.object3D;
+        var cssRenderer = this.cssRenderer;
+        var hud = this.hud;
+        
         // the camera object is created from a camera property on an entity. This should be
         // an ar-camera, which will have the entity position and orientation set to the pose
         // of the user.  We want to make the camera pose 
         //var camEntityPos = null;
         //var camEntityRot = null;
-        var camEntityInv = new THREE.Matrix4();
+        //var camEntityInv = new THREE.Matrix4();
 
         if (camera.parent) {
             camera.parent.updateMatrixWorld();
             camEntityInv.getInverse(camera.parent.matrixWorld);
-       //     camEntityPos = camera.parent.position.clone().negate();
-         //   camEntityRot = camera.parent.quaternion.clone().inverse();
+            //     camEntityPos = camera.parent.position.clone().negate();
+            //     camEntityRot = camera.parent.quaternion.clone().inverse();
         }
 
-        //var viewport = app.view.getViewport()
-        var viewport = this.rAFviewport;
-        renderer.setSize(viewport.width, viewport.height);
+        const view = app.view;
+        renderer.setSize(view.renderWidth, view.renderHeight, false);    
+
+        var viewport = view.viewport;
         if (this.cssRenderer) {
           cssRenderer.setSize(viewport.width, viewport.height);
         }
@@ -441,16 +566,27 @@ AFRAME.registerElement('ar-scene', {
         // leverage vr-mode.  Question: perhaps we shouldn't, perhaps we should use ar-mode?
         // unclear right now how much of the components that use vr-mode are re-purposable
         //var _a = app.view.getSubviews();
-        var _a = this.rAFsubViews;
+        var _a = app.view.subviews;
+        // if (this.is('vr-mode')) {
+        //   if (_a.length == 1 && this.is('vr-mode')) {
+        //     this.removeState('vr-mode');
+        //     this.emit('exit-vr', {target: this});
+        //   } 
+        // } else {
+        //   if (_a.length > 1 && !this.is('vr-mode')) {
+        //     this.addState('vr-mode');
+        //     this.emit('enter-vr', {target: this});
+        //   }
+        // }
         if (this.is('vr-mode')) {
-          if (_a.length == 1 && this.is('vr-mode')) {
-            this.removeState('vr-mode');
-            this.emit('exit-vr', {target: this});
+          if (_a.length == 1) {
+            console.log("calling presentChange from render, because vr-mode is set and view is mono");
+            this.argonPresentChange();
           } 
         } else {
-          if (_a.length > 1 && !this.is('vr-mode')) {
-            this.addState('vr-mode');
-            this.emit('enter-vr', {target: this});
+          if (_a.length > 1) {
+            console.log("calling presentChange from render, because vr-mode not set and view is stereo");
+            this.argonPresentChange();
           }
         }
 
@@ -462,6 +598,15 @@ AFRAME.registerElement('ar-scene', {
         camera.far = _a[0].frustum.far;
         camera.aspect = _a[0].frustum.aspect;
         
+        // if the viewport width and the renderwidth are different
+        // we assume we are rendering on a different surface than
+        // the main display, so we reset the pixel ratio to 1
+        if (viewport.width != view.renderWidth) {
+            renderer.setPixelRatio(1);
+        } else {
+            renderer.setPixelRatio(window.devicePixelRatio);
+        }
+
         // there is 1 subview in monocular mode, 2 in stereo mode    
         for (var _i = 0; _i < _a.length; _i++) {
             var subview = _a[_i];
@@ -492,17 +637,19 @@ AFRAME.registerElement('ar-scene', {
               cssRenderer.render(scene, camera, subview.index);
             }
 
-            // set the webGL rendering parameters and render this view
-            renderer.setViewport(x, y, width, height);
-            renderer.setScissor(x, y, width, height);
-            renderer.setScissorTest(true);
-            renderer.render(scene, camera);
-
             if (this.hud) {
               // adjust the hud
               hud.setViewport(x, y, width, height, subview.index);
               hud.render(subview.index);
             }
+
+            // set the webGL rendering parameters and render this view
+            // set the viewport for this view
+            var _c = subview.renderViewport, x = _c.x, y = _c.y, width = _c.width, height = _c.height;
+            renderer.setViewport(x, y, width, height);
+            renderer.setScissor(x, y, width, height);
+            renderer.setScissorTest(true);
+            renderer.render(scene, camera);
         }
 
         this.animationFrameID = null;

@@ -5,11 +5,14 @@
     <title>Hello, World! Argon + A-Frame</title>
   	<meta name="keywords" content="{{ site.keywords }}">
     <meta name="description" content="Hello, World! Argon + A-Frame">
+    <!-- Origin Trial Token, feature = WebVR, origin = https://argonjs.io, expires = 2017-06-06 -->
+    <meta http-equiv="origin-trial" data-feature="WebVR" data-expires="2017-06-06" content="ArfXzMSluPfAfoVDD+ne9oWykUyDeLFD/z4/0uRCdZ1491aSrytWyj7gnGhwK1/Tzg/D+UOvNgD2+L9PWqF5XwwAAABceyJvcmlnaW4iOiJodHRwczovL2FyZ29uanMuaW86NDQzIiwiZmVhdHVyZSI6IldlYlZSIiwiZXhwaXJ5IjoxNDk2NzcxODA0LCJpc1N1YmRvbWFpbiI6dHJ1ZX0=">
     <script src="{{ site.aframejs }}"></script>    
     <script src="{{ site.argonjs }}"></script>
     <script src="{{ site.argonaframejs }}"></script>
     <script src="{{ site.samples }}/resources/lib/CSS3DArgonRenderer.js"></script>
     <script src="{{ site.samples }}/resources/lib/CSS3DArgonHUD.js"></script>
+    <script src="{{ site.samples }}/resources/lib/ArgonSunMoon.js"></script>
     <script src="../resources/js/aframe-look-at-component.js"></script>
 	  <link rel="stylesheet" type="text/css" href="../resources/style.css">
 
@@ -46,19 +49,26 @@
       <div id="mydiv" class="boxface">Argon<br>+<br>AFrame</div>
       <div id="mydiv2" class="boxface">WebGL<br>+<br>CSS</div>
     </div>
-    <ar-scene>
-      <a-entity id="helloworld" position="0 -1 -8">
-        <a-sphere position="0 1.25 -1" cursor-listener radius="1.25" color="#EF2D5E" ></a-sphere>
-        <a-box position="-1 0.5 1" cursor-listener rotation="0 45 0" width="1" height="1" depth="1"  color="#4CC3D9" ></a-box>
-        <a-entity billboard position="0 3 0">
-          <a-entity rotation="0 45 0">
-                  <a-entity css-object="div: #mydiv" scale="0.01 0.01 0.01" rotation="0 0 0" position="0 0 0.5"></a-entity>
-                  <a-entity css-object="div: #mydiv2" scale="0.01 0.01 0.01" rotation="0 -90 0" position="-0.5 0 0"></a-entity>
+    <ar-scene sunmoon light="defaultLightsEnabled: false">
+
+      <!-- everything has to be attached to some reference frame -->
+      <ar-frame id="viewer" visible="true" parent="ar.stageEUS">
+        <a-entity id="helloworld" position="0 0 -8">
+          <a-sphere position="0 1.25 -1" cursor-listener radius="1.25" color="#EF2D5E" ></a-sphere>
+          <a-box position="-1 0.5 1" cursor-listener rotation="0 45 0" width="1" height="1" depth="1"  color="#4CC3D9" ></a-box>
+          <a-entity billboard position="0 3 0">
+            <a-entity rotation="0 45 0">
+                    <a-entity css-object="div: #mydiv" scale="0.01 0.01 0.01" rotation="0 0 0" position="0 0 0.5"></a-entity>
+                    <a-entity css-object="div: #mydiv2" scale="0.01 0.01 0.01" rotation="0 -90 0" position="-0.5 0 0"></a-entity>
+            </a-entity>
           </a-entity>
+          <a-cylinder position="1 0.75 1" cursor-listener radius="0.5" height="1.5" color="#FFC65D"></a-cylinder>
+          <a-plane rotation="-90 0 0" cursor-listener width="4" height="4" color="#7BC8A4"></a-plane>
         </a-entity>
-        <a-cylinder position="1 0.75 1" cursor-listener radius="0.5" height="1.5" color="#FFC65D"></a-cylinder>
-        <a-plane rotation="-90 0 0" cursor-listener width="4" height="4" color="#7BC8A4"></a-plane>
-      </a-entity>
+      </ar-frame>
+
+      <!-- ambient light doesn't need to be attached -->'
+      <a-entity light="type: ambient; color: #444"></a-entity>
 
       <ar-camera>
         <a-entity id="myCursor" cursor="fuse:true; fuse-timeout: 1000"
@@ -67,6 +77,7 @@
                     material="color: #2E3A87; opacity:0.3;">          
         </a-entity>
       </ar-camera>
+
     </ar-scene>
     <script>
 
@@ -79,9 +90,17 @@
         var camera = document.querySelector('ar-camera');
         var vec = camera.object3D.getWorldDirection();
         vec.multiplyScalar(-10);
-        vec.y -= 1;
         content.setAttribute("position", {x: vec.x, y: vec.y, z: vec.z});
       })
     </script>
   </body>
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-63191442-2', 'auto');
+  ga('send', 'pageview');
+</script>  
 </html>

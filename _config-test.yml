@@ -1,0 +1,23 @@
+---
+port: 1237
+host: 0.0.0.0
+safe: false
+
+### site serving configuration ###
+source: examples
+include: [_headers]
+timezone: null
+lsi: false
+markdown: kramdown
+
+keywords:    "argon, aframe, augmented reality, web, javascript"
+
+argonjs: "https://rawgit.com/argonjs/argon/refactor-y-up/dist/argon.js"
+aframejs: "https://aframe.io/releases/0.5.0/aframe.min.js"
+samples: "https://samples-yup.netlify.com"
+argonaframejs: "../build.js"
+
+# argonjs: "https://unpkg.com/@argonjs/argon@1.1/dist/argon.min.js"
+# aframejs: "https://aframe.io/releases/0.5.0/aframe.min.js"
+# samples: "https://samples.argonjs.io"
+# argonaframejs: "https://rawgit.com/argonjs/argon-aframe/master/dist/argon-aframe.js"
