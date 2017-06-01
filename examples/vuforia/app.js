@@ -48,7 +48,7 @@ arScene.addEventListener('argon-vuforia-dataset-load-failed', function(evt) {
 });
 
 arScene.addEventListener('argon-vuforia-not-available', function(evt) {
-    frame.setAttribute("trackvisibilty", false);
+    frame.setAttribute("trackvisibility", false);
     frame.setAttribute("visible", true);
     frame.setAttribute("parent", "ar.stage")
     content.setAttribute("rotation", {x: -90, y: 0, z: 0});
