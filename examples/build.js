@@ -1236,6 +1236,7 @@ AFRAME.registerSystem('jsartoolkit', {
     init: function () {
         this.webrtcRealitySession = undefined;
         this.markerMap = {};
+        this.initInProgress = false;
 
         this.sceneEl.addEventListener('argon-initialized', this.startJSARToolKit.bind(this));
     },
@@ -1247,10 +1248,17 @@ AFRAME.registerSystem('jsartoolkit', {
         // need argon
         if (!argonApp) { return; }
 
+        // if no markers, this app may not need jsartoolkit
+        if (Object.keys(this.markerMap).length == 0) { return; }
+
         // if already initialized, bye bye
         if (this.webrtcRealitySession) { return; }
 
+        // initialization is already in progress
+        if (this.initInProgress) { return; }
+
         // set our desired reality
+        this.initInProgress = true;
         argonApp.reality.request(Argon.RealityViewer.WEBRTC);
         argonApp.reality.connectEvent.addEventListener(this.realityWatcher.bind(this));
     },
@@ -1266,6 +1274,7 @@ AFRAME.registerSystem('jsartoolkit', {
 
             this.webrtcRealitySession.request('ar.jsartoolkit.init').then(()=>{
                 console.log("jsartoolkit initialized!")
+                this.initInProgress = false;
 
                 // re-call createOrUpdateMarker to create markers already requested
                 Object.keys(self.markerMap).forEach(function(key,index) {
@@ -1334,11 +1343,11 @@ AFRAME.registerSystem('jsartoolkit', {
             marker.url = url;
         }
 
-        marker.initInProgress = true;
-        if (this.webrtcRealitySession) {
+        if (this.webrtcRealitySession && !marker.initInProgress) {
             // should have both jsartoolkit and argon initialized by now
+            marker.initInProgress = true;
             this.webrtcRealitySession.request('ar.jsartoolkit.addMarker', {
-                url: "../resources/artoolkit/patt.hiro"
+                url: marker.url
             }).then((msg)=>{
                 if (!msg) return;
                 console.log("created marker " + name );
@@ -1413,6 +1422,9 @@ AFRAME.registerComponent('jsartoolkitmarker', {
 
         var jsartoolkit = sceneEl.systems["jsartoolkit"];
         jsartoolkit.createOrUpdateMarker(this, this.name, this.data.src);
+
+        // start just in case we haven't started yet
+        jsartoolkit.startJSARToolKit();
     }
 });
 
