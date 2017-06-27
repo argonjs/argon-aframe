@@ -40,7 +40,8 @@ AFRAME.registerComponent('referenceframe', {
         var el = this.el;                   // entity
         var self = this;
 
-        this.entityLoadingSet = new Set();
+        this.loadingEntities = new Set();
+        this.parentEntities = new Set();
 
         this.update = this.update.bind(this);
 
@@ -227,16 +228,20 @@ AFRAME.registerComponent('referenceframe', {
                             parentEntity = vuforia.subscribeToTarget(parts[1], parts[2]);
                         }
 
+                        if (parentEntity) {
+                            self.parentEntities.add(parentEntity);
+                        }
+
                         // if still not known, try again when our dataset is loaded
-                        if (parentEntity === null && !self.entityLoadingSet.has(parent)) {
-                            self.entityLoadingSet.add(parent);
+                        if (parentEntity === null && !self.loadingEntities.has(parent)) {
+                            self.loadingEntities.add(parent);
                             console.log("not loaded, waiting for dataset for target '" + parent + "'");
                             var name = parts[1];
                             el.sceneEl.addEventListener('argon-vuforia-dataset-loaded', function(evt) {
                                 console.log('dataset loaded.');
                                 console.log("dataset name '" + evt.detail.target.name + "', our name '" + name + "'");
                                 if (evt.detail.target.name === name) {
-                                    self.entityLoadingSet.delete(parent);
+                                    self.loadingEntities.delete(parent);
                                     self.update(self.data);
                                 }
                             });            
@@ -260,16 +265,20 @@ AFRAME.registerComponent('referenceframe', {
                             parentEntity = jsartoolkit.subscribeToMarker(parts[1]);
                         }
 
+                        if (parentEntity) {
+                            self.parentEntities.add(parentEntity);
+                        }
+
                         // if still not known, try again when our marker is loaded
-                        if (parentEntity === null && !self.entityLoadingSet.has(parent)) {
-                            self.entityLoadingSet.add(parent);
+                        if (parentEntity === null && !self.loadingEntities.has(parent)) {
+                            self.loadingEntities.add(parent);
                             console.log("not loaded, waiting for marker '" + parent + "'");
                             var name = parts[1];
                             el.sceneEl.addEventListener('argon-jsartoolkit-marker-loaded', function(evt) {
                                 console.log('marker loaded.');
                                 console.log("marker name '" + evt.detail.target.name + "', our name '" + name + "'");
                                 if (evt.detail.target.name === name) {
-                                    self.entityLoadingSet.delete(parent);
+                                    self.loadingEntities.delete(parent);
                                     self.update(self.data);
                                 }
                             });            
@@ -334,6 +343,7 @@ AFRAME.registerComponent('referenceframe', {
       return function(t) {
         this.checkFinished();
 
+        var self = this;
         var data = this.data;               // parameters
         var el = this.el;                   // entity
         var object3D = el.object3D;
@@ -342,6 +352,17 @@ AFRAME.registerComponent('referenceframe', {
         var isNestedEl = !el.parentEl.isScene;
 
         if (!argonApp) { return };
+        
+        // if there is more than one possible parent entity catch the found events to set the parent
+        if (this.parentEntities.size > 1) {
+            this.parentEntities.forEach(function (parentEntity) {
+                var entityPos = argonApp.context.getEntityPose(parentEntity);
+                if (entityPos.poseStatus & Argon.PoseStatus.FOUND) {
+                    console.log("found parent: " + parentEntity.id);
+                    self.cesiumEntity.position.setValue(Cartesian3.ZERO, parentEntity);
+                }
+            });
+        }
 
         if (this.cesiumEntity) { 
             var entityPos = argonApp.context.getEntityPose(this.cesiumEntity);

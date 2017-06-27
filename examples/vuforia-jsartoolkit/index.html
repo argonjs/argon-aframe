@@ -22,7 +22,8 @@
     </div>  
     <ar-scene vuforiakey="#vuforiakey"
               vuforiadataset__stonesandchips="src:url(../resources/datasets/StonesAndChips.xml);"
-              jsartoolkitmarker__hiro="src:url(../resources/artoolkit/patt.hiro);">
+              jsartoolkitmarker__hiro="src:url(../resources/artoolkit/patt.hiro);"
+              jsartoolkitmarker__kanji="src:url(../resources/artoolkit/patt.kanji);">
       <div id="loader-wrapper">
         <div class="splashtext">
           <h1>AFrame + Argon + Vuforia + JSARToolKit</h1>
@@ -40,7 +41,7 @@
       </a-assets>
 
       <!-- attach to stones target. x/y in the plane, z up -->
-      <ar-frame id="frame" trackvisibility="true" visible="false" parent="vuforia.stonesandchips.stones|jsartoolkit.hiro" position="0 0 0" rotation="0 0 0" trigger="radius:0.35;event:target_trigger">
+      <ar-frame id="frame" trackvisibility="true" visible="false" parent="vuforia.stonesandchips.stones|vuforia.stonesandchips.chips|jsartoolkit.hiro|jsartoolkit.kanji" position="0 0 0" rotation="0 0 0" trigger="radius:0.35;event:target_trigger">
         <a-entity id="content">
         <a-entity id="logoscene"  scale="0.005 0.005 0.005" rotation="90 0 0" visible="false">
           <a-animation attribute="visible" to="false" dur="1"></a-animation>
