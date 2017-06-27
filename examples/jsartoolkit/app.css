@@ -1,0 +1,26 @@
+.bottomScreen {
+    position: absolute;
+	bottom: 10px;
+    margin: 9, auto;
+    left: 25%;
+	width: 50%;
+	text-align: center;
+	color: rgb(127,255,255);
+	background: rgba(10,10,10,0.75);
+	outline: 3px solid rgba(127,255,255,0.5);
+	border: 0px;
+	padding: 15px;    
+    display: inline-block;
+    font-size: 24px;
+    font-family: 'Open Sans', sans-serif;
+}
+
+.viewerMode.bottomScreen  {
+    font-size: 8px;
+    bottom:120px;
+    padding:2px;
+}
+
+ .hide.bottomScreen  {
+    display: none;
+}

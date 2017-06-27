@@ -1,0 +1,80 @@
+---
+---
+<html>
+  <head>
+    <title>JSARToolKit Marker Tracking with Argon + A-Frame</title>
+  	<meta name="keywords" content="{{ site.keywords }}, jsartoolkit, marker tracking, AR markers">
+    <meta name="description" content="JSARToolKit Marker Tracking with Argon + A-Frame">
+    <!-- Origin Trial Token, feature = WebVR, origin = https://argonjs.io, expires = 2017-06-06 -->
+    <meta http-equiv="origin-trial" data-feature="WebVR" data-expires="2017-06-06" content="ArfXzMSluPfAfoVDD+ne9oWykUyDeLFD/z4/0uRCdZ1491aSrytWyj7gnGhwK1/Tzg/D+UOvNgD2+L9PWqF5XwwAAABceyJvcmlnaW4iOiJodHRwczovL2FyZ29uanMuaW86NDQzIiwiZmVhdHVyZSI6IldlYlZSIiwiZXhwaXJ5IjoxNDk2NzcxODA0LCJpc1N1YmRvbWFpbiI6dHJ1ZX0=">
+    <link rel="stylesheet" type="text/css" href="../resources/splash.css">
+    <link rel="stylesheet" type="text/css" href="app.css">
+    <script src="{{ site.aframejs }}"></script>    
+    <script src="{{ site.argonjs }}"></script>
+    <script src="{{ site.argonaframejs }}"></script>
+    <!--script src="{{ site.samples }}/resources/lib/CSS3DArgonRenderer.js"></script-->
+    <script src="{{ site.samples }}/resources/lib/CSS3DArgonHUD.js"></script>
+    <script src="../resources/js/aframe-look-at-component.js"></script>
+  </head>
+  <body>
+    <div hidden>
+      <div id="lookattarget" class="bottomScreen">Look at the "hiro" marker ...</div>
+    </div>  
+
+    <ar-scene jsartoolkitmarker__hiro="src:url(../resources/artoolkit/patt.hiro);">
+      <div id="loader-wrapper">
+        <div class="splashtext">
+          <h1>AFrame + Argon + JSARToolKit</h1>
+          <h2 id="status">loading scripts...</h2>
+        </div>
+
+        <div id="loader"></div>
+        <div class="loader-section section-left"></div>
+        <div class="loader-section section-right"></div>
+      </div>
+      <a-assets>
+        <a-mixin id="light" geometry="primitive: sphere; radius: 1.5"
+                 material="color: #FFF; shader: flat"
+                 light="color: #DDDDFF; distance: 120; intensity: 2; type: point">
+        </a-mixin>
+        <a-mixin id="torus-knot" geometry="primitive: torusKnot"
+                 material="color: red"></a-mixin>
+      </a-assets>
+
+      <!-- attach to hiro marker. x/y in the plane, z up -->
+      <ar-frame id="frame" trackvisibility="true" visible="false" parent="jsartoolkit.hiro" position="0 0 0" rotation="0 0 0">
+       <a-entity id="content">
+        <a-entity scale="0.03 0.03 0.03">
+          <a-entity id="stuff">
+          </a-entity>
+
+          <!-- Lights. -->
+          <a-entity position="0 0 25">
+            <a-animation attribute="rotation" to="0 0 360"
+                        repeat="indefinite" easing="linear" dur="4096">
+            </a-animation>
+            <a-entity mixin="light" position="15 0 0"></a-entity>
+          </a-entity>
+
+          <a-entity position="0 0 25">
+            <a-animation attribute="rotation" to="360 0 0"
+                        repeat="indefinite" easing="linear" dur="4096">
+            </a-animation>
+            <a-entity mixin="light" position="0 0 25"></a-entity>
+          </a-entity>
+        </a-entity>
+       </a-entity>
+      </ar-frame>      
+    </ar-scene>
+    <script src="app.js"></script>
+  </body>
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-63191442-2', 'auto');
+  ga('send', 'pageview');
+</script>  
+</html>

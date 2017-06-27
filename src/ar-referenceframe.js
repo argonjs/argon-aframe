@@ -240,6 +240,37 @@ AFRAME.registerComponent('referenceframe', {
                 }
             }
 
+            var jsartoolkit = el.sceneEl.systems["jsartoolkit"];
+            if (jsartoolkit) {
+                var parts = parent.split(".");
+                if (parts.length === 2 && parts[0] === "jsartoolkit") {
+                    // see if it's already a known marker entity
+                    console.log("looking for marker '" + parent + "'");
+                    
+                    parentEntity = jsartoolkit.getMarkerEntity(parts[1]);
+
+                    // if not known, subscribe to it
+                    if (parentEntity === null) {
+                        console.log("not found, subscribing to marker '" + parent + "'");
+                        parentEntity = jsartoolkit.subscribeToMarker(parts[1]);
+                    }
+
+                    // if still not known, try again when our marker is loaded
+                    if (parentEntity === null) {
+                        console.log("not loaded, waiting for marker '" + parent + "'");
+                        var name = parts[1];
+                        el.sceneEl.addEventListener('argon-jsartoolkit-marker-loaded', function(evt) {
+                            console.log('marker loaded.');
+                            console.log("marker name '" + evt.detail.target.name + "', our name '" + name + "'");
+                            if (evt.detail.target.name === name) {
+                                self.update(self.data);
+                            }
+                        });            
+                        console.log("finished setting up to wait for marker '" + parent + "'");
+                    }
+                }
+            }
+
             // if it's a vuforia refernece frame, we might have found it above.  Otherwise, look for 
             // an entity with the parent ID
             if (!parentEntity) {
