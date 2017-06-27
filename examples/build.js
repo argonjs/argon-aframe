@@ -1237,6 +1237,7 @@ AFRAME.registerSystem('jsartoolkit', {
         this.webrtcRealitySession = undefined;
         this.markerMap = {};
         this.initInProgress = false;
+        this.disableStartup = false;
 
         this.sceneEl.addEventListener('argon-initialized', this.startJSARToolKit.bind(this));
     },
@@ -1247,6 +1248,9 @@ AFRAME.registerSystem('jsartoolkit', {
 
         // need argon
         if (!argonApp) { return; }
+
+        // if startup disabled (e.g. because vuforia has priority) return
+        if (this.disableStartup) { return; }
 
         // if no markers, this app may not need jsartoolkit
         if (Object.keys(this.markerMap).length == 0) { return; }
@@ -1259,8 +1263,8 @@ AFRAME.registerSystem('jsartoolkit', {
 
         // set our desired reality
         this.initInProgress = true;
-        argonApp.reality.request(Argon.RealityViewer.WEBRTC);
         argonApp.reality.connectEvent.addEventListener(this.realityWatcher.bind(this));
+        argonApp.reality.request(Argon.RealityViewer.WEBRTC);
     },
 
     realityWatcher: function(session) {
@@ -1640,67 +1644,69 @@ AFRAME.registerComponent('referenceframe', {
         if (parent === 'FIXED') {
             parentEntity = ReferenceFrame.FIXED;
         } else {
-            var vuforia = el.sceneEl.systems["vuforia"];
-            if (vuforia) {
-                var parts = parent.split(".");
-                if (parts.length === 3 && parts[0] === "vuforia") {
-                    // see if it's already a known target entity
-                    console.log("looking for target '" + parent + "'");
-                    
-                    parentEntity = vuforia.getTargetEntity(parts[1], parts[2]);
+            parent.split("|").forEach(function (parent) {
+                var vuforia = el.sceneEl.systems["vuforia"];
+                if (vuforia) {
+                    var parts = parent.split(".");
+                    if (parts.length === 3 && parts[0] === "vuforia") {
+                        // see if it's already a known target entity
+                        console.log("looking for target '" + parent + "'");
+                        
+                        parentEntity = vuforia.getTargetEntity(parts[1], parts[2]);
 
-                    // if not known, subscribe to it
-                    if (parentEntity === null) {
-                        console.log("not found, subscribing to target '" + parent + "'");
-                        parentEntity = vuforia.subscribeToTarget(parts[1], parts[2]);
-                    }
+                        // if not known, subscribe to it
+                        if (parentEntity === null) {
+                            console.log("not found, subscribing to target '" + parent + "'");
+                            parentEntity = vuforia.subscribeToTarget(parts[1], parts[2]);
+                        }
 
-                    // if still not known, try again when our dataset is loaded
-                    if (parentEntity === null) {
-                        console.log("not loaded, waiting for dataset for target '" + parent + "'");
-                        var name = parts[1];
-                        el.sceneEl.addEventListener('argon-vuforia-dataset-loaded', function(evt) {
-                            console.log('dataset loaded.');
-                            console.log("dataset name '" + evt.detail.target.name + "', our name '" + name + "'");
-                            if (evt.detail.target.name === name) {
-                                self.update(self.data);
-                            }
-                        });            
-                        console.log("finished setting up to wait for dataset for target '" + parent + "'");
-                    }
-                }
-            }
-
-            var jsartoolkit = el.sceneEl.systems["jsartoolkit"];
-            if (jsartoolkit) {
-                var parts = parent.split(".");
-                if (parts.length === 2 && parts[0] === "jsartoolkit") {
-                    // see if it's already a known marker entity
-                    console.log("looking for marker '" + parent + "'");
-                    
-                    parentEntity = jsartoolkit.getMarkerEntity(parts[1]);
-
-                    // if not known, subscribe to it
-                    if (parentEntity === null) {
-                        console.log("not found, subscribing to marker '" + parent + "'");
-                        parentEntity = jsartoolkit.subscribeToMarker(parts[1]);
-                    }
-
-                    // if still not known, try again when our marker is loaded
-                    if (parentEntity === null) {
-                        console.log("not loaded, waiting for marker '" + parent + "'");
-                        var name = parts[1];
-                        el.sceneEl.addEventListener('argon-jsartoolkit-marker-loaded', function(evt) {
-                            console.log('marker loaded.');
-                            console.log("marker name '" + evt.detail.target.name + "', our name '" + name + "'");
-                            if (evt.detail.target.name === name) {
-                                self.update(self.data);
-                            }
-                        });            
-                        console.log("finished setting up to wait for marker '" + parent + "'");
+                        // if still not known, try again when our dataset is loaded
+                        if (parentEntity === null) {
+                            console.log("not loaded, waiting for dataset for target '" + parent + "'");
+                            var name = parts[1];
+                            el.sceneEl.addEventListener('argon-vuforia-dataset-loaded', function(evt) {
+                                console.log('dataset loaded.');
+                                console.log("dataset name '" + evt.detail.target.name + "', our name '" + name + "'");
+                                if (evt.detail.target.name === name) {
+                                    self.update(self.data);
+                                }
+                            });            
+                            console.log("finished setting up to wait for dataset for target '" + parent + "'");
+                        }
                     }
                 }
-            }
+
+                var jsartoolkit = el.sceneEl.systems["jsartoolkit"];
+                if (jsartoolkit) {
+                    var parts = parent.split(".");
+                    if (parts.length === 2 && parts[0] === "jsartoolkit") {
+                        // see if it's already a known marker entity
+                        console.log("looking for marker '" + parent + "'");
+                        
+                        parentEntity = jsartoolkit.getMarkerEntity(parts[1]);
+
+                        // if not known, subscribe to it
+                        if (parentEntity === null) {
+                            console.log("not found, subscribing to marker '" + parent + "'");
+                            parentEntity = jsartoolkit.subscribeToMarker(parts[1]);
+                        }
+
+                        // if still not known, try again when our marker is loaded
+                        if (parentEntity === null) {
+                            console.log("not loaded, waiting for marker '" + parent + "'");
+                            var name = parts[1];
+                            el.sceneEl.addEventListener('argon-jsartoolkit-marker-loaded', function(evt) {
+                                console.log('marker loaded.');
+                                console.log("marker name '" + evt.detail.target.name + "', our name '" + name + "'");
+                                if (evt.detail.target.name === name) {
+                                    self.update(self.data);
+                                }
+                            });            
+                            console.log("finished setting up to wait for marker '" + parent + "'");
+                        }
+                    }
+                }
+            });
 
             // if it's a vuforia refernece frame, we might have found it above.  Otherwise, look for 
             // an entity with the parent ID

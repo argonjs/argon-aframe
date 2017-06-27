@@ -3,6 +3,7 @@ AFRAME.registerSystem('jsartoolkit', {
         this.webrtcRealitySession = undefined;
         this.markerMap = {};
         this.initInProgress = false;
+        this.disableStartup = false;
 
         this.sceneEl.addEventListener('argon-initialized', this.startJSARToolKit.bind(this));
     },
@@ -13,6 +14,9 @@ AFRAME.registerSystem('jsartoolkit', {
 
         // need argon
         if (!argonApp) { return; }
+
+        // if startup disabled (e.g. because vuforia has priority) return
+        if (this.disableStartup) { return; }
 
         // if no markers, this app may not need jsartoolkit
         if (Object.keys(this.markerMap).length == 0) { return; }
@@ -25,8 +29,8 @@ AFRAME.registerSystem('jsartoolkit', {
 
         // set our desired reality
         this.initInProgress = true;
-        argonApp.reality.request(Argon.RealityViewer.WEBRTC);
         argonApp.reality.connectEvent.addEventListener(this.realityWatcher.bind(this));
+        argonApp.reality.request(Argon.RealityViewer.WEBRTC);
     },
 
     realityWatcher: function(session) {
