@@ -1475,6 +1475,8 @@ AFRAME.registerComponent('referenceframe', {
         var el = this.el;                   // entity
         var self = this;
 
+        this.entityLoadingSet = new Set();
+
         this.update = this.update.bind(this);
 
         if (!el.sceneEl) {
@@ -1661,13 +1663,15 @@ AFRAME.registerComponent('referenceframe', {
                         }
 
                         // if still not known, try again when our dataset is loaded
-                        if (parentEntity === null) {
+                        if (parentEntity === null && !self.entityLoadingSet.has(parent)) {
+                            self.entityLoadingSet.add(parent);
                             console.log("not loaded, waiting for dataset for target '" + parent + "'");
                             var name = parts[1];
                             el.sceneEl.addEventListener('argon-vuforia-dataset-loaded', function(evt) {
                                 console.log('dataset loaded.');
                                 console.log("dataset name '" + evt.detail.target.name + "', our name '" + name + "'");
                                 if (evt.detail.target.name === name) {
+                                    self.entityLoadingSet.delete(parent);
                                     self.update(self.data);
                                 }
                             });            
@@ -1692,13 +1696,15 @@ AFRAME.registerComponent('referenceframe', {
                         }
 
                         // if still not known, try again when our marker is loaded
-                        if (parentEntity === null) {
+                        if (parentEntity === null && !self.entityLoadingSet.has(parent)) {
+                            self.entityLoadingSet.add(parent);
                             console.log("not loaded, waiting for marker '" + parent + "'");
                             var name = parts[1];
                             el.sceneEl.addEventListener('argon-jsartoolkit-marker-loaded', function(evt) {
                                 console.log('marker loaded.');
                                 console.log("marker name '" + evt.detail.target.name + "', our name '" + name + "'");
                                 if (evt.detail.target.name === name) {
+                                    self.entityLoadingSet.delete(parent);
                                     self.update(self.data);
                                 }
                             });            
