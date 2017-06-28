@@ -50,6 +50,7 @@ arScene.addEventListener('argon-vuforia-not-available', function(evt) {
 
 arScene.addEventListener('argon-jsartoolkit-initialization-failed', function(evt) {
     statusMsg.innerHTML = "jsartoolkit failed to initialize: " + evt.detail.error.message;
+    onFail();
 });
 
 arScene.addEventListener('argon-jsartoolkit-initialized', function(evt) {
@@ -105,8 +106,8 @@ function onFail() {
 
     contentRoot.setAttribute("rotation", { x: 0, y: -90, z:0 });
 
-    hudElem.innerHTML = "No Vuforia. Showing scene that would be on the target."
-    hudElem2.innerHTML = "No Vuforia. Showing scene that would be on the target."
+    hudElem.innerHTML = "No Vuforia or JSARToolKit. Showing scene that would be on the target."
+    hudElem2.innerHTML = "No Vuforia or JSARToolKit. Showing scene that would be on the target."
     arScene.hud.appendChild(hudElem, hudElem2);
 
     statusMsg.innerHTML = "done";

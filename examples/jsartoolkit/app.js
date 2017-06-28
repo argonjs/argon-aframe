@@ -15,11 +15,10 @@ hudElem2.id = hudElem.id + "2";
 arScene.addEventListener('argon-initialized', function(evt) {
     statusMsg.innerHTML = "argon initialized, starting jsartoolkit...";
 });
-//arScene.addEventListener('argon-jsartoolkit-initialized', function(evt) {
-//    statusMsg.innerHTML = "jsartoolkit initialized, initializing markers...";
-//});
+
 arScene.addEventListener('argon-jsartoolkit-initialization-failed', function(evt) {
     statusMsg.innerHTML = "jsartoolkit failed to initialize: " + evt.detail.error.message;
+    onFail();
 });
 
 arScene.addEventListener('argon-jsartoolkit-initialized', function(evt) {
@@ -48,6 +47,10 @@ arScene.addEventListener('argon-jsartoolkit-marker-load-failed', function(evt) {
 });
 
 arScene.addEventListener('argon-jsartoolkit-not-available', function(evt) {
+    onFail();
+});
+
+function onFail() {
     frame.setAttribute("trackvisibility", false);
     frame.setAttribute("visible", true);
     frame.setAttribute("parent", "ar.stage")
@@ -62,7 +65,7 @@ arScene.addEventListener('argon-jsartoolkit-not-available', function(evt) {
 
     statusMsg.innerHTML = "done";
     loader.classList.add('loaded');
-});
+}
 
 arScene.addEventListener('enter-vr', function (evt) {
     hudElem.classList.add("viewerMode");
