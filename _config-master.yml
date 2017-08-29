@@ -18,6 +18,6 @@ keywords:    "argon, aframe, augmented reality, web, javascript"
 # argonaframejs: "../build.js"
 
 argonjs: "https://unpkg.com/@argonjs/argon@^1.2/dist/argon.js"
-aframejs: "https://aframe.io/releases/0.5.0/aframe.min.js"
+aframejs: "https://aframe.io/releases/0.6.1/aframe.js"
 samples: "https://samples.argonjs.io"
 argonaframejs: "https://rawgit.com/argonjs/argon-aframe/master/dist/argon-aframe.js"

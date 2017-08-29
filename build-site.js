@@ -18,7 +18,7 @@ switch (program.config) {
 
     case 'dev': 
         data.argonjs = "https://rawgit.com/argonjs/argon/develop/dist/argon.js";
-        data.aframejs = "https://aframe.io/releases/0.5.0/aframe.min.js";
+        data.aframejs = "https://aframe.io/releases/0.6.1/aframe.min.js";
         data.samples = "https://samples-develop.argonjs.io";
         data.argonaframejs = "../build.js";
         break;

@@ -42,7 +42,7 @@ AFRAME.registerSystem('jsartoolkit', {
             // save a reference to this session
             this.webrtcRealitySession = session;
 
-            this.webrtcRealitySession.request('ar.jsartoolkit.init').then(()=>{
+            this.webrtcRealitySession.request('ar.jsartoolkit.init').then(function(){
                 console.log("jsartoolkit initialized!")
                 this.initInProgress = false;
 
@@ -118,7 +118,7 @@ AFRAME.registerSystem('jsartoolkit', {
             marker.initInProgress = true;
             this.webrtcRealitySession.request('ar.jsartoolkit.addMarker', {
                 url: marker.url
-            }).then((msg)=>{
+            }).then(function(msg){
                 if (!msg) return;
                 console.log("created marker " + name );
                 marker.initInProgress = false;

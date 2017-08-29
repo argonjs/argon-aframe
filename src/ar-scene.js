@@ -69,7 +69,7 @@ AFRAME.registerElement('ar-scene', {
 
     init: {
       value: function () {
-        this.behaviors = [];
+        this.behaviors = { tick: [], tock: [] };
         this.hasLoaded = false;
         this.isPlaying = false;
         this.originalHTML = this.innerHTML;
@@ -90,6 +90,7 @@ AFRAME.registerElement('ar-scene', {
 
         this.argonRender = this.argonRender.bind(this);
         this.argonUpdate = this.argonUpdate.bind(this);
+        this.argonPostRender = this.argonPostRender.bind(this);
         this.argonPresentChange = this.argonPresentChange.bind(this);
 
         this.argonChangeReality = this.argonChangeReality.bind(this);
@@ -105,18 +106,109 @@ AFRAME.registerElement('ar-scene', {
           this.setupRenderer();
           // run this whenever the document is loaded, which might be now
           document.DOMReady().then(this.initializeArgonView);
-        });
+        });        
       },
       writable: true 
     },
+      
+    /**
+     * Handler attached to elements to help scene know when to kick off.
+     * Scene waits for all entities to load.
+     */
+    attachedCallback: {
+      value: function () {        
+        this.initSystems();
+        this.play();
 
+        // Add to scene index.
+        AFRAME.scenes.push(this);
+
+        // Handler to exit VR (e.g., Oculus Browser back button).  argon handles
+        // this.onVRPresentChangeBound = bind(this.onVRPresentChange, this);
+        // window.addEventListener('vrdisplaypresentchange', this.onVRPresentChangeBound);
+
+        // Enter VR on `vrdisplayactivate` (e.g. putting on Rift headset).
+        window.addEventListener('vrdisplayactivate', function () { self.enterVR(); });
+
+        // Exit VR on `vrdisplaydeactivate` (e.g. taking off Rift headset).
+        window.addEventListener('vrdisplaydeactivate', function () { self.exitVR(); });
+
+      },
+      writable: window.debug
+    },
+
+    /**
+     * Some mundane functions below here
+     */
+    initSystems: {
+      value: function () {
+        var systemsKeys = Object.keys(AFRAME.systems);
+        systemsKeys.forEach(this.initSystem.bind(this));
+      }
+    },
+
+    initSystem: {
+      value: function (name) {
+        var system;
+        if (this.systems[name]) { return; }
+        system = this.systems[name] = new AFRAME.systems[name](this);
+        // system.init();
+      }
+    },
+
+    /**
+     * Shuts down scene on detach.
+     */
+    detachedCallback: {
+      value: function () {
+        var sceneIndex;
+        if (this.animationFrameID) {
+          cancelAnimationFrame(this.animationFrameID);
+          this.animationFrameID = null;
+        }
+        this.argonApp.reality.changeEvent.removeEventListener(this.argonChangeReality);
+        this.argonApp.reality.connectEvent.removeEventListener(this.argonSessionChange);
+        this.removeEventListeners();
+
+        // Remove from scene index.
+        sceneIndex = scenes.indexOf(this);
+        scenes.splice(sceneIndex, 1);
+
+        // window.removeEventListener('vrdisplaypresentchange', this.onVRPresentChangeBound);
+      }
+    },
+
+    /**
+     * Add ticks and tocks.
+     *
+     * @param {object} behavior - Generally a component. Must implement a .update() method
+     *   to be called on every tick.
+     */
+    addBehavior: {
+      value: function (behavior) {
+        var self = this;
+        var behaviors = this.behaviors;
+        // Check if behavior has tick and/or tock and add the behavior to the appropriate list.
+        Object.keys(behaviors).forEach(function (behaviorType) {
+          if (!behavior[behaviorType]) { return; }
+          var behaviorArr = self.behaviors[behaviorType];
+          if (behaviorArr.indexOf(behavior) === -1) {
+            behaviorArr.push(behavior);
+          }
+        });
+      }
+    },
+
+    /**
+     * Set up the Argon renderer
+     */
     setupRenderer: {
       value: function () {      
         var canvas = this.canvas;
 
         // Set at startup. To enable/disable antialias and logarithmicdepthbuffer
         // at runttime we would have to recreate the whole context
-        var antialias = this.getAttribute('antialias') === 'true';
+        var antialias = shouldAntiAlias(this);
         var logarithmicDepthBuffer = this.getAttribute('logarithmicdepth') === 'true';
 
         if (THREE.CSS3DArgonRenderer) {
@@ -135,6 +227,8 @@ AFRAME.registerElement('ar-scene', {
             antialias: antialias || window.hasNativeWebVRImplementation,
             logarithmicDepthBuffer: logarithmicDepthBuffer
         });
+        this.renderer.sortObjects = false;
+        
         this.renderer.setPixelRatio(window.devicePixelRatio);
       },
       writable: true
@@ -170,28 +264,14 @@ AFRAME.registerElement('ar-scene', {
         this.argonApp.context.subscribeGeolocation({enableHighAccuracy: this.enableHighAccuracy});
       }
     },
-    
-    /**
-     * Handler attached to elements to help scene know when to kick off.
-     * Scene waits for all entities to load.
-     */
-    attachedCallback: {
-      value: function () {        
-        this.initSystems();
-        this.play();
-
-        // Add to scene index.
-        AFRAME.scenes.push(this);
-      },
-      writable: window.debug
-    },
 
     addEventListeners: {
         value: function () {
-            this.argonApp.renderEvent.addEventListener(this.argonRender);
-            this.argonApp.updateEvent.addEventListener(this.argonUpdate);
-
-            this.argonApp.device.presentHMDChangeEvent.addEventListener(this.argonPresentChange);
+          this.argonApp.renderEvent.addEventListener(this.argonRender);
+          this.argonApp.updateEvent.addEventListener(this.argonUpdate);
+          this.argonApp.context.postRenderEvent.addEventListener(this.argonPostRender);
+          
+          this.argonApp.device.presentHMDChangeEvent.addEventListener(this.argonPresentChange);
         },
         writable: true
     },
@@ -296,9 +376,11 @@ AFRAME.registerElement('ar-scene', {
 
     removeEventListeners: {
         value: function () {
-            this.argonApp.updateEvent.removeEventListener(this.argonUpdate);
-            this.argonApp.renderEvent.removeEventListener(this.argonRender);
-            this.argonApp.device.presentChangeEvent.removeEventListener(this.argonPresentChange);
+          this.argonApp.context.postRenderEvent.removeEventListener(this.argonPostRender);
+          this.argonApp.updateEvent.removeEventListener(this.argonUpdate);
+          this.argonApp.renderEvent.removeEventListener(this.argonRender);
+
+          this.argonApp.device.presentHMDChangeEvent.removeEventListener(this.argonPresentChange);
         },
         writable: true
     },
@@ -313,11 +395,11 @@ AFRAME.registerElement('ar-scene', {
         }
 
         this.addEventListener('loaded', function () {
-          if (this.renderStarted) { return; }
+          if (self.renderStarted) { return; }
 
           // only do this once!
-          this.renderStarted = true;
-
+          self.renderStarted = true;
+       
           var fixCamera = function () {
             var arCameraEl = null;
             var cameraEls = self.querySelectorAll('[camera]');
@@ -358,50 +440,30 @@ AFRAME.registerElement('ar-scene', {
           }
           // if there are any cameras aside from the AR-CAMERA loaded, 
           // make them inactive.
-          this.addEventListener('camera-set-active', fixCamera);
+          self.addEventListener('camera-set-active', fixCamera);
           fixCamera();
           
-          if (this.argonApp) {
+          if (self.argonApp) {
               self.addEventListeners();
           } else {
-            this.addEventListener('argon-initialized', function() {
+            self.addEventListener('argon-initialized', function() {
               self.addEventListeners();
             });
           }
 
-          AEntity.prototype.play.call(this);
+          AEntity.prototype.play.call(self);
 
           if (window.performance) {
               window.performance.mark('render-started');
           }
 
-          this.emit('renderstart');
+          self.emit('renderstart');
         });
 
         // setTimeout to wait for all nodes to attach and run their callbacks.
         setTimeout(function () {
           AEntity.prototype.load.call(self);
         });
-      }
-    },
-
-    /**
-     * Shuts down scene on detach.
-     */
-    detachedCallback: {
-      value: function () {
-        var sceneIndex;
-        if (this.animationFrameID) {
-          cancelAnimationFrame(this.animationFrameID);
-          this.animationFrameID = null;
-        }
-        this.argonApp.reality.changeEvent.removeEventListener(this.argonChangeReality);
-        this.argonApp.reality.connectEvent.removeEventListener(this.argonSessionChange);
-        this.removeEventListeners();
-
-        // Remove from scene index.
-        sceneIndex = scenes.indexOf(this);
-        scenes.splice(sceneIndex, 1);
       }
     },
 
@@ -425,41 +487,13 @@ AFRAME.registerElement('ar-scene', {
     },
 
     /**
-     * Behavior-updater meant to be called from scene render.
-     * Abstracted to a different function to facilitate unit testing (`scene.tick()`) without
-     * needing to render.
+     * Wrap `updateComponent` to not initialize the component if the component has a system
+     * (aframevr/aframe#2365).
      */
-    argonUpdate: {
-        value: function (frame) {
-            var time = frame.timestamp;
-            var timeDelta = frame.deltaTime;
-
-            if (this.isPlaying) {
-                this.tick(time, timeDelta);
-            }
-
-            this.time = time;   
-        },
-        writable: true
-    },
-
-    tick: {
-      value: function (time, timeDelta) {
-        var systems = this.systems;
-
-        // Animations.
-        TWEEN.update(time);
-
-        // Components.
-        this.behaviors.forEach(function (component) {
-            if (!component.el.isPlaying) { return; }
-            component.tick(time, timeDelta);
-        });
-        // Systems.
-        Object.keys(systems).forEach(function (key) {
-            if (!systems[key].tick) { return; }
-            systems[key].tick(time, timeDelta);
-        });
+    updateComponent: {
+      value: function (componentName) {
+        if (componentName in AFRAME.systems) { return; }
+        AEntity.prototype.updateComponent.apply(this, arguments);
       }
     },
 
@@ -514,7 +548,110 @@ AFRAME.registerElement('ar-scene', {
 				}
 			}
 		},
-		
+    
+    /**
+     * Handle `vrdisplaypresentchange` event for exiting VR through other means than
+     * `<ESC>` key. For example, GearVR back button on Oculus Browser.
+     */
+    //  argon handles this for us
+
+    // onVRPresentChange: {
+    //   value: function (evt) {
+    //     // Entering VR.
+    //     if (evt.display.isPresenting) {
+    //       this.enterVR(true);
+    //       return;
+    //     }
+    //     // Exiting VR.
+    //     this.exitVR(true);
+    //   }
+    // },
+
+
+    /**
+     * Behavior-updater meant to be called from scene render.
+     * Abstracted to a different function to facilitate unit testing (`scene.tick()`) without
+     * needing to render.
+     */
+    argonUpdate: {
+      value: function (frame) {
+          var time = frame.timestamp;
+          var timeDelta = frame.deltaTime;
+
+          if (this.isPlaying) {
+              this.tick(time, timeDelta);
+          }
+
+          this.time = time;   
+      },
+      writable: true
+    },
+
+    /**
+     * Behavior-updater meant to be called from scene render.
+     * Abstracted to a different function to facilitate unit testing (`scene.tick()`) without
+     * needing to render.
+     */
+    argonPostRender: {
+      value: function (frame) {
+          var time = frame.timestamp;
+          var timeDelta = frame.deltaTime;
+
+          if (this.isPlaying) {
+              this.tock(time, timeDelta);
+          }
+
+          this.time = time;   
+      },
+      writable: true
+    },
+
+    /**
+     * Behavior-updater meant to be called from scene render.
+     * Abstracted to a different function to facilitate unit testing (`scene.tick()`) without
+     * needing to render.
+     */
+    tick: {
+      value: function (time, timeDelta) {
+        var systems = this.systems;
+        // Animations.
+        TWEEN.update();
+
+        // Components.
+        this.behaviors.tick.forEach(function (component) {
+          if (!component.el.isPlaying) { return; }
+          component.tick(time, timeDelta);
+        });
+        // Systems.
+        Object.keys(systems).forEach(function (key) {
+          if (!systems[key].tick) { return; }
+          systems[key].tick(time, timeDelta);
+        });
+      }
+    },
+
+    /**
+     * Behavior-updater meant to be called after scene render for post processing purposes.
+     * Abstracted to a different function to facilitate unit testing (`scene.tock()`) without
+     * needing to render.
+     */
+    tock: {
+      value: function (time, timeDelta) {
+        var systems = this.systems;
+
+        // Components.
+        this.behaviors.tock.forEach(function (component) {
+          if (!component.el.isPlaying) { return; }
+          component.tock(time, timeDelta);
+        });
+        // Systems.
+        Object.keys(systems).forEach(function (key) {
+          if (!systems[key].tock) { return; }
+          systems[key].tock(time, timeDelta);
+        });
+      }
+    },
+
     /**
      * The render loop.
      *
@@ -659,37 +796,6 @@ AFRAME.registerElement('ar-scene', {
 
 
     /**
-     * Some mundane functions below here
-     */
-    initSystems: {
-      value: function () {
-        var systemsKeys = Object.keys(AFRAME.systems);
-        systemsKeys.forEach(this.initSystem.bind(this));
-      }
-    },
-
-    initSystem: {
-      value: function (name) {
-        var system;
-        if (this.systems[name]) { return; }
-        system = this.systems[name] = new AFRAME.systems[name](this);
-        system.init();
-      }
-    },
-
-    /**
-     * @param {object} behavior - Generally a component. Must implement a .update() method to
-     *        be called on every tick.
-     */
-    addBehavior: {
-      value: function (behavior) {
-        var behaviors = this.behaviors;
-        if (behaviors.indexOf(behavior) !== -1) { return; }
-        behaviors.push(behavior);
-      }
-    },
-
-    /**
      * Wraps Entity.getAttribute to take into account for systems.
      * If system exists, then return system data rather than possible component data.
      */
@@ -745,13 +851,20 @@ AFRAME.registerElement('ar-scene', {
      */
     removeBehavior: {
       value: function (behavior) {
+        var self = this;
         var behaviors = this.behaviors;
-        var index = behaviors.indexOf(behavior);
-        if (index === -1) { return; }
-        behaviors.splice(index, 1);
+        // Check if behavior has tick and/or tock and remove the behavior from the appropriate array.
+        Object.keys(behaviors).forEach(function (behaviorType) {
+          if (!behavior[behaviorType]) { return; }
+          var behaviorArr = self.behaviors[behaviorType];
+          var index = behaviorArr.indexOf(behavior);
+          if (index !== -1) {
+            behaviorArr.splice(index, 1);
+          }
+        });
       }
     },
-
+    
     resize: {
       value: function () {
         // don't need to do anything, just don't want components who call this to fail
@@ -768,3 +881,19 @@ AFRAME.registerPrimitive('ar-camera', {
     referenceframe: {parent: 'ar.user'}
   }
 });
+
+/**
+ * Determines if renderer anti-aliasing should be enabled.
+ * Enabled by default if has native WebVR or is desktop.
+ *
+ * @returns {bool}
+ */
+function shouldAntiAlias (sceneEl) {
+  // Explicitly set.
+  if (sceneEl.getAttribute('antialias') !== null) {
+    return sceneEl.getAttribute('antialias') === 'true';
+  }
+
+  // Default not AA for mobile.
+  return !sceneEl.isMobile;
+}

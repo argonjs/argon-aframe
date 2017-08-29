@@ -474,6 +474,30 @@ component to false.
 |---------------------------------------------------------------------------------------------------------------------------------|---------------|
 | If this component is active or not, and changes the object3D.visible value. | true |
 
+## Physical Object Proxies
+
+In situations where you know the structure of the physical world and which to provide 
+models of the world (to use for occlusion, shadows and/or physics, for example), 
+the `physical` component allows a model (that has an associated `mesh` created 
+internally) to only be rendered into the depth buffer.  The `mesh` is not rendered
+into the visible color buffer, and is rendered before the rest of the scene.
+
+The component has one property, a boolean, that enables or disables it.  
+
+```html
+<ar-scene>
+      <ar-geopose id="frame" lla="-84.340987 33.774205">
+         <a-sphere position="0 0 0.05" radius="1" physical="true"></a-sphere>
+      </ar-geopose>
+</ar-scene>
+```
+
+### Properties
+
+| Description                                                                                                                     | Default Value |
+|---------------------------------------------------------------------------------------------------------------------------------|---------------|
+| If this component is active or not, and changes the rendering. | true |
+
 # Primitives
 
 We define a set of primitives for some common AR use cases.

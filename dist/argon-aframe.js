@@ -50,6 +50,7 @@
 	__webpack_require__(8);
 	__webpack_require__(9);
 	__webpack_require__(10);
+	__webpack_require__(11);
 
 /***/ }),
 /* 1 */
@@ -126,7 +127,7 @@
 
 	    init: {
 	      value: function () {
-	        this.behaviors = [];
+	        this.behaviors = { tick: [], tock: [] };
 	        this.hasLoaded = false;
 	        this.isPlaying = false;
 	        this.originalHTML = this.innerHTML;
@@ -147,6 +148,7 @@
 
 	        this.argonRender = this.argonRender.bind(this);
 	        this.argonUpdate = this.argonUpdate.bind(this);
+	        this.argonPostRender = this.argonPostRender.bind(this);
 	        this.argonPresentChange = this.argonPresentChange.bind(this);
 
 	        this.argonChangeReality = this.argonChangeReality.bind(this);
@@ -162,18 +164,109 @@
 	          this.setupRenderer();
 	          // run this whenever the document is loaded, which might be now
 	          document.DOMReady().then(this.initializeArgonView);
-	        });
+	        });        
 	      },
 	      writable: true 
 	    },
+	      
+	    /**
+	     * Handler attached to elements to help scene know when to kick off.
+	     * Scene waits for all entities to load.
+	     */
+	    attachedCallback: {
+	      value: function () {        
+	        this.initSystems();
+	        this.play();
 
+	        // Add to scene index.
+	        AFRAME.scenes.push(this);
+
+	        // Handler to exit VR (e.g., Oculus Browser back button).  argon handles
+	        // this.onVRPresentChangeBound = bind(this.onVRPresentChange, this);
+	        // window.addEventListener('vrdisplaypresentchange', this.onVRPresentChangeBound);
+
+	        // Enter VR on `vrdisplayactivate` (e.g. putting on Rift headset).
+	        window.addEventListener('vrdisplayactivate', function () { self.enterVR(); });
+
+	        // Exit VR on `vrdisplaydeactivate` (e.g. taking off Rift headset).
+	        window.addEventListener('vrdisplaydeactivate', function () { self.exitVR(); });
+
+	      },
+	      writable: window.debug
+	    },
+
+	    /**
+	     * Some mundane functions below here
+	     */
+	    initSystems: {
+	      value: function () {
+	        var systemsKeys = Object.keys(AFRAME.systems);
+	        systemsKeys.forEach(this.initSystem.bind(this));
+	      }
+	    },
+
+	    initSystem: {
+	      value: function (name) {
+	        var system;
+	        if (this.systems[name]) { return; }
+	        system = this.systems[name] = new AFRAME.systems[name](this);
+	        // system.init();
+	      }
+	    },
+
+	    /**
+	     * Shuts down scene on detach.
+	     */
+	    detachedCallback: {
+	      value: function () {
+	        var sceneIndex;
+	        if (this.animationFrameID) {
+	          cancelAnimationFrame(this.animationFrameID);
+	          this.animationFrameID = null;
+	        }
+	        this.argonApp.reality.changeEvent.removeEventListener(this.argonChangeReality);
+	        this.argonApp.reality.connectEvent.removeEventListener(this.argonSessionChange);
+	        this.removeEventListeners();
+
+	        // Remove from scene index.
+	        sceneIndex = scenes.indexOf(this);
+	        scenes.splice(sceneIndex, 1);
+
+	        // window.removeEventListener('vrdisplaypresentchange', this.onVRPresentChangeBound);
+	      }
+	    },
+
+	    /**
+	     * Add ticks and tocks.
+	     *
+	     * @param {object} behavior - Generally a component. Must implement a .update() method
+	     *   to be called on every tick.
+	     */
+	    addBehavior: {
+	      value: function (behavior) {
+	        var self = this;
+	        var behaviors = this.behaviors;
+	        // Check if behavior has tick and/or tock and add the behavior to the appropriate list.
+	        Object.keys(behaviors).forEach(function (behaviorType) {
+	          if (!behavior[behaviorType]) { return; }
+	          var behaviorArr = self.behaviors[behaviorType];
+	          if (behaviorArr.indexOf(behavior) === -1) {
+	            behaviorArr.push(behavior);
+	          }
+	        });
+	      }
+	    },
+
+	    /**
+	     * Set up the Argon renderer
+	     */
 	    setupRenderer: {
 	      value: function () {      
 	        var canvas = this.canvas;
 
 	        // Set at startup. To enable/disable antialias and logarithmicdepthbuffer
 	        // at runttime we would have to recreate the whole context
-	        var antialias = this.getAttribute('antialias') === 'true';
+	        var antialias = shouldAntiAlias(this);
 	        var logarithmicDepthBuffer = this.getAttribute('logarithmicdepth') === 'true';
 
 	        if (THREE.CSS3DArgonRenderer) {
@@ -192,6 +285,8 @@
 	            antialias: antialias || window.hasNativeWebVRImplementation,
 	            logarithmicDepthBuffer: logarithmicDepthBuffer
 	        });
+	        this.renderer.sortObjects = false;
+	        
 	        this.renderer.setPixelRatio(window.devicePixelRatio);
 	      },
 	      writable: true
@@ -227,28 +322,14 @@
 	        this.argonApp.context.subscribeGeolocation({enableHighAccuracy: this.enableHighAccuracy});
 	      }
 	    },
-	    
-	    /**
-	     * Handler attached to elements to help scene know when to kick off.
-	     * Scene waits for all entities to load.
-	     */
-	    attachedCallback: {
-	      value: function () {        
-	        this.initSystems();
-	        this.play();
-
-	        // Add to scene index.
-	        AFRAME.scenes.push(this);
-	      },
-	      writable: window.debug
-	    },
 
 	    addEventListeners: {
 	        value: function () {
-	            this.argonApp.renderEvent.addEventListener(this.argonRender);
-	            this.argonApp.updateEvent.addEventListener(this.argonUpdate);
-
-	            this.argonApp.device.presentHMDChangeEvent.addEventListener(this.argonPresentChange);
+	          this.argonApp.renderEvent.addEventListener(this.argonRender);
+	          this.argonApp.updateEvent.addEventListener(this.argonUpdate);
+	          this.argonApp.context.postRenderEvent.addEventListener(this.argonPostRender);
+	          
+	          this.argonApp.device.presentHMDChangeEvent.addEventListener(this.argonPresentChange);
 	        },
 	        writable: true
 	    },
@@ -353,9 +434,11 @@
 
 	    removeEventListeners: {
 	        value: function () {
-	            this.argonApp.updateEvent.removeEventListener(this.argonUpdate);
-	            this.argonApp.renderEvent.removeEventListener(this.argonRender);
-	            this.argonApp.device.presentChangeEvent.removeEventListener(this.argonPresentChange);
+	          this.argonApp.context.postRenderEvent.removeEventListener(this.argonPostRender);
+	          this.argonApp.updateEvent.removeEventListener(this.argonUpdate);
+	          this.argonApp.renderEvent.removeEventListener(this.argonRender);
+
+	          this.argonApp.device.presentHMDChangeEvent.removeEventListener(this.argonPresentChange);
 	        },
 	        writable: true
 	    },
@@ -370,11 +453,11 @@
 	        }
 
 	        this.addEventListener('loaded', function () {
-	          if (this.renderStarted) { return; }
+	          if (self.renderStarted) { return; }
 
 	          // only do this once!
-	          this.renderStarted = true;
-
+	          self.renderStarted = true;
+	       
 	          var fixCamera = function () {
 	            var arCameraEl = null;
 	            var cameraEls = self.querySelectorAll('[camera]');
@@ -415,50 +498,30 @@
 	          }
 	          // if there are any cameras aside from the AR-CAMERA loaded, 
 	          // make them inactive.
-	          this.addEventListener('camera-set-active', fixCamera);
+	          self.addEventListener('camera-set-active', fixCamera);
 	          fixCamera();
 	          
-	          if (this.argonApp) {
+	          if (self.argonApp) {
 	              self.addEventListeners();
 	          } else {
-	            this.addEventListener('argon-initialized', function() {
+	            self.addEventListener('argon-initialized', function() {
 	              self.addEventListeners();
 	            });
 	          }
 
-	          AEntity.prototype.play.call(this);
+	          AEntity.prototype.play.call(self);
 
 	          if (window.performance) {
 	              window.performance.mark('render-started');
 	          }
 
-	          this.emit('renderstart');
+	          self.emit('renderstart');
 	        });
 
 	        // setTimeout to wait for all nodes to attach and run their callbacks.
 	        setTimeout(function () {
 	          AEntity.prototype.load.call(self);
 	        });
-	      }
-	    },
-
-	    /**
-	     * Shuts down scene on detach.
-	     */
-	    detachedCallback: {
-	      value: function () {
-	        var sceneIndex;
-	        if (this.animationFrameID) {
-	          cancelAnimationFrame(this.animationFrameID);
-	          this.animationFrameID = null;
-	        }
-	        this.argonApp.reality.changeEvent.removeEventListener(this.argonChangeReality);
-	        this.argonApp.reality.connectEvent.removeEventListener(this.argonSessionChange);
-	        this.removeEventListeners();
-
-	        // Remove from scene index.
-	        sceneIndex = scenes.indexOf(this);
-	        scenes.splice(sceneIndex, 1);
 	      }
 	    },
 
@@ -482,41 +545,13 @@
 	    },
 
 	    /**
-	     * Behavior-updater meant to be called from scene render.
-	     * Abstracted to a different function to facilitate unit testing (`scene.tick()`) without
-	     * needing to render.
+	     * Wrap `updateComponent` to not initialize the component if the component has a system
+	     * (aframevr/aframe#2365).
 	     */
-	    argonUpdate: {
-	        value: function (frame) {
-	            var time = frame.timestamp;
-	            var timeDelta = frame.deltaTime;
-
-	            if (this.isPlaying) {
-	                this.tick(time, timeDelta);
-	            }
-
-	            this.time = time;   
-	        },
-	        writable: true
-	    },
-
-	    tick: {
-	      value: function (time, timeDelta) {
-	        var systems = this.systems;
-
-	        // Animations.
-	        TWEEN.update(time);
-
-	        // Components.
-	        this.behaviors.forEach(function (component) {
-	            if (!component.el.isPlaying) { return; }
-	            component.tick(time, timeDelta);
-	        });
-	        // Systems.
-	        Object.keys(systems).forEach(function (key) {
-	            if (!systems[key].tick) { return; }
-	            systems[key].tick(time, timeDelta);
-	        });
+	    updateComponent: {
+	      value: function (componentName) {
+	        if (componentName in AFRAME.systems) { return; }
+	        AEntity.prototype.updateComponent.apply(this, arguments);
 	      }
 	    },
 
@@ -571,7 +606,110 @@
 					}
 				}
 			},
-			
+	    
+	    /**
+	     * Handle `vrdisplaypresentchange` event for exiting VR through other means than
+	     * `<ESC>` key. For example, GearVR back button on Oculus Browser.
+	     */
+	    //  argon handles this for us
+
+	    // onVRPresentChange: {
+	    //   value: function (evt) {
+	    //     // Entering VR.
+	    //     if (evt.display.isPresenting) {
+	    //       this.enterVR(true);
+	    //       return;
+	    //     }
+	    //     // Exiting VR.
+	    //     this.exitVR(true);
+	    //   }
+	    // },
+
+
+	    /**
+	     * Behavior-updater meant to be called from scene render.
+	     * Abstracted to a different function to facilitate unit testing (`scene.tick()`) without
+	     * needing to render.
+	     */
+	    argonUpdate: {
+	      value: function (frame) {
+	          var time = frame.timestamp;
+	          var timeDelta = frame.deltaTime;
+
+	          if (this.isPlaying) {
+	              this.tick(time, timeDelta);
+	          }
+
+	          this.time = time;   
+	      },
+	      writable: true
+	    },
+
+	    /**
+	     * Behavior-updater meant to be called from scene render.
+	     * Abstracted to a different function to facilitate unit testing (`scene.tick()`) without
+	     * needing to render.
+	     */
+	    argonPostRender: {
+	      value: function (frame) {
+	          var time = frame.timestamp;
+	          var timeDelta = frame.deltaTime;
+
+	          if (this.isPlaying) {
+	              this.tock(time, timeDelta);
+	          }
+
+	          this.time = time;   
+	      },
+	      writable: true
+	    },
+
+	    /**
+	     * Behavior-updater meant to be called from scene render.
+	     * Abstracted to a different function to facilitate unit testing (`scene.tick()`) without
+	     * needing to render.
+	     */
+	    tick: {
+	      value: function (time, timeDelta) {
+	        var systems = this.systems;
+	        // Animations.
+	        TWEEN.update();
+
+	        // Components.
+	        this.behaviors.tick.forEach(function (component) {
+	          if (!component.el.isPlaying) { return; }
+	          component.tick(time, timeDelta);
+	        });
+	        // Systems.
+	        Object.keys(systems).forEach(function (key) {
+	          if (!systems[key].tick) { return; }
+	          systems[key].tick(time, timeDelta);
+	        });
+	      }
+	    },
+
+	    /**
+	     * Behavior-updater meant to be called after scene render for post processing purposes.
+	     * Abstracted to a different function to facilitate unit testing (`scene.tock()`) without
+	     * needing to render.
+	     */
+	    tock: {
+	      value: function (time, timeDelta) {
+	        var systems = this.systems;
+
+	        // Components.
+	        this.behaviors.tock.forEach(function (component) {
+	          if (!component.el.isPlaying) { return; }
+	          component.tock(time, timeDelta);
+	        });
+	        // Systems.
+	        Object.keys(systems).forEach(function (key) {
+	          if (!systems[key].tock) { return; }
+	          systems[key].tock(time, timeDelta);
+	        });
+	      }
+	    },
+
 	    /**
 	     * The render loop.
 	     *
@@ -716,37 +854,6 @@
 
 
 	    /**
-	     * Some mundane functions below here
-	     */
-	    initSystems: {
-	      value: function () {
-	        var systemsKeys = Object.keys(AFRAME.systems);
-	        systemsKeys.forEach(this.initSystem.bind(this));
-	      }
-	    },
-
-	    initSystem: {
-	      value: function (name) {
-	        var system;
-	        if (this.systems[name]) { return; }
-	        system = this.systems[name] = new AFRAME.systems[name](this);
-	        system.init();
-	      }
-	    },
-
-	    /**
-	     * @param {object} behavior - Generally a component. Must implement a .update() method to
-	     *        be called on every tick.
-	     */
-	    addBehavior: {
-	      value: function (behavior) {
-	        var behaviors = this.behaviors;
-	        if (behaviors.indexOf(behavior) !== -1) { return; }
-	        behaviors.push(behavior);
-	      }
-	    },
-
-	    /**
 	     * Wraps Entity.getAttribute to take into account for systems.
 	     * If system exists, then return system data rather than possible component data.
 	     */
@@ -802,13 +909,20 @@
 	     */
 	    removeBehavior: {
 	      value: function (behavior) {
+	        var self = this;
 	        var behaviors = this.behaviors;
-	        var index = behaviors.indexOf(behavior);
-	        if (index === -1) { return; }
-	        behaviors.splice(index, 1);
+	        // Check if behavior has tick and/or tock and remove the behavior from the appropriate array.
+	        Object.keys(behaviors).forEach(function (behaviorType) {
+	          if (!behavior[behaviorType]) { return; }
+	          var behaviorArr = self.behaviors[behaviorType];
+	          var index = behaviorArr.indexOf(behavior);
+	          if (index !== -1) {
+	            behaviorArr.splice(index, 1);
+	          }
+	        });
 	      }
 	    },
-
+	    
 	    resize: {
 	      value: function () {
 	        // don't need to do anything, just don't want components who call this to fail
@@ -825,6 +939,22 @@
 	    referenceframe: {parent: 'ar.user'}
 	  }
 	});
+
+	/**
+	 * Determines if renderer anti-aliasing should be enabled.
+	 * Enabled by default if has native WebVR or is desktop.
+	 *
+	 * @returns {bool}
+	 */
+	function shouldAntiAlias (sceneEl) {
+	  // Explicitly set.
+	  if (sceneEl.getAttribute('antialias') !== null) {
+	    return sceneEl.getAttribute('antialias') === 'true';
+	  }
+
+	  // Default not AA for mobile.
+	  return !sceneEl.isMobile;
+	}
 
 
 /***/ }),
@@ -2118,6 +2248,9 @@
 	        var el = this.el;                   // entity
 	        var self = this;
 
+	        this.loadingEntities = new Set();
+	        this.parentEntities = new Set();
+
 	        this.update = this.update.bind(this);
 
 	        if (!el.sceneEl) {
@@ -2287,36 +2420,81 @@
 	        if (parent === 'FIXED') {
 	            parentEntity = ReferenceFrame.FIXED;
 	        } else {
-	            var vuforia = el.sceneEl.systems["vuforia"];
-	            if (vuforia) {
-	                var parts = parent.split(".");
-	                if (parts.length === 3 && parts[0] === "vuforia") {
-	                    // see if it's already a known target entity
-	                    console.log("looking for target '" + parent + "'");
-	                    
-	                    parentEntity = vuforia.getTargetEntity(parts[1], parts[2]);
+	            parent.split("|").forEach(function (parent) {
+	                var vuforia = el.sceneEl.systems["vuforia"];
+	                if (vuforia) {
+	                    var parts = parent.split(".");
+	                    if (parts.length === 3 && parts[0] === "vuforia") {
+	                        // see if it's already a known target entity
+	                        console.log("looking for target '" + parent + "'");
+	                        
+	                        parentEntity = vuforia.getTargetEntity(parts[1], parts[2]);
 
-	                    // if not known, subscribe to it
-	                    if (parentEntity === null) {
-	                        console.log("not found, subscribing to target '" + parent + "'");
-	                        parentEntity = vuforia.subscribeToTarget(parts[1], parts[2]);
-	                    }
+	                        // if not known, subscribe to it
+	                        if (parentEntity === null) {
+	                            console.log("not found, subscribing to target '" + parent + "'");
+	                            parentEntity = vuforia.subscribeToTarget(parts[1], parts[2]);
+	                        }
 
-	                    // if still not known, try again when our dataset is loaded
-	                    if (parentEntity === null) {
-	                        console.log("not loaded, waiting for dataset for target '" + parent + "'");
-	                        var name = parts[1];
-	                        el.sceneEl.addEventListener('argon-vuforia-dataset-loaded', function(evt) {
-	                            console.log('dataset loaded.');
-	                            console.log("dataset name '" + evt.detail.target.name + "', our name '" + name + "'");
-	                            if (evt.detail.target.name === name) {
-	                                self.update(self.data);
-	                            }
-	                        });            
-	                        console.log("finished setting up to wait for dataset for target '" + parent + "'");
+	                        if (parentEntity) {
+	                            self.parentEntities.add(parentEntity);
+	                        }
+
+	                        // if still not known, try again when our dataset is loaded
+	                        if (parentEntity === null && !self.loadingEntities.has(parent)) {
+	                            self.loadingEntities.add(parent);
+	                            console.log("not loaded, waiting for dataset for target '" + parent + "'");
+	                            var name = parts[1];
+	                            el.sceneEl.addEventListener('argon-vuforia-dataset-loaded', function(evt) {
+	                                console.log('dataset loaded.');
+	                                console.log("dataset name '" + evt.detail.target.name + "', our name '" + name + "'");
+	                                if (evt.detail.target.name === name) {
+	                                    self.loadingEntities.delete(parent);
+	                                    self.update(self.data);
+	                                }
+	                            });            
+	                            console.log("finished setting up to wait for dataset for target '" + parent + "'");
+	                        }
 	                    }
 	                }
-	            }
+
+	                var jsartoolkit = el.sceneEl.systems["jsartoolkit"];
+	                if (jsartoolkit) {
+	                    var parts = parent.split(".");
+	                    if (parts.length === 2 && parts[0] === "jsartoolkit") {
+	                        // see if it's already a known marker entity
+	                        console.log("looking for marker '" + parent + "'");
+	                        
+	                        parentEntity = jsartoolkit.getMarkerEntity(parts[1]);
+
+	                        // if not known, subscribe to it
+	                        if (parentEntity === null) {
+	                            console.log("not found, subscribing to marker '" + parent + "'");
+	                            parentEntity = jsartoolkit.subscribeToMarker(parts[1]);
+	                        }
+
+	                        if (parentEntity) {
+	                            self.parentEntities.add(parentEntity);
+	                        }
+
+	                        // if still not known, try again when our marker is loaded
+	                        if (parentEntity === null && !self.loadingEntities.has(parent)) {
+	                            self.loadingEntities.add(parent);
+	                            console.log("not loaded, waiting for marker '" + parent + "'");
+	                            var name = parts[1];
+	                            el.sceneEl.addEventListener('argon-jsartoolkit-marker-loaded', function(evt) {
+	                                console.log('marker loaded.');
+	                                console.log("marker name '" + evt.detail.target.name + "', our name '" + name + "'");
+	                                if (evt.detail.target.name === name) {
+	                                    self.loadingEntities.delete(parent);
+	                                    self.update(self.data);
+	                                }
+	                            });            
+	                            console.log("finished setting up to wait for marker '" + parent + "'");
+	                        }
+	                    }
+	                }
+	            });
 
 	            // if it's a vuforia refernece frame, we might have found it above.  Otherwise, look for 
 	            // an entity with the parent ID
@@ -2373,6 +2551,7 @@
 	      return function(t) {
 	        this.checkFinished();
 
+	        var self = this;
 	        var data = this.data;               // parameters
 	        var el = this.el;                   // entity
 	        var object3D = el.object3D;
@@ -2381,6 +2560,17 @@
 	        var isNestedEl = !el.parentEl.isScene;
 
 	        if (!argonApp) { return };
+	        
+	        // if there is more than one possible parent entity catch the found events to set the parent
+	        if (this.parentEntities.size > 1) {
+	            this.parentEntities.forEach(function (parentEntity) {
+	                var entityPos = argonApp.context.getEntityPose(parentEntity);
+	                if (entityPos.poseStatus & Argon.PoseStatus.FOUND) {
+	                    console.log("found parent: " + parentEntity.id);
+	                    self.cesiumEntity.position.setValue(Cartesian3.ZERO, parentEntity);
+	                }
+	            });
+	        }
 
 	        if (this.cesiumEntity) { 
 	            var entityPos = argonApp.context.getEntityPose(this.cesiumEntity);
@@ -2916,6 +3106,211 @@
 
 /***/ }),
 /* 10 */
+/***/ (function(module, exports) {
+
+	AFRAME.registerSystem('jsartoolkit', {
+	    init: function () {
+	        this.webrtcRealitySession = undefined;
+	        this.markerMap = {};
+	        this.initInProgress = false;
+	        this.disableStartup = false;
+
+	        this.sceneEl.addEventListener('argon-initialized', this.startJSARToolKit.bind(this));
+	    },
+
+	    startJSARToolKit: function() {
+	        var sceneEl = this.sceneEl;
+	        var argonApp = sceneEl.argonApp;
+
+	        // need argon
+	        if (!argonApp) { return; }
+
+	        // if startup disabled (e.g. because vuforia has priority) return
+	        if (this.disableStartup) { return; }
+
+	        // if no markers, this app may not need jsartoolkit
+	        if (Object.keys(this.markerMap).length == 0) { return; }
+
+	        // if already initialized, bye bye
+	        if (this.webrtcRealitySession) { return; }
+
+	        // initialization is already in progress
+	        if (this.initInProgress) { return; }
+
+	        // set our desired reality
+	        this.initInProgress = true;
+	        argonApp.reality.connectEvent.addEventListener(this.realityWatcher.bind(this));
+	        argonApp.reality.request(Argon.RealityViewer.WEBRTC);
+	    },
+
+	    realityWatcher: function(session) {
+	        var self = this;
+	        var sceneEl = this.sceneEl;
+
+	        // check if the connected supports our jsartoolkit protocol
+	        if (session.supportsProtocol('ar.jsartoolkit')) {
+	            // save a reference to this session
+	            this.webrtcRealitySession = session;
+
+	            this.webrtcRealitySession.request('ar.jsartoolkit.init').then(function(){
+	                console.log("jsartoolkit initialized!")
+	                this.initInProgress = false;
+
+	                // re-call createOrUpdateMarker to create markers already requested
+	                Object.keys(self.markerMap).forEach(function(key,index) {
+	                    var marker = self.markerMap[key];
+	                    console.log("re-initializing marker " + key);
+	                    self.createOrUpdateMarker(marker.component, key, marker.url)
+	                });
+
+	                // tell everyone the good news
+	                sceneEl.emit('argon-jsartoolkit-initialized', {
+	                    target: sceneEl
+	                });                            
+	            }).catch(function(err) {
+	                console.log("jsartoolkit failed to initialize: " + err.message);
+
+	                sceneEl.emit('argon-jsartoolkit-initialization-failed', {
+	                    target: sceneEl,
+	                    error: err
+	                });
+	            });
+
+	            var self = this;
+	            session.closeEvent.addEventListener(function(){
+	                self.webrtcRealitySession = undefined;
+	            })
+	        }
+	    },
+
+	    // create an empty marker
+	    createEmptyMarkerObject: function () {
+	        return {
+	            component: null,
+	            url: null,
+	            id: null,
+	            loaded: false,
+	            initInProgress: false
+	        }
+	    },
+
+	    // create a new marker or update one currently created.  
+	    createOrUpdateMarker: function (component, name, url) {
+	        var self = this;
+	        var marker = this.markerMap[name];
+
+	        // if marker exists, and matches the previous element, it's because marker was registered before the 
+	        // reality was set up, which is fine.  Otherwise, its a duplicate marker name, which isn't allowed!
+	        if (marker) {
+	          if (marker.component) {
+	            if (marker.component != component) {
+	                console.warn('jsartoolkit.createOrUpdateMarker called multiple times for id=' + name + ', ignoring extra markers');
+	                return;
+	            }   
+	            if (marker.url != url) {
+	                console.warn("can't change the url for a jsartoolkit marker once it's created.  Ignoring new URL '" + url + "' for marker '" + name + "'")
+	                return;
+	            }
+	          } else {
+	            // first time this has been called, the marker is there already
+	            marker.component = component;
+	            marker.url = url;
+	          }
+	        } else {
+	            // set up the mapping if not there
+	            marker = this.markerMap[name] = this.createEmptyMarkerObject();
+	            marker.component = component;
+	            marker.url = url;
+	        }
+
+	        if (this.webrtcRealitySession && !marker.initInProgress) {
+	            // should have both jsartoolkit and argon initialized by now
+	            marker.initInProgress = true;
+	            this.webrtcRealitySession.request('ar.jsartoolkit.addMarker', {
+	                url: marker.url
+	            }).then(function(msg){
+	                if (!msg) return;
+	                console.log("created marker " + name );
+	                marker.initInProgress = false;
+	                marker.id = msg.id;
+	                marker.loaded = true;
+
+	                this.sceneEl.argonApp.context.subscribeToEntityById(marker.id);
+
+	                self.sceneEl.emit('argon-jsartoolkit-marker-loaded', {
+	                    target: marker.component
+	                });  
+	            })
+	        }
+	    },
+
+	    subscribeToMarker: function (name) {
+	        var marker = this.markerMap[name];
+
+	        // set up the mapping if not there
+	        if (!marker) {
+	            marker = this.markerMap[name] = this.createEmptyMarkerObject();
+	        }
+	        
+	        console.log("subscribe to " + name)
+
+	        if (!this.webrtcRealitySession) { return null; }
+	            
+	        if (marker.loaded) {
+	            return this.sceneEl.argonApp.context.subscribeToEntityById(marker.id);
+	        }
+	        // not loaded yet
+	        return null;
+	    },
+
+	    getMarkerEntity: function (name) {
+	        var marker = this.markerMap[name];
+
+	        console.log("getMarkerEntity " + name);
+
+	        if (marker && marker.id) {
+	            console.log("retrieved " + name)
+	            return this.sceneEl.argonApp.context.entities.getById(marker.id);
+	        } else {
+	            console.warn("can't get marker '" + name);
+	        }
+	        return null;
+	    }
+	});
+
+	AFRAME.registerComponent('jsartoolkitmarker', {
+	    multiple: true,
+
+	    schema: {
+	        src: {type: 'src'}
+	    },
+
+	    init: function () {
+	        var el = this.el;
+
+	        this.name = "default_marker";
+	        this.markerLoaded = false;
+
+	        if (!el.isArgon) {
+	            console.warn('jsartoolkitmarker should be attached to an <ar-scene>.');
+	        }
+	    },
+
+	    update: function (oldData) {
+	        var sceneEl = this.el.sceneEl;
+	        this.name = this.id ? this.id : "default_marker";
+
+	        var jsartoolkit = sceneEl.systems["jsartoolkit"];
+	        jsartoolkit.createOrUpdateMarker(this, this.name, this.data.src);
+
+	        // start just in case we haven't started yet
+	        jsartoolkit.startJSARToolKit();
+	    }
+	});
+
+
+/***/ }),
+/* 11 */
 /***/ (function(module, exports) {
 
 	AFRAME.registerComponent('panorama', {

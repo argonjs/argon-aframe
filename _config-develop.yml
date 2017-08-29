@@ -13,7 +13,7 @@ markdown: kramdown
 keywords:    "argon, aframe, augmented reality, web, javascript"
 
 argonjs: "https://rawgit.com/argonjs/argon/develop/dist/argon.js"
-aframejs: "https://aframe.io/releases/0.5.0/aframe.min.js"
+aframejs: "https://aframe.io/releases/0.6.1/aframe.js"
 samples: "https://samples-develop.argonjs.io"
 argonaframejs: "../build.js"
 

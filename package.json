@@ -11,7 +11,7 @@
     "devsite": "npm run build && jekyll build --config _config-develop.yml",
     "testsite": "npm run build && jekyll build --config _config-test.yml",
     "dev": "budo _site/main.js:build.js --dir _site --port 8001 --live --open",
-    "devssl": "budo _site/main.js:build.js --dir _site --port 8001 --live --open --ssl ",
+    "devssl": "budo _site/main.js:build.js --dir _site --port 8001 --live --open --ssl --cert .ssl/bmaci-com.crt.pem --key .ssl/bmaci-com.key.pem",
     "dist": "webpack src/index.js dist/argon-aframe.js && webpack -p src/index.js dist/argon-aframe.min.js",
     "distsite": "jekyll build --config _config-master.yml",
     "postpublish": "npm run dist",
