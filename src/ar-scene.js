@@ -122,7 +122,8 @@ AFRAME.registerElement('ar-scene', {
 
         // Add to scene index.
         AFRAME.scenes.push(this);
-
+        var self = this;
+        
         // Handler to exit VR (e.g., Oculus Browser back button).  argon handles
         // this.onVRPresentChangeBound = bind(this.onVRPresentChange, this);
         // window.addEventListener('vrdisplaypresentchange', this.onVRPresentChangeBound);
@@ -276,6 +277,17 @@ AFRAME.registerElement('ar-scene', {
         writable: true
     },
 
+    removeEventListeners: {
+      value: function () {
+        this.argonApp.context.postRenderEvent.removeEventListener(this.argonPostRender);
+        this.argonApp.updateEvent.removeEventListener(this.argonUpdate);
+        this.argonApp.renderEvent.removeEventListener(this.argonRender);
+
+        this.argonApp.device.presentHMDChangeEvent.removeEventListener(this.argonPresentChange);
+      },
+      writable: true
+  },
+  
     argonSessionChange: {
       value: function (session) {
         this.session = session;
@@ -374,17 +386,6 @@ AFRAME.registerElement('ar-scene', {
       writable: true
     },
 
-    removeEventListeners: {
-        value: function () {
-          this.argonApp.context.postRenderEvent.removeEventListener(this.argonPostRender);
-          this.argonApp.updateEvent.removeEventListener(this.argonUpdate);
-          this.argonApp.renderEvent.removeEventListener(this.argonRender);
-
-          this.argonApp.device.presentHMDChangeEvent.removeEventListener(this.argonPresentChange);
-        },
-        writable: true
-    },
-    
     play: {
       value: function () {
         var self = this;
