@@ -58,6 +58,7 @@
 
 	var AEntity = AFRAME.AEntity;
 	var ANode = AFRAME.ANode;
+	var radToDeg = THREE.Math.radToDeg;
 
 	var constants = __webpack_require__(2);
 
@@ -119,7 +120,9 @@
 	        this.renderer = null;
 	        this.canvas = null;
 	        this.session = null; 
-
+	        this.hmdQuaternion = new THREE.Quaternion();
+	        this.hmdEuler = new THREE.Euler();
+	    
 	        // finish initializing
 	        this.init();
 	      }
@@ -635,6 +638,27 @@
 	      value: function (frame) {
 	          var time = frame.timestamp;
 	          var timeDelta = frame.deltaTime;
+
+	          // update the camera pose with argon pose always
+	          var camera = this.camera;
+	          var user = this.argonApp.context.user;
+	          var pose = this.argonApp.context.getEntityPose(user);
+
+	          // Calculate HMD quaternion.
+	          this.hmdQuaternion = this.hmdQuaternion.copy(pose.orientation);
+	          this.hmdEuler.setFromQuaternion(this.hmdQuaternion, 'YXZ');
+	          rotation = {
+	            x: radToDeg(this.hmdEuler.x),
+	            y: radToDeg(this.hmdEuler.y),
+	            z: radToDeg(this.hmdEuler.z)
+	          };    
+	          camera.el.setAttribute('rotation', rotation);
+
+	          camera.el.setAttribute('position', {
+	            x: pose.position.x,
+	            y: pose.position.y,
+	            z: pose.position.z
+	          });
 
 	          if (this.isPlaying) {
 	              this.tick(time, timeDelta);

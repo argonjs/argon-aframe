@@ -1276,7 +1276,7 @@ AFRAME.registerSystem('jsartoolkit', {
             // save a reference to this session
             this.webrtcRealitySession = session;
 
-            this.webrtcRealitySession.request('ar.jsartoolkit.init').then(()=>{
+            this.webrtcRealitySession.request('ar.jsartoolkit.init').then(function(){
                 console.log("jsartoolkit initialized!")
                 this.initInProgress = false;
 
@@ -1352,7 +1352,7 @@ AFRAME.registerSystem('jsartoolkit', {
             marker.initInProgress = true;
             this.webrtcRealitySession.request('ar.jsartoolkit.addMarker', {
                 url: marker.url
-            }).then((msg)=>{
+            }).then(function(msg){
                 if (!msg) return;
                 console.log("created marker " + name );
                 marker.initInProgress = false;
@@ -1873,6 +1873,7 @@ AFRAME.registerPrimitive('ar-frame', {
 },{}],9:[function(require,module,exports){
 var AEntity = AFRAME.AEntity;
 var ANode = AFRAME.ANode;
+var radToDeg = THREE.Math.radToDeg;
 
 var constants = require('../node_modules/aframe/src/constants/');
 
@@ -1934,7 +1935,9 @@ AFRAME.registerElement('ar-scene', {
         this.renderer = null;
         this.canvas = null;
         this.session = null; 
-
+        this.hmdQuaternion = new THREE.Quaternion();
+        this.hmdEuler = new THREE.Euler();
+    
         // finish initializing
         this.init();
       }
@@ -2450,6 +2453,27 @@ AFRAME.registerElement('ar-scene', {
       value: function (frame) {
           var time = frame.timestamp;
           var timeDelta = frame.deltaTime;
+
+          // update the camera pose with argon pose always
+          var camera = this.camera;
+          var user = this.argonApp.context.user;
+          var pose = this.argonApp.context.getEntityPose(user);
+
+          // Calculate HMD quaternion.
+          this.hmdQuaternion = this.hmdQuaternion.copy(pose.orientation);
+          this.hmdEuler.setFromQuaternion(this.hmdQuaternion, 'YXZ');
+          rotation = {
+            x: radToDeg(this.hmdEuler.x),
+            y: radToDeg(this.hmdEuler.y),
+            z: radToDeg(this.hmdEuler.z)
+          };    
+          camera.el.setAttribute('rotation', rotation);
+
+          camera.el.setAttribute('position', {
+            x: pose.position.x,
+            y: pose.position.y,
+            z: pose.position.z
+          });
 
           if (this.isPlaying) {
               this.tick(time, timeDelta);
